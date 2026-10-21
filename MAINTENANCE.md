@@ -5,11 +5,25 @@
 
 ## 1. 仓库定位
 
-基于上游开源项目 **majiabin2020/WorkMami**（Tauri 2：Rust 后端 + React/AntD 前端）的本地长期维护分叉。源码最初经 GitHub API 逐文件下载（github.com 直连超时，仅 api.github.com 可达），**不是 `git clone`，故本地从未带 `.git`（无上游提交历史、无 remote 配置）**；本仓库为 `git init` 新建，上游已登记为 `origin`（`https://github.com/majiabin2020/WorkMami.git`）。
+基于上游开源项目 **majiabin2020/WorkMami**（Tauri 2：Rust 后端 + React/AntD 前端）的本地长期维护分叉。源码最初经 GitHub API 逐文件下载，**不是 `git clone`，故本地从未带上游 `.git`（无上游提交历史）**；本仓库为 `git init` 新建。
 
-### 远程与上游同步现状
-- `origin` 已登记 fetch/push 地址，但本机直连 `github.com:443` 超时（仅 api.github.com 可达），当前无法 fetch/pull/push，需代理或镜像。
-- **历史断层**：本地提交与上游无共同祖先，网络通后不能直接 fast-forward pull；跟进上游用 `git fetch origin` 后 `git merge --allow-unrelated-histories`，或在网络通时重新克隆上游、把本地定制作为补丁叠加以恢复连续历史。
+### 1.1 上游仓库现状（2026-10-21 经 api.github.com 核实）
+- 原仓库 `majiabin2020/WorkMami` 已 **404（删除或转私有）**：作者账号 `majiabin2020` 仍存活（23 个公开仓库），但列表中已无 WorkMami，原地址不可访问。
+- **主用备份（事实上存在、已验证）**：`ForgetiExistence/WorkMami`（分支 `main` @ `3e56cdb9`，3 个提交，MIT）。README 与本地逐字一致，含完整图标集与 `website/` 资源；非 GitHub fork（无 parent），为重新上传的 v0.1.0 快照。
+- 其他线索：`laycen/WorkMami-rebuild`（个人重建，无说明）；`hindleycheng/more`（基于 WorkMami MIT 改造的衍生品，**不是备份**）。
+
+### 1.2 远程配置（默认走镜像）
+| 远程 | 地址 | 用途 |
+| --- | --- | --- |
+| `origin` | `https://gh-proxy.com/https://github.com/ForgetiExistence/WorkMami.git` | 默认 fetch，经公益镜像中转 |
+| `upstream` | `https://github.com/ForgetiExistence/WorkMami.git` | 规范直连地址，网络允许时备用 |
+
+- 2026-10-21 实测 `ls-remote` 可用：`gh-proxy.com`、`ghproxy.net` 镜像，以及备份直连；不可用：`ghfast.top`、`github.moeyy.xyz`（连接超时），`ghproxy.cc`（TLS 校验失败）、`ghps.cc`（重定向拒绝）、`gitclone.com`、`kkgithub.com`。
+- 镜像切换：`git remote set-url origin <镜像前缀>/https://github.com/ForgetiExistence/WorkMami.git`，备选前缀 `https://ghproxy.net`。
+
+### 1.3 同步与历史断层
+- 本地提交与备份无共同祖先，不能 fast-forward；跟进备份用 `git fetch origin` 后 `git merge --allow-unrelated-histories`，日常比对直接 `git diff origin/main`。
+- **已知缺口**：本地缺备份中的 `src-tauri/icons/*`（全平台图标）、`website/`、`app-icon.png`（当初 API 下载跳过二进制）；仅影响 macOS 打包/官网，Windows 绿色 exe 构建不受影响，需要时从 `origin/main` 取回。
 
 ## 2. 本机环境（已就绪）
 
