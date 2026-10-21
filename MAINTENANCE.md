@@ -5,7 +5,11 @@
 
 ## 1. 仓库定位
 
-基于上游开源项目 **majiabin2020/WorkMami**（Tauri 2：Rust 后端 + React/AntD 前端）的本地长期维护分叉。源码最初经 GitHub API 逐文件下载（github.com 直连不通，仅 api.github.com 可达），后续所有改动直接在本仓库进行。
+基于上游开源项目 **majiabin2020/WorkMami**（Tauri 2：Rust 后端 + React/AntD 前端）的本地长期维护分叉。源码最初经 GitHub API 逐文件下载（github.com 直连超时，仅 api.github.com 可达），**不是 `git clone`，故本地从未带 `.git`（无上游提交历史、无 remote 配置）**；本仓库为 `git init` 新建，上游已登记为 `origin`（`https://github.com/majiabin2020/WorkMami.git`）。
+
+### 远程与上游同步现状
+- `origin` 已登记 fetch/push 地址，但本机直连 `github.com:443` 超时（仅 api.github.com 可达），当前无法 fetch/pull/push，需代理或镜像。
+- **历史断层**：本地提交与上游无共同祖先，网络通后不能直接 fast-forward pull；跟进上游用 `git fetch origin` 后 `git merge --allow-unrelated-histories`，或在网络通时重新克隆上游、把本地定制作为补丁叠加以恢复连续历史。
 
 ## 2. 本机环境（已就绪）
 
