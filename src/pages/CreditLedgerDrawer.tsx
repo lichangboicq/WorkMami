@@ -127,7 +127,7 @@ export default function CreditLedgerDrawer({
         <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>平台奖励积分</span>
           <Tooltip title="官方活动发放、签到、做任务、派猫猫旅行等获得的积分批次，各有独立到期时间">
-            <span style={{ marginLeft: 6, opacity: 0.5 }}>ⓘ</span>
+            <span style={{ marginLeft: 6, opacity: 0.65 }}>ⓘ</span>
           </Tooltip>
         </div>
 
@@ -169,7 +169,7 @@ export default function CreditLedgerDrawer({
                       <span style={{ fontWeight: 600 }}>
                         {fmtNum(r.used)}/{fmtNum(r.total)}积分
                       </span>
-                      <span style={{ opacity: 0.55, fontSize: 12 }}>
+                      <span style={{ opacity: 0.7, fontSize: 12 }}>
                         {" "}
                         （已用/总量）
                       </span>
@@ -177,18 +177,18 @@ export default function CreditLedgerDrawer({
                         {r.status}
                       </Tag>
                     </span>
-                    <span style={{ opacity: 0.7, fontSize: 12 }}>
+                    <span style={{ opacity: 0.8, fontSize: 12 }}>
                       到期时间：{fmtExpire(r.expireAt)}
                     </span>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.6 }}>
+                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
                     {r.name}
                     {r.reason ? ` · 下发原因：${r.reason}` : ""}
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.8 }}>
+            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.85 }}>
               可用{data?.rewardCount ?? 0}个 · 剩余
               {fmtNum(data?.rewardRemaining ?? 0)}积分
             </div>

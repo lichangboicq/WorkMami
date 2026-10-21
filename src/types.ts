@@ -95,7 +95,7 @@ export interface CheckinResult {
   message: string;
 }
 
-export type Strategy = "round-robin" | "smart" | "drain";
+export type Strategy = "round-robin" | "smart" | "drain" | "expiring-first";
 
 export interface ProxySettings {
   enabled: boolean;
@@ -242,6 +242,11 @@ export interface ModelInfo {
   supportsReasoning: boolean;
   defaultEffort: string; // low/medium/high/none，可能为空
   description: string;
+  credits: string; // 官方积分倍率，如 "x0.69"，可能为空
+  tags: string[]; // 官方原始 tags（含 badge:名称:#颜色 徽章项）
+  isDefault: boolean; // 官方默认模型标记
+  vendor: string; // 官方厂商标识
+  raw: Record<string, unknown>; // 官方接口返回的完整原始对象
 }
 
 export interface OAuthStart {

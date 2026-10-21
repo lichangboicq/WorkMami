@@ -186,7 +186,7 @@ export default function Accounts() {
         <Button icon={<ReloadOutlined />} loading={refreshing} onClick={refreshAll}>
           刷新全部积分
         </Button>
-        <span style={{ marginLeft: "auto", opacity: 0.7 }}>
+        <span style={{ marginLeft: "auto", opacity: 0.8 }}>
           共 {accounts.length} 个账号 · 剩余积分合计 {Math.round(totalRemaining)}
         </span>
       </div>
@@ -389,7 +389,7 @@ function AccountCard({
                 <span style={{ fontSize: 22, fontWeight: 700 }}>
                   {fmtNum(q.remaining)}
                 </span>{" "}
-                <span style={{ opacity: 0.5, fontSize: 12 }}>/ {fmtNum(q.total)}</span>
+                <span style={{ opacity: 0.65, fontSize: 12 }}>/ {fmtNum(q.total)}</span>
               </span>
               {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
             </div>
@@ -398,7 +398,7 @@ function AccountCard({
               status={pct < 15 ? "exception" : "normal"}
               showInfo={false}
             />
-            <div style={{ fontSize: 12, opacity: 0.6 }}>
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
               已用 {fmtNum(q.used)} · 更新于 {fmtTime(q.updated_at)}
             </div>
             {(activeResources.length > 0 || usedUpCount > 0) && (
@@ -443,7 +443,7 @@ function AccountCard({
                             <span style={{ opacity: 0.85 }}>{r.name}</span>
                             <span style={{ display: "flex", gap: 10 }}>
                               <b style={{ color }}>{fmtNum(r.remaining)}</b>
-                              <span style={{ opacity: 0.55, color }}>{e.text}</span>
+                              <span style={{ opacity: 0.7, color }}>{e.text}</span>
                             </span>
                           </div>
                         );
@@ -452,7 +452,7 @@ function AccountCard({
                   </div>
                 )}
                 {usedUpCount > 0 && (
-                  <div style={{ fontSize: 11, opacity: 0.45, marginTop: 4 }}>
+                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
                     另有 {usedUpCount} 笔已用完 · 完整记录见「积分清单」
                   </div>
                 )}
@@ -460,10 +460,10 @@ function AccountCard({
             )}
           </div>
         ) : (
-          <div style={{ opacity: 0.5 }}>积分未同步，点击刷新</div>
+          <div style={{ opacity: 0.65 }}>积分未同步，点击刷新</div>
         )}
 
-        <div style={{ fontSize: 12, opacity: 0.6 }}>
+        <div style={{ fontSize: 12, opacity: 0.75 }}>
           最近使用：{fmtTime(a.last_used_at)}
         </div>
       </Space>

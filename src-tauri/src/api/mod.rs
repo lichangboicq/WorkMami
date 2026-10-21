@@ -282,6 +282,16 @@ impl ApiClient {
                 id,
                 name,
                 default_effort,
+                credits: pick_str(&obj, &["credits", "Credits"]).unwrap_or_default(),
+                tags: obj
+                    .get("tags")
+                    .or_else(|| obj.get("Tags"))
+                    .and_then(|v| v.as_array())
+                    .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                    .unwrap_or_default(),
+                is_default: pick_bool(&obj, &["isDefault", "is_default", "IsDefault"]).unwrap_or(false),
+                vendor: pick_str(&obj, &["vendor", "Vendor"]).unwrap_or_default(),
+                raw: obj.clone(),
             });
         }
         Ok(out)
@@ -843,6 +853,16 @@ pub struct ModelInfo {
     /// 默认思考强度（low/medium/high/none，缺省为空）。
     pub default_effort: String,
     pub description: String,
+    /// 官方积分倍率（如 "x0.69"），可能为空字符串。
+    pub credits: String,
+    /// 官方原始 tags（含 badge:名称:#颜色 徽章项）。
+    pub tags: Vec<String>,
+    /// 官方 isDefault（是否为官方默认模型）。
+    pub is_default: bool,
+    /// 官方厂商标识（vendor）。
+    pub vendor: String,
+    /// 官方接口返回的完整原始对象（保留全部字段，供前端仿官方界面展示）。
+    pub raw: serde_json::Value,
 }
 
 /// 猫猫旅行的一个可选地点（来自 travel/config）。

@@ -300,7 +300,7 @@ export default function Dashboard() {
         <Col span={4}>
           <Card size="small">
             <Statistic title="总 Tokens" value={cur?.totalTokens ?? 0} />
-            <div style={{ fontSize: 12, opacity: 0.6 }}>
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
               环比 {delta(cur?.totalTokens, prev?.totalTokens) ?? "—"}
             </div>
           </Card>
@@ -317,7 +317,7 @@ export default function Dashboard() {
         <Col span={4}>
           <Card size="small">
             <Statistic title="请求次数" value={cur?.requests ?? 0} />
-            <div style={{ fontSize: 12, opacity: 0.6 }}>
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
               成功率 {(cur?.successRate ?? 0).toFixed(1)}%
             </div>
           </Card>
@@ -401,7 +401,7 @@ export default function Dashboard() {
         title="各账号真实消耗（官方账单）"
         style={{ marginBottom: 16 }}
         extra={
-          <span style={{ fontSize: 12, opacity: 0.6 }}>
+          <span style={{ fontSize: 12, opacity: 0.75 }}>
             合计 {(billing?.total ?? 0).toFixed(1)} 积分 · 近 {billing?.days ?? "—"} 天
           </span>
         }
@@ -432,7 +432,7 @@ export default function Dashboard() {
             },
           ]}
         />
-        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 8 }}>
+        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 8 }}>
           取自 WorkBuddy 官方账单接口，为该账号区间内实际扣费（含 App
           端等全渠道），可与官方后台对账。
         </div>
@@ -513,7 +513,7 @@ export default function Dashboard() {
         {balances.length ? (
           <ReactECharts option={balanceOption} style={{ height: 260 }} notMerge />
         ) : (
-          <div style={{ opacity: 0.5, textAlign: "center", padding: 40 }}>
+          <div style={{ opacity: 0.7, textAlign: "center", padding: 40 }}>
             暂无余额快照，刷新积分后会自动记录。
           </div>
         )}

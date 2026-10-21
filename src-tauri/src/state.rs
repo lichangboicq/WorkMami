@@ -19,11 +19,14 @@ pub enum Strategy {
     RoundRobin,
     Smart,
     Drain,
+    /// 临期优先：优先消耗最早到期（且仍有余量）的积分账号。
+    ExpiringFirst,
 }
 
 impl Default for Strategy {
     fn default() -> Self {
-        Strategy::Smart
+        // 默认走“先用临期积分”：优先消耗最早到期（且仍有余量）的账号，避免积分过期浪费
+        Strategy::ExpiringFirst
     }
 }
 

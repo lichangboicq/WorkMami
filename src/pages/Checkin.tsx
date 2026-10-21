@@ -179,7 +179,7 @@ export default function Checkin() {
                   title: "结果",
                   render: (_, r) => {
                     const res = results[r.uid];
-                    if (!res) return <span style={{ opacity: 0.4 }}>—</span>;
+                    if (!res) return <span style={{ opacity: 0.6 }}>—</span>;
                     if (res.already) return <Tag>已签到过</Tag>;
                     if (res.ok) return <Tag color="green">+{res.reward}</Tag>;
                     return <Tag color="red">{res.message || "失败"}</Tag>;

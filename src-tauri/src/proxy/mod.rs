@@ -333,11 +333,33 @@ fn select_candidates(state: &Arc<AppState>, session_hash: &str) -> Vec<Account> 
             enabled.sort_by(|a, b| remaining(b).partial_cmp(&remaining(a)).unwrap_or(std::cmp::Ordering::Equal));
             enabled
         }
+        Strategy::ExpiringFirst => {
+            // 临期优先：优先消耗最早到期（且仍有余量）的账号。
+            // soonest_expire_at 由积分拉取逻辑保证为“余量 > 0 的资源中最早的到期时间”，
+            // 因此天然排除已过期 / 零余量资源。排序规则：
+            // - 有到期时间的账号，到期越早越靠前；
+            // - 无到期时间的账号排最后，内部按余额多优先（避免长期账户被饿死）。
+            enabled.sort_by(|a, b| match (soonest_expire(a), soonest_expire(b)) {
+                (Some(x), Some(y)) => x.cmp(&y),
+                (Some(_), None) => std::cmp::Ordering::Less,
+                (None, Some(_)) => std::cmp::Ordering::Greater,
+                (None, None) => remaining(b)
+                    .partial_cmp(&remaining(a))
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            });
+            enabled
+        }
     }
 }
 
 fn remaining(a: &Account) -> f64 {
     a.quota.as_ref().map(|q| q.remaining).unwrap_or(f64::MAX)
+}
+
+/// 账号级“最近到期时间”（毫秒）：余量 > 0 的资源中最早到期的那个。
+/// None 表示无近期到期（长期有效 / 未知）。
+fn soonest_expire(a: &Account) -> Option<i64> {
+    a.quota.as_ref().and_then(|q| q.soonest_expire_at)
 }
 
 fn session_key(req: &Value, headers: &HeaderMap) -> String {

@@ -23,8 +23,14 @@ use tauri::Manager;
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
-    // 单实例
-    builder = builder.plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| {}));
+    // 单实例：二次启动（如再次双击桌面图标）时呼出已有主窗口，不重复启动第二个进程
+    builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.show();
+            let _ = w.unminimize();
+            let _ = w.set_focus();
+        }
+    }));
     builder = builder
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
@@ -39,7 +45,15 @@ pub fn run() {
     builder = builder.on_window_event(|window, event| {
         match event {
             tauri::WindowEvent::Destroyed => oauth::on_window_event(window.label(), true),
-            tauri::WindowEvent::CloseRequested { .. } => oauth::on_window_event(window.label(), false),
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                if window.label() == "main" {
+                    // 主窗口点 X 不退出，隐藏至托盘（托盘菜单“退出”才是真正退出）
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else {
+                    oauth::on_window_event(window.label(), false);
+                }
+            }
             _ => {}
         }
     });
@@ -83,6 +97,51 @@ pub fn run() {
             }
         });
     
+        // 托盘图标：左键点击显示主界面；右键菜单含“显示主界面 / 退出”
+        {
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+            let show_i = MenuItem::with_id(app, "show", "显示主界面", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+            let icon = app.default_window_icon().cloned().unwrap_or_else(|| {
+                tauri::image::Image::from_bytes(include_bytes!("../icons/icon.ico"))
+                    .expect("加载托盘图标失败")
+            });
+            let _tray = TrayIconBuilder::with_id("workmami-tray")
+                .icon(icon)
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.unminimize();
+                            let _ = w.set_focus();
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        button_state: MouseButtonState::Up,
+                        ..
+                    } = event
+                    {
+                        let app = tray.app_handle();
+                        if let Some(w) = app.get_webview_window("main") {
+                            let _ = w.show();
+                            let _ = w.unminimize();
+                            let _ = w.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
+        }
+
         Ok(())
     });
 

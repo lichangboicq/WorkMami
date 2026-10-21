@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   Divider,
   Form,
@@ -13,7 +15,6 @@ import {
   Select,
   Space,
   Switch,
-  Tag,
   Tooltip,
   Typography,
 } from "antd";
@@ -22,7 +23,7 @@ import { api, errText } from "../api";
 import { useStore } from "../store";
 import type { ModelInfo, ProxySettings as PS } from "../types";
 
-const { Paragraph, Text } = Typography;
+const { Text } = Typography;
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
 function genApiKey(): string {
@@ -107,12 +108,49 @@ export default function Proxy() {
   const apiKey = Form.useWatch("apiKey", form);
   const defaultModel = Form.useWatch("defaultModel", form);
 
-  // 模型下拉：以官方列表为准；若已保存的默认模型不在列表中（自定义/未刷新），补进去以免丢失显示。
+  // 模型下拉：以官方列表为准；仿 WorkBuddy 界面展示模型名、id、积分倍率与徽章。
+  // 若已保存的默认模型不在列表中（自定义/未刷新），补进去以免丢失显示。
   const modelOptions = useMemo(() => {
     const seen = new Set<string>();
-    const opts = models.map((m) => {
+    const badgeRe = /^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/;
+    const opts: { value: string; label: ReactNode }[] = models.map((m) => {
       seen.add(m.id);
-      return { value: m.id, label: m.name === m.id ? m.id : `${m.name} · ${m.id}` };
+      const badges = (m.tags || [])
+        .filter((t) => t.startsWith("badge:"))
+        .map((t) => {
+          const mm = t.match(badgeRe);
+          return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
+        });
+      const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
+      const label = (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", paddingRight: 8 }}>
+          <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{m.name}</span>
+          <div style={{ display: "flex", gap: 4, overflow: "hidden", flexShrink: 1 }}>
+            {badges.map((b) => (
+              <span
+                key={b.name}
+                style={{
+                  color: b.color,
+                  border: `1px solid ${b.color}`,
+                  borderRadius: 4,
+                  fontSize: 11,
+                  lineHeight: "14px",
+                  padding: "0 4px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {b.name}
+              </span>
+            ))}
+          </div>
+          {credits && (
+            <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>
+              {credits}
+            </span>
+          )}
+        </div>
+      );
+      return { value: m.id, label };
     });
     if (defaultModel && !seen.has(defaultModel)) {
       // 未命中已拉取列表时（如列表为空），默认模型统一以品牌名展示，底层值仍是真实上游 id。
@@ -193,24 +231,21 @@ export default function Proxy() {
                 </Space.Compact>
               </Form.Item>
 
-              <Divider orientation="left" plain>
-                调度与模型
-              </Divider>
-
               <Row gutter={12}>
                 <Col span={12}>
                   <Form.Item name="strategy" label="调度策略">
                     <Select
                       options={[
-                        { value: "smart", label: "智能（余额优先）" },
-                        { value: "round-robin", label: "轮询" },
-                        { value: "drain", label: "集中消耗（低余额优先）" },
+                        { value: "expiring-first", label: "先消耗临近到期的积分" },
+                        { value: "smart", label: "先消耗余额多的账号" },
+                        { value: "drain", label: "先消耗余额少的账号" },
+                        { value: "round-robin", label: "各账号平均消耗" },
                       ]}
                     />
                   </Form.Item>
                 </Col>
                 <Col span={12}>
-                  <Form.Item label="默认模型" tooltip="实时拉取 WorkBuddy 内置模型，上新后点右侧刷新即可看到">
+                  <Form.Item label="模型名称" tooltip="实时拉取 WorkBuddy 内置模型，上新后点右侧刷新即可看到">
                     <Space.Compact style={{ width: "100%" }}>
                       <Form.Item name="defaultModel" noStyle>
                         <Select
@@ -287,31 +322,33 @@ export default function Proxy() {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card title="接入信息" size="small" style={{ marginBottom: 16 }}>
+          <Card title="WorkBuddy配置指南（设置→模型→添加模型）" size="small" style={{ marginBottom: 16 }}>
             <Space direction="vertical" style={{ width: "100%" }}>
-              <Text type="secondary">服务状态</Text>
+              <Text strong>服务状态</Text>
               <Alert
                 type={proxy?.running ? "success" : "info"}
                 showIcon
                 message={
                   proxy?.running
-                    ? "反代运行中"
+                    ? "运行中"
                     : settings.proxy.enabled
                       ? "已启用但未运行"
                       : "未启用"
                 }
               />
-              <Text type="secondary">Base URL</Text>
+              <Text strong>供应商（仅支持 OpenAI 兼容协议 API）</Text>
+              <Input readOnly value="自定义" className="wm-mono" />
+              <Text strong>接口地址</Text>
               <Space.Compact style={{ width: "100%" }}>
                 <Input readOnly value={baseUrl} className="wm-mono" />
                 <Tooltip title="复制">
                   <Button
                     icon={<CopyOutlined />}
-                    onClick={() => copyText(baseUrl, "已复制 Base URL")}
+                    onClick={() => copyText(baseUrl, "已复制接口地址")}
                   />
                 </Tooltip>
               </Space.Compact>
-              <Text type="secondary" style={{ marginTop: 8 }}>
+              <Text strong style={{ marginTop: 8 }}>
                 API Key
               </Text>
               <Space.Compact style={{ width: "100%" }}>
@@ -323,8 +360,8 @@ export default function Proxy() {
                   />
                 </Tooltip>
               </Space.Compact>
-              <Text type="secondary" style={{ marginTop: 8 }}>
-                默认模型
+              <Text strong style={{ marginTop: 8 }}>
+                模型名称
               </Text>
               <Space.Compact style={{ width: "100%" }}>
                 <Input readOnly value={defaultModel || ""} className="wm-mono" placeholder="未选择" />
@@ -337,32 +374,47 @@ export default function Proxy() {
                 </Tooltip>
               </Space.Compact>
               {selectedModel && (
-                <Space size={4} wrap style={{ marginTop: 8 }}>
-                  {selectedModel.supportsToolCall && <Tag>工具调用</Tag>}
-                  {selectedModel.supportsImages && <Tag>图像</Tag>}
-                  {selectedModel.supportsReasoning && <Tag>推理</Tag>}
-                  {selectedModel.contextWindow > 0 && (
-                    <Tag color="blue">上下文 {selectedModel.contextWindow.toLocaleString()}</Tag>
-                  )}
-                  {selectedModel.maxOutputTokens > 0 && (
-                    <Tag color="green">输出 {selectedModel.maxOutputTokens.toLocaleString()}</Tag>
-                  )}
-                </Space>
+                <div style={{ marginTop: 8 }}>
+                  <Text strong>高级配置</Text>
+                  <Space size={14} wrap style={{ marginTop: 6 }}>
+                    <Checkbox checked={selectedModel.supportsToolCall} disabled>
+                      工具调用
+                    </Checkbox>
+                    <Checkbox checked={selectedModel.supportsImages} disabled>
+                      图片输入
+                    </Checkbox>
+                    <Checkbox checked={selectedModel.supportsReasoning} disabled>
+                      思考模式
+                    </Checkbox>
+                    <Checkbox checked={Boolean(selectedModel.raw?.onlyReasoning)} disabled>
+                      仅思考模式
+                    </Checkbox>
+                    <Checkbox
+                      checked={Boolean(
+                        (selectedModel.raw?.reasoning as Record<string, unknown> | undefined)
+                          ?.canDisableThinking,
+                      )}
+                      disabled
+                    >
+                      允许关闭思考
+                    </Checkbox>
+                    <Tooltip title="WorkMami 走标准转发路径，无需开启">
+                      <Checkbox checked={false} disabled>
+                        自定义协议
+                      </Checkbox>
+                    </Tooltip>
+                  </Space>
+                </div>
               )}
-              <Paragraph style={{ marginTop: 12, marginBottom: 0 }}>
-                OpenAI 兼容端点：
-                <br />
-                <Text code className="wm-mono">
-                  POST {baseUrl}/chat/completions
-                </Text>
-                <br />
-                <Text code className="wm-mono">
-                  GET {baseUrl}/models
-                </Text>
-              </Paragraph>
-              <Paragraph type="secondary" style={{ marginTop: 8 }}>
-                在 Claude Code / opencode 等 agent 中填写上述 Base URL 与密钥即可接入。
-              </Paragraph>
+              <Text strong style={{ marginTop: 8 }}>
+                默认思考强度
+              </Text>
+              <Select
+                disabled
+                value="auto"
+                style={{ width: "100%" }}
+                options={[{ value: "auto", label: "自动（使用请求层默认值）" }]}
+              />
             </Space>
           </Card>
         </Col>

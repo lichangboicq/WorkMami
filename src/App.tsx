@@ -45,8 +45,8 @@ function useSystemDark() {
 }
 
 function SiderFooter({ isDark }: { isDark: boolean }) {
-  const sub = isDark ? "#8a8a8a" : "#8c8c8c";
-  const faint = isDark ? "#6a6a6a" : "#adb5bd";
+  const sub = isDark ? "#a6a6a6" : "#595959";
+  const faint = isDark ? "#8a8a8a" : "#6b7280";
   const divider = isDark ? "#26262a" : "#f0f0f0";
   return (
     <div
@@ -109,7 +109,18 @@ export default function App() {
 
   const theme = useMemo<ThemeConfig>(
     () => ({
-      token: { colorPrimary: "#1677ff", borderRadius: 8 },
+      token: {
+        colorPrimary: "#1677ff",
+        borderRadius: 8,
+        ...(isDark
+          ? { colorTextDisabled: "rgba(255,255,255,0.5)" }
+          : {
+              colorTextSecondary: "rgba(0,0,0,0.65)",
+              colorTextTertiary: "rgba(0,0,0,0.45)",
+              colorTextPlaceholder: "rgba(0,0,0,0.45)",
+              colorTextDisabled: "rgba(0,0,0,0.55)",
+            }),
+      },
       algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     }),
     [isDark],
@@ -166,7 +177,7 @@ export default function App() {
               <div
                 style={{
                   fontSize: 11,
-                  color: isDark ? "#9a9a9a" : "#999",
+                  color: isDark ? "#a8a8a8" : "#595959",
                   marginTop: 2,
                   letterSpacing: 0,
                   whiteSpace: "nowrap",

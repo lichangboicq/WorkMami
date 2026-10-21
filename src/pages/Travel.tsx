@@ -126,7 +126,7 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
                   )}
                 </span>
               </div>
-              <div style={{ fontSize: 11, opacity: 0.65 }}>
+              <div style={{ fontSize: 11, opacity: 0.8 }}>
                 派出于 {fmtClock(r.departAt)} ·{" "}
                 {r.claimedAt ? `奖励领于 ${fmtClock(r.claimedAt)}` : "奖励尚未领取"}
               </div>
