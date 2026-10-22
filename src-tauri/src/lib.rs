@@ -1,4 +1,8 @@
 //! WorkMami 后端库入口：模块装配 + Tauri Builder。
+#![allow(
+    dead_code,
+    reason = "公共 API / 预留扩展点在本地运行期未被引用是正常现象，Rust 默认对 pub 符号仍会 dead_code lint"
+)]
 
 mod accounts;
 mod api;
@@ -6,6 +10,7 @@ mod browser;
 mod commands;
 mod data;
 mod error;
+mod model_display;
 mod oauth;
 mod platform;
 mod proxy;

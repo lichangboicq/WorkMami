@@ -265,6 +265,12 @@ impl ApiClient {
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or_else(|| id.clone());
             let num = |keys: &[&str]| pick_f64(&obj, keys).map(|x| x.round() as i64).unwrap_or(0);
+            let credits = pick_str(&obj, &["credits", "Credits"]).unwrap_or_default();
+            // 没有价格（credits 为空）的模型直接忽略，避免被同步进 IDE；
+            // 免费模型的 credits 形如 "x0.00 credits"，属于有价格，保留。
+            if credits.trim().is_empty() {
+                continue;
+            }
             let default_effort = obj
                 .get("reasoning")
                 .or_else(|| obj.get("Reasoning"))
@@ -282,7 +288,7 @@ impl ApiClient {
                 id,
                 name,
                 default_effort,
-                credits: pick_str(&obj, &["credits", "Credits"]).unwrap_or_default(),
+                credits,
                 tags: obj
                     .get("tags")
                     .or_else(|| obj.get("Tags"))

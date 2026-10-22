@@ -10,15 +10,21 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
     "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* —— 页面容器 —— */
 .wm-page {
   padding: 20px 24px;
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
+  /* 为顶部细进度条留出空间（不会被 Layout 截断） */
+  position: relative;
 }
 
+/* —— 卡片网格 —— */
 .wm-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
@@ -33,11 +39,14 @@ body {
   margin-bottom: 16px;
 }
 
+/* —— 等宽字体 —— */
 .wm-mono {
   font-family: "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
+  letter-spacing: 0.2px;
 }
 
+/* —— 指标卡 —— */
 .wm-metric-card {
   text-align: center;
 }
@@ -64,11 +73,253 @@ body {
   overflow: auto;
 }
 
+/* ============================================================
+   反向代理页 —— 顶部细进度条（实时保存触发）
+   ============================================================ */
+.wm-top-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #1677ff 0%, #69b1ff 100%);
+  z-index: 9999;
+  pointer-events: none;
+  box-shadow: 0 0 6px rgba(22, 119, 255, 0.55);
+  /* 用 transform: scaleX 替代 width 动画，不会阻塞 layout；origin 从左开始 */
+  transform-origin: left center;
+  animation: wm-progress-scale 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+             wm-progress-fade 0.25s ease-in 0.65s forwards;
+}
+
+@keyframes wm-progress-scale {
+  from { transform: scaleX(0); opacity: 1; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+
+@keyframes wm-progress-fade {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* —— 保留旧 width 动画 keyframes（历史兼容） —— */
 @keyframes wm-progress {
   from { width: 0%; }
   to   { width: 100%; }
 }
-@keyframes wm-progress-fade {
-  from { opacity: 1; }
-  to   { opacity: 0; }
+
+/* ============================================================
+   反向代理页 —— 字段标签 + 脏红点
+   ============================================================ */
+.wm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wm-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  line-height: 1.4;
+  user-select: none;
+}
+
+.wm-field-label__text {
+  color: inherit;
+}
+
+.wm-dirty-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fa8c16;
+  margin-left: 4px;
+  margin-bottom: 1px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(250, 140, 22, 0.7);
+  animation: wm-dirty-pulse 2s ease-in-out infinite;
+  /* 让它在暗/亮主题下都有足够的存在感 */
+}
+
+@keyframes wm-dirty-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(250, 140, 22, 0.45); }
+  50%      { box-shadow: 0 0 0 4px rgba(250, 140, 22, 0); }
+}
+
+/* ============================================================
+   反向代理页 —— 保存状态徽章（Card title 内）
+   ============================================================ */
+.wm-save-status {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.2s ease;
+}
+
+.wm-save-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.wm-save-status.is-idle .wm-save-status__dot    { background: #52c41a; }
+.wm-save-status.is-saving .wm-save-status__dot { background: #1677ff; animation: wm-dot-blink 0.9s ease-in-out infinite; }
+.wm-save-status.is-dirty .wm-save-status__dot  { background: #fa8c16; animation: wm-dot-blink 1.2s ease-in-out infinite; }
+.wm-save-status.is-error .wm-save-status__dot  { background: #ff4d4f; }
+
+@keyframes wm-dot-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* ============================================================
+   反向代理页 —— 虚线分隔 + Switch 行
+   ============================================================ */
+.wm-divider-dashed {
+  border: none;
+  border-top: 1px dashed var(--ant-color-border, #d9d9d9);
+  margin: 16px 0;
+}
+
+.wm-switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ============================================================
+   反向代理页 —— 字段网格（3 列自适应）
+   ============================================================ */
+.wm-field-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 16px;
+}
+
+.wm-field-grid__span-2 { grid-column: span 2; }
+.wm-field-grid__span-3 { grid-column: span 3; }
+
+/* 屏幕较窄时收缩成 2 列；再窄变 1 列 */
+@media (max-width: 1280px) {
+  .wm-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wm-field-grid__span-3 { grid-column: span 2; }
+}
+@media (max-width: 860px) {
+  .wm-field-grid { grid-template-columns: 1fr; }
+  .wm-field-grid__span-2,
+  .wm-field-grid__span-3 { grid-column: span 1; }
+}
+
+/* ============================================================
+   反向代理页 —— IDE 自动配置网格
+   ============================================================ */
+.wm-ide-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (max-width: 1280px) {
+  .wm-ide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .wm-ide-grid { grid-template-columns: 1fr; }
+}
+
+.wm-section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   反向代理页 —— Modal 内部的三段式容器
+   ============================================================ */
+.wm-guide-block {
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+.wm-guide-block--green { background: #f6ffed; border-color: #b7eb8f; }
+.wm-guide-block--blue  { background: #e6f4ff; border-color: #91caff; color: #0958d9; font-size: 12px; }
+.wm-guide-block--white { background: #fff; border-color: #e8e8e8; }
+.wm-guide-block--gray  { background: #fafafa; border-color: #f0f0f0; }
+
+/* 暗色主题下也过得去的版本（跟随 antd） */
+[data-theme="dark"] .wm-guide-block--white { background: #1f1f1f; border-color: #303030; }
+[data-theme="dark"] .wm-guide-block--gray  { background: #141414; border-color: #262626; }
+
+/* ============================================================
+   账号卡片 —— 标题省略 + 底部纯图标操作（亮/暗主题自适应）
+   ============================================================ */
+.wm-account-card .ant-card-head-title {
+  overflow: hidden;
+}
+
+.wm-account-title-row {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.wm-account-name {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* 操作区只放图标：均分分栏、不换行、点击区域撑满整格 */
+.wm-account-card .ant-card-actions > li {
+  margin: 2px 0;
+}
+
+/* antd 会把每个 action 再包一层 span，这里一并撑满 */
+.wm-account-card .ant-card-actions > li > span {
+  width: 100%;
+}
+
+.wm-account-card .ant-card-actions .wm-card-action-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  width: 100%;
+  height: 34px;
+}
+
+.wm-account-card .ant-card-actions .wm-card-action.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* 次级文字统一走继承色 + 透明度，亮/暗主题下都不会出现白字白底 */
+.wm-account-total         { font-size: 12px; opacity: 0.65; }
+.wm-account-subtext       { font-size: 12px; opacity: 0.75; }
+.wm-account-faint         { font-size: 11px; opacity: 0.6; margin-top: 4px; }
+.wm-account-resource-name { opacity: 0.85; }
+
+/* ============================================================
+   其它
+   ============================================================ */
+.wm-footer-note {
+  margin-top: 20px;
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  font-size: 12px;
+}
+
+.wm-section-wrap {
+  margin-bottom: 16px;
 }

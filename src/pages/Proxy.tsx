@@ -148,20 +148,29 @@ export default function Proxy() {
   };
 
   // —— 单字段 debounce 保存 ——
+  // 使用 ref 跟踪最新 formValues，避免 setTimeout 闭包捕获旧值覆盖用户最新输入。
+  const formValuesRef = useRef(formValues);
+  formValuesRef.current = formValues;
+
   const onFieldChange = <K extends keyof PS>(name: K, next: PS[K]) => {
     // 更新本地表单值
     setFormValues((prev) => ({ ...prev, [name]: next }));
 
-    // 防抖 300ms
+    // 防抖 300ms：同一字段连续修改只触发最后一次；
+    // 新的修改进入时清掉上一次 timer，writingSet 保留该字段在写入中。
     if (writeQueueRef.current[name as string]) {
       clearTimeout(writeQueueRef.current[name as string]);
     }
     writingSet.current.add(name as string);
 
     writeQueueRef.current[name as string] = setTimeout(async () => {
-      const merged: typeof settings = { ...settings, proxy: { ...formValues, [name]: next } };
+      const merged: typeof settings = {
+        ...settings,
+        proxy: { ...formValuesRef.current, [name]: next },
+      };
       await persistSettings(merged);
       writingSet.current.delete(name as string);
+      delete writeQueueRef.current[name as string];
     }, 300);
   };
 
@@ -171,7 +180,7 @@ export default function Proxy() {
     Object.values(writeQueueRef.current).forEach(clearTimeout);
     writeQueueRef.current = {};
 
-    const merged: typeof settings = { ...settings, proxy: { ...formValues, enabled: v } };
+    const merged: typeof settings = { ...settings, proxy: { ...formValuesRef.current, enabled: v } };
     triggerProgressBar();
     try {
       setSaveStatus("saving");
@@ -315,31 +324,41 @@ export default function Proxy() {
 
   const running = Boolean(proxy?.running);
 
-  // —— SaveStatus 指示组件 ——
+  // —— SaveStatus 指示组件（跟随状态自动换色） ——
   const saveStatusBadge = useMemo(() => {
     if (saveStatus === "error") {
       return (
         <Tooltip title={saveErrorMsg || "保存失败"}>
-          <span style={{ color: "#ff4d4f", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4, cursor: "pointer" }}
+          <span
+            className="wm-save-status is-error"
+            style={{ color: "#ff4d4f", cursor: "pointer" }}
             onClick={retrySave}
           >
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ff4d4f" }} />
+            <span className="wm-save-status__dot" />
             ⚠ 保存失败 · 重试
           </span>
         </Tooltip>
       );
     }
+    if (saveStatus === "saving") {
+      return (
+        <span className="wm-save-status is-saving" style={{ color: "#1677ff" }}>
+          <span className="wm-save-status__dot" />
+          保存中…
+        </span>
+      );
+    }
     if (hasUnsaved) {
       return (
-        <span style={{ color: "#fa8c16", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#fa8c16" }} />
+        <span className="wm-save-status is-dirty" style={{ color: "#fa8c16" }}>
+          <span className="wm-save-status__dot" />
           ● 有未保存的改动
         </span>
       );
     }
     return (
-      <span style={{ color: "#52c41a", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#52c41a" }} />
+      <span className="wm-save-status is-idle" style={{ color: "#52c41a" }}>
+        <span className="wm-save-status__dot" />
         已自动保存
       </span>
     );
@@ -363,20 +382,7 @@ export default function Proxy() {
 
   // —— 脏红点 ——
   const dirtyDot = (field: keyof PS) =>
-    dirty.has(field) ? (
-      <span
-        title="已修改，等待保存"
-        style={{
-          display: "inline-block",
-          width: 8,
-          height: 8,
-          borderRadius: "50%",
-          background: "#fa8c16",
-          marginLeft: 4,
-          verticalAlign: "middle",
-        }}
-      />
-    ) : null;
+    dirty.has(field) ? <span title="已修改，等待保存" className="wm-dirty-dot" /> : null;
 
   // —— SyncResult 状态徽标 ——
   const ideStatusBadge = (synced: boolean, error?: string | null) => {
@@ -391,28 +397,13 @@ export default function Proxy() {
   return (
     <div className="wm-page">
       {/* ============ 顶部细进度条 ============ */}
-      {writingProgress && (
-        <div
-          aria-hidden
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 3,
-            background: "#1677ff",
-            zIndex: 9999,
-            pointerEvents: "none",
-            animation: "wm-progress 0.6s ease-out forwards, wm-progress-fade 0.3s ease-in 0.6s forwards",
-          }}
-        />
-      )}
+      {writingProgress && <div aria-hidden className="wm-top-progress" />}
 
       {/* ============ ① IDE 自动配置 网格 ============ */}
       {ideCards.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>① IDE 自动配置</div>
+        <div className="wm-section-wrap">
+          <div className="wm-section-title">
+            <span>① IDE 自动配置</span>
             <Space size={8}>
               <Button onClick={handleSyncAll} loading={syncAllLoading}>
                 一键自动配置全部
@@ -425,13 +416,7 @@ export default function Proxy() {
               </Text>
             </Space>
           </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: 12,
-            }}
-          >
+          <div className="wm-ide-grid">
             {ideCards.map((ide) => (
               <Card
                 key={ide.id}
@@ -481,7 +466,7 @@ export default function Proxy() {
         }
       >
         {/* Switch 行 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="wm-switch-row">
           <Switch
             checked={enabled}
             checkedChildren="已开启"
@@ -495,25 +480,14 @@ export default function Proxy() {
         </div>
 
         {/* 虚线分隔 */}
-        <div
-          style={{
-            borderTop: "1px dashed #d9d9d9",
-            margin: "16px 0",
-          }}
-        />
+        <hr className="wm-divider-dashed" />
 
         {/* 字段网格 */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: "16px 16px",
-          }}
-        >
+        <div className="wm-field-grid">
           {/* 默认模型 —— 占 2 列 */}
-          <div style={{ gridColumn: "span 2" }}>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              默认模型
+          <div className="wm-field-grid__span-2">
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">默认模型</span>
               {dirtyDot("defaultModel")}
             </label>
             <Space.Compact style={{ width: "100%" }}>
@@ -537,8 +511,8 @@ export default function Proxy() {
 
           {/* 监听地址 */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.host}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.host}</span>
               {dirtyDot("host")}
             </label>
             <Input
@@ -550,8 +524,8 @@ export default function Proxy() {
 
           {/* 端口 */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.port}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.port}</span>
               {dirtyDot("port")}
             </label>
             <InputNumber
@@ -565,9 +539,9 @@ export default function Proxy() {
           </div>
 
           {/* API Key —— 跨 3 列 */}
-          <div style={{ gridColumn: "span 3" }}>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.apiKey}
+          <div className="wm-field-grid__span-3">
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
               {dirtyDot("apiKey")}
             </label>
             <Space.Compact style={{ width: "100%" }}>
@@ -595,8 +569,8 @@ export default function Proxy() {
 
           {/* 积分调度策略 */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.strategy}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.strategy}</span>
               {dirtyDot("strategy")}
             </label>
             <Select
@@ -614,8 +588,8 @@ export default function Proxy() {
 
           {/* 上下文窗口(tokens) */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.contextWindow}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.contextWindow}</span>
               {dirtyDot("contextWindow")}
             </label>
             <InputNumber
@@ -634,8 +608,8 @@ export default function Proxy() {
 
           {/* 默认思考强度 */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.reasoningEffort}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.reasoningEffort}</span>
               {dirtyDot("reasoningEffort")}
             </label>
             <Select
@@ -653,8 +627,8 @@ export default function Proxy() {
 
           {/* 会话粘性窗口(分钟) */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.stickyTtlMin}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.stickyTtlMin}</span>
               {dirtyDot("stickyTtlMin")}
             </label>
             <InputNumber
@@ -667,8 +641,8 @@ export default function Proxy() {
 
           {/* Failover 最大换号数 */}
           <div>
-            <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-              {FIELD_LABELS.maxRetries}
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.maxRetries}</span>
               {dirtyDot("maxRetries")}
             </label>
             <InputNumber
@@ -682,7 +656,7 @@ export default function Proxy() {
         </div>
 
         {/* 底部说明 */}
-        <div style={{ marginTop: 20, color: "#8c8c8c", fontSize: 12 }}>
+        <div className="wm-footer-note">
           自动保存后 WorkBuddy 即可自动发现模型（已自动配置到 WorkBuddy 模型列表）。
         </div>
       </Card>
@@ -695,22 +669,14 @@ export default function Proxy() {
         footer={null}
         width={560}
         maskClosable
-        destroyOnClose
+        destroyOnHidden
       >
         <div style={{ color: "#8c8c8c", fontSize: 12, marginBottom: 16 }}>
           自动配置失败或需要逐项核对时使用。WorkMami 已把支持的模型自动写入 WorkBuddy 的模型列表，重启 WorkBuddy 即可直接选用，通常无需手工配置。
         </div>
 
         {/* 绿色通用区 */}
-        <div
-          style={{
-            background: "#f6ffed",
-            border: "1px solid #b7eb8f",
-            borderRadius: 6,
-            padding: 12,
-            marginBottom: 12,
-          }}
-        >
+        <div className="wm-guide-block wm-guide-block--green">
           <div style={{ fontWeight: 500, marginBottom: 8 }}>接口地址 + API Key（填到 WorkBuddy 对应字段）</div>
           <div style={{ fontSize: 12, color: "#595959", marginBottom: 4 }}>接口地址</div>
           <Space.Compact style={{ width: "100%", marginBottom: 8 }}>
@@ -730,20 +696,12 @@ export default function Proxy() {
         </div>
 
         {/* 蓝色提示条 */}
-        <div style={{ background: "#e6f4ff", border: "1px solid #91caff", borderRadius: 6, padding: "8px 12px", fontSize: 12, color: "#0958d9", marginBottom: 12 }}>
+        <div className="wm-guide-block wm-guide-block--blue">
           WorkBuddy 设置 → 模型 → 添加模型，逐项照抄、复制粘贴即可。
         </div>
 
         {/* 中间白区：供应商 + 模型名称 + 高级配置 + 默认思考强度 */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #e8e8e8",
-            borderRadius: 6,
-            padding: 12,
-            marginBottom: 12,
-          }}
-        >
+        <div className="wm-guide-block wm-guide-block--white">
           <div style={{ marginBottom: 10 }}>
             <Text strong>供应商（仅支持 OpenAI 兼容协议 API）</Text>
             <div style={{ marginTop: 4 }}>
@@ -796,14 +754,7 @@ export default function Proxy() {
         </div>
 
         {/* 底部灰色区：最后一步 */}
-        <div
-          style={{
-            background: "#fafafa",
-            border: "1px solid #f0f0f0",
-            borderRadius: 6,
-            padding: 12,
-          }}
-        >
+        <div className="wm-guide-block wm-guide-block--gray">
           <Text strong>最后一步</Text>
           <div style={{ fontSize: 12, color: "#595959", marginTop: 4 }}>
             在 WorkBuddy 弹窗点「测试连接」，成功后保存即可；WorkMami 会在后台自动分配账号与积分。
