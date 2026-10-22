@@ -59,7 +59,10 @@ hostname = "0.4"
 tauri-plugin-dialog = "2.7.3"
 
 [features]
-# 默认启用 custom-protocol（生产）；dev 时由 tauri 自动关闭
+# default 开启 custom-protocol：即便漏传 --features custom-protocol（裸 cargo build --release），
+# 前端 dist 也会被内嵌进 exe，避免 release 去连 devUrl(127.0.0.1:1420) 导致首开白屏。
+# tauri dev 时 CLI 会显式排除 tauri/custom-protocol，热更新不受影响。
+default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
 [profile.release]

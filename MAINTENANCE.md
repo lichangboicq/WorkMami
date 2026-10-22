@@ -44,7 +44,8 @@
 cd C:\Users\Administrator\Documents\workmami
 npm run build
 
-# ② 后端（必须带 --features custom-protocol，否则 release 不内嵌前端，首开白屏/连 devUrl）
+# ② 后端。Cargo.toml 已把 custom-protocol 列入 default，裸 cargo build --release 也会内嵌前端，
+#    不会再因漏传 flag 导致首开白屏/连 devUrl；下面显式 --features custom-protocol 仅作保险，可省略。
 $vcvars = "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 cmd /c "`"$vcvars`" >nul 2>&1 && set" | ForEach-Object {
   if ($_ -match '^([^=]+)=(.*)$') { Set-Item -Path "env:$($matches[1])" -Value $matches[2] }
@@ -53,6 +54,7 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;" + $env:Path
 cd C:\Users\Administrator\Documents\workmami\src-tauri
 cargo build --release --features custom-protocol
 # 产物：src-tauri\target\release\workmami.exe
+# 校验内嵌：二进制里应能搜到 assets/index-*.js；搜不到即未内嵌，会去连 devUrl(127.0.0.1:1420)。
 ```
 
 ### 部署闭环
