@@ -38,7 +38,7 @@
     ],
     "category": "DeveloperTool",
     "shortDescription": "WorkBuddy 多账号管理工具",
-    "longDescription": "WorkBuddy 多账号管理、本地反代、数据管理与批量签到"
+    "longDescription": "WorkBuddy 多账号管理、本地自定义模型、数据管理与批量签到"
   },
   "plugins": {}
 }

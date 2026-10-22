@@ -36,7 +36,7 @@ pub struct ProxySettings {
     pub enabled: bool,
     pub host: String,
     pub port: u16,
-    /// 访问本地反代所需的 key；留空表示不校验
+    /// 访问本地自定义模型所需的 key；留空表示不校验
     pub api_key: String,
     pub strategy: Strategy,
     /// 上下文窗口（token），注入上游前据此裁剪
@@ -129,15 +129,15 @@ pub struct AppState {
     pub sticky: Mutex<HashMap<String, (String, i64)>>,
     /// 轮询游标
     pub rr_cursor: Mutex<usize>,
-    /// 反代运行控制
+    /// 自定义模型运行控制
     pub proxy_shutdown: Mutex<Option<Arc<Notify>>>,
     pub proxy_running: Mutex<bool>,
-    /// 反代实例代次：每次 start 递增。serve 任务退出时仅当自己仍是当前代次才清除 running，
+    /// 自定义模型实例代次：每次 start 递增。serve 任务退出时仅当自己仍是当前代次才清除 running，
     /// 避免旧实例优雅关闭退出时把新实例的运行状态误覆盖为 false。
     pub proxy_gen: Mutex<u64>,
     /// 余额快照历史
     pub balance_history: Mutex<Vec<BalancePoint>>,
-    /// WorkBuddy 内置模型列表缓存（序列化的 ModelInfo，供反代 /v1/models 复用）。
+    /// WorkBuddy 内置模型列表缓存（序列化的 ModelInfo，供自定义模型 /v1/models 复用）。
     pub models_cache: Mutex<Vec<serde_json::Value>>,
     /// 本次运行会话内曾观测到"旅行中"的账号：用于区分"开着时到点→自动领"与"关着时到点→下次打开提醒"。
     pub travel_seen_traveling: Mutex<HashSet<String>>,

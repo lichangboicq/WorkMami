@@ -24,7 +24,7 @@ const { Sider, Content, Header } = Layout;
 
 const MENU = [
   { key: "accounts", label: "账号管理", icon: <TeamOutlined /> },
-  { key: "proxy", label: "代理设置", icon: <CloudServerOutlined /> },
+  { key: "proxy", label: "自定义模型", icon: <CloudServerOutlined /> },
   { key: "data", label: "数据管理", icon: <DatabaseOutlined /> },
   { key: "checkin", label: "签到中心", icon: <GiftOutlined /> },
   { key: "travel", label: "猫猫旅行", icon: <CompassOutlined /> },

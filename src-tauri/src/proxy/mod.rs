@@ -1,4 +1,4 @@
-//! 本地 OpenAI 兼容反向代理。
+//! 本地 OpenAI 兼容自定义模型服务。
 //! - 监听 127.0.0.1:<port>，校验 Bearer key
 //! - /v1/chat/completions：多账号调度 + 会话粘性 + failover + 流式透传
 //! - /v1/models、/v1/workmami/quota、/v1/workmami/health
@@ -28,7 +28,7 @@ use crate::usage::RequestLog;
 
 pub struct ProxyHandle;
 
-/// 启动反代（若 settings.proxy.enabled）。返回是否已启动。
+/// 启动自定义模型（若 settings.proxy.enabled）。返回是否已启动。
 pub async fn maybe_start(state: Arc<AppState>) -> bool {
     let ps = state.proxy_settings();
     if !ps.enabled {
@@ -55,7 +55,7 @@ pub async fn start(state: Arc<AppState>) -> bool {
             }
             Err(e) => {
                 if attempt == 19 {
-                    tracing::error!("反代绑定 {bind} 失败: {e}");
+                    tracing::error!("自定义模型绑定 {bind} 失败: {e}");
                     return false;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -68,7 +68,7 @@ pub async fn start(state: Arc<AppState>) -> bool {
     };
 
     let notify = Arc::new(Notify::new());
-    // 反代启动即自动同步所有已注册 IDE 配置。阻塞 I/O → blocking 线程
+    // 自定义模型启动即自动同步所有已注册 IDE 配置。阻塞 I/O → blocking 线程
     {
         let st = state.clone();
         tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
@@ -89,7 +89,7 @@ pub async fn start(state: Arc<AppState>) -> bool {
         let serve = axum::serve(listener, app)
             .with_graceful_shutdown(async move { notify.notified().await });
         if let Err(e) = serve.await {
-            tracing::error!("反代退出: {e}");
+            tracing::error!("自定义模型退出: {e}");
         }
         // 仅当自己仍是当前活动代次时才清除 running，避免旧实例退出把新实例状态覆盖为 false。
         if *st.proxy_gen.lock().unwrap() == my_gen {
@@ -629,7 +629,7 @@ async fn stream_response(
         }
         let latency = Utc::now().timestamp_millis() - started;
         let (status, ok): (i64, bool) = if upstream_err { (500, false) } else { (200, true) };
-        // 命中安全拦截/错误关键字时落盘（REFUSAL 等），便于真机定位反代与内置的差异。
+        // 命中安全拦截/错误关键字时落盘（REFUSAL 等），便于真机定位自定义模型与内置的差异。
         let text = String::from_utf8_lossy(&raw).to_string();
         if upstream_err
             || text.contains("REFUSAL")
@@ -741,7 +741,7 @@ fn log_usage_by_uid(
     });
 }
 
-/// 诊断落盘：把反代实际发给上游的请求（已强制 stream，不含 token）+ 上游返回内容，
+/// 诊断落盘：把自定义模型实际发给上游的请求（已强制 stream，不含 token）+ 上游返回内容，
 /// 在命中拒绝/错误时写入 WorkMami/proxy-chat-debug.json，供真机定位 REFUSAL 等问题。
 fn dump_chat_debug(req: &Value, status: u16, resp_text: &str) {
     let path = crate::platform::workmami_paths().root.join("proxy-chat-debug.json");

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "WorkBuddy 多账号管理与本地反代辅助工具",
+  "description": "WorkBuddy 多账号管理与本地自定义模型辅助工具",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

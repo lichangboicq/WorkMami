@@ -76,7 +76,7 @@ pub fn run() {
         // 登录在**外部浏览器的独立 profile**（browser-profiles/pending-<session>）中完成，
         // 多账号会话天然隔离；登录成功后目录别名到 uid（见 oauth::begin / browser::bind_profile）。
     
-        // 启动反代（若配置为启用）
+        // 启动自定义模型（若配置为启用）
         if app_state.proxy_settings().enabled {
             let st = app_state.clone();
             tauri::async_runtime::spawn(async move {
@@ -161,9 +161,6 @@ pub fn run() {
         commands::list_models,
         commands::sync_all_ides,
         commands::ide_sync_status,
-        commands::ide_manual_guide,
-        commands::regenerate_api_key,
-        commands::proxy_test_connection,
         commands::oauth_begin,
         commands::oauth_poll,
         commands::checkin_status,

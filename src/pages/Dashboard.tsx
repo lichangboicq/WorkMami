@@ -440,7 +440,7 @@ export default function Dashboard() {
 
       <Card
         size="small"
-        title="请求流水（本工具代理）"
+        title="请求流水（本工具转发）"
         style={{ marginBottom: 16 }}
       >
         <Table<RequestRow>
@@ -472,7 +472,7 @@ export default function Dashboard() {
               width: 70,
               render: (v: string) => (
                 <Tag color={v === "proxy" ? "blue" : "default"}>
-                  {v === "proxy" ? "代理" : "App"}
+                  {v === "proxy" ? "自定义模型" : "App"}
                 </Tag>
               ),
             },

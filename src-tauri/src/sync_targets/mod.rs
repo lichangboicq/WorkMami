@@ -1,13 +1,13 @@
 //! IDE 自动配置统一架构：
 //! - 每个 IDE 实现 IdeSyncTarget trait（detect + sync + manual_guide 可选）
-//! - sync_all(state) 统一执行，供反向代理启动 / 模型刷新 / settings 保存 / 前端按钮四处调用
+//! - sync_all(state) 统一执行，供自定义模型启动 / 模型刷新 / settings 保存 / 前端按钮四处调用
 //! - 防污染：各 target 只动自己 managedBy 标记的条目
 
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::error::WmError;
 use crate::state::{AppState, ProxySettings};
@@ -121,15 +121,4 @@ pub fn status_only(_state: &Arc<AppState>) -> Vec<SyncResult> {
         error: None,
         has_manual_guide: t.manual_guide().is_some(),
     }).collect()
-}
-
-pub fn manual_guide_for(id: &str) -> Option<ManualGuideJson> {
-    all_targets().into_iter()
-        .find(|t| t.id() == id)
-        .and_then(|t| t.manual_guide())
-}
-
-pub fn manual_guide_json(id: &str) -> Value {
-    manual_guide_for(id).map(|g| serde_json::to_value(&g).unwrap_or(json!(null)))
-        .unwrap_or(json!(null))
 }

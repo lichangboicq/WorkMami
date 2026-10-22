@@ -6,7 +6,7 @@
 
 **WorkBuddy 的妈咪，稳稳接住你 🐾**
 
-多账号管理 · 本地反代 · 批量签到 · 猫猫旅行托管 · Token 看板
+多账号管理 · 本地自定义模型 · 批量签到 · 猫猫旅行托管 · Token 看板
 
 macOS（Apple 芯片 / Intel）&nbsp;·&nbsp; Windows
 
@@ -29,10 +29,10 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 | 模块 | 说明 |
 | --- | --- |
 | **账号管理** | 通过 OAuth 网页授权添加多个 WorkBuddy 账号，凭证本机加密存储，按昵称区分、一键切换 |
-| **本地反代** | 把 WorkBuddy 模型以 OpenAI 兼容接口在本机反代出来，供任意支持自定义模型的客户端接入；真流式透传、智能选号、粘性会话、模型回落，长任务稳定不断流 |
+| **自定义模型** | 把 WorkBuddy 模型以 OpenAI 兼容接口在本机复现出来，供任意支持自定义模型的客户端接入；真流式透传、智能选号、粘性会话、模型回落，长任务稳定不断流 |
 | **签到中心** | 一键批量签到，自动检测当日是否已签、防重复；可开启后台定时自动签到 |
 | **猫猫旅行托管** | 每天自动派猫猫出行、到站领奖，展示"派出于 / 奖励领于"时刻；后台每 60 分钟巡检，连续确认全部账号达当日上限后自动熔断，降低调用频率防风控 |
-| **Token 看板** | 各账号余额折线图、反代调用流水与用量统计、积分清单双口径归因 |
+| **Token 看板** | 各账号余额折线图、自定义模型调用流水与用量统计、积分清单双口径归因 |
 | **数据管理** | 会话跨账号迁移、整库备份与导出，数据全程留在本地 |
 
 ## 下载
@@ -141,7 +141,7 @@ cargo xwin build --release --features custom-protocol --target x86_64-pc-windows
 
 - **桌面框架**：Tauri 2（Rust 后端 + 系统 WebView）
 - **前端**：React 18 · TypeScript · Vite · Ant Design · ECharts · Zustand · dayjs
-- **后端能力**：axum（本地反代服务）· reqwest（流式透传）· tokio-cron-scheduler（定时巡检/签到）· rusqlite（用量存储）· aes-gcm / keyring（凭证加密）
+- **后端能力**：axum（本地自定义模型服务）· reqwest（流式透传）· tokio-cron-scheduler（定时巡检/签到）· rusqlite（用量存储）· aes-gcm / keyring（凭证加密）
 
 ## 项目结构
 

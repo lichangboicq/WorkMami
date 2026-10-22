@@ -3,24 +3,19 @@ import type { ReactNode } from "react";
 import {
   Button,
   Card,
-  Checkbox,
   Input,
   InputNumber,
-  Modal,
   Select,
   Space,
   Switch,
   Tag,
   Tooltip,
-  Typography,
   message,
 } from "antd";
 import { CopyOutlined, ReloadOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
 import type { ModelInfo, ProxySettings as PS } from "../types";
-
-const { Text } = Typography;
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
 function genApiKey(): string {
@@ -62,10 +57,7 @@ export default function Proxy() {
   const settings = useStore((s) => s.settings);
   const proxy = useStore((s) => s.proxy);
   const saveSettings = useStore((s) => s.saveSettings);
-  const reloadProxy = useStore((s) => s.reloadProxy);
   const syncStatus = useStore((s) => s.syncStatus);
-  const syncAllIdes = useStore((s) => s.syncAllIdes);
-  const proxyTestConnection = useStore((s) => s.proxyTestConnection);
 
   // form 内部状态：受控的 PS 值 + 额外 saveStatus
   const [formValues, setFormValues] = useState<PS>(settings.proxy);
@@ -76,14 +68,6 @@ export default function Proxy() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
-
-  // Modal 状态
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [guideIdeId, setGuideIdeId] = useState<string>("workbuddy");
-
-  // IDE 自动配置操作 loading
-  const [syncAllLoading, setSyncAllLoading] = useState(false);
-  const [testConnLoading, setTestConnLoading] = useState(false);
 
   // 防抖队列 + 写入中集合
   const writeQueueRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -200,38 +184,6 @@ export default function Proxy() {
     await persistSettings(merged);
   };
 
-  // —— 一键自动配置全部 IDE ——
-  const handleSyncAll = async () => {
-    setSyncAllLoading(true);
-    try {
-      await syncAllIdes();
-      message.success("自动配置完成");
-    } catch (e) {
-      message.error(errText(e) || "自动配置失败");
-    } finally {
-      setSyncAllLoading(false);
-    }
-  };
-
-  // —— 测试连接 ——
-  const handleTestConnection = async () => {
-    setTestConnLoading(true);
-    try {
-      const r = await proxyTestConnection();
-      if (r.ok) {
-        message.success(
-          `连接成功 · 状态 ${r.status ?? 200}${r.modelCount ? ` · 模型 ${r.modelCount}` : ""}`,
-        );
-      } else {
-        message.error(r.message || r.error || "连接失败");
-      }
-    } catch (e) {
-      message.error(errText(e) || "连接失败");
-    } finally {
-      setTestConnLoading(false);
-    }
-  };
-
   // —— 模型列表 ——
   const loadModels = async (silent = false) => {
     setModelsLoading(true);
@@ -316,11 +268,6 @@ export default function Proxy() {
     }
     return opts;
   }, [models, defaultModel]);
-  const selectedModel = models.find((m) => m.id === defaultModel);
-
-  // 监听地址若为 0.0.0.0（监听所有网卡），给本地客户端展示回环地址
-  const displayHost = formValues.host === "0.0.0.0" ? "127.0.0.1" : formValues.host;
-  const baseUrl = `http://${displayHost}:${formValues.port}/v1`;
 
   const running = Boolean(proxy?.running);
 
@@ -364,31 +311,15 @@ export default function Proxy() {
     );
   }, [saveStatus, saveErrorMsg, hasUnsaved]);
 
-  // —— 6 个能力复选框（Modal 内使用）——
-  const capChecks: { label: string; checked: boolean; tip: string }[] = [
-    { label: "工具调用", checked: Boolean(selectedModel?.supportsToolCall), tip: "自动跟随所选模型" },
-    { label: "图片输入", checked: Boolean(selectedModel?.supportsImages), tip: "自动跟随所选模型" },
-    { label: "思考模式", checked: Boolean(selectedModel?.supportsReasoning), tip: "自动跟随所选模型" },
-    { label: "仅思考模式", checked: Boolean(selectedModel?.raw?.onlyReasoning), tip: "自动跟随所选模型" },
-    {
-      label: "允许关闭思考",
-      checked: Boolean(
-        (selectedModel?.raw?.reasoning as Record<string, unknown> | undefined)?.canDisableThinking,
-      ),
-      tip: "自动跟随所选模型",
-    },
-    { label: "自定义协议", checked: false, tip: "无需勾选" },
-  ];
-
   // —— 脏红点 ——
   const dirtyDot = (field: keyof PS) =>
     dirty.has(field) ? <span title="已修改，等待保存" className="wm-dirty-dot" /> : null;
 
   // —— SyncResult 状态徽标 ——
   const ideStatusBadge = (synced: boolean, error?: string | null) => {
-    if (error) return <Tag color="red">⚠ 错误</Tag>;
-    if (synced) return <Tag color="green">✓ 已自动配置</Tag>;
-    return <Tag color="orange">⚠ 检测到</Tag>;
+    if (error) return <Tag color="red">✗</Tag>;
+    if (synced) return <Tag color="green">✓</Tag>;
+    return <Tag color="orange">●</Tag>;
   };
 
   // —— 可见的 IDE 卡：detected=false 的不渲染 ——
@@ -399,72 +330,34 @@ export default function Proxy() {
       {/* ============ 顶部细进度条 ============ */}
       {writingProgress && <div aria-hidden className="wm-top-progress" />}
 
-      {/* ============ ① IDE 自动配置 网格 ============ */}
-      {ideCards.length > 0 && (
-        <div className="wm-section-wrap">
-          <div className="wm-section-title">
-            <span>① IDE 自动配置</span>
-            <Space size={8}>
-              <Button onClick={handleSyncAll} loading={syncAllLoading}>
-                一键自动配置全部
-              </Button>
-              <Button onClick={handleTestConnection} loading={testConnLoading}>
-                🔗 测试连接
-              </Button>
-              <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-                自动触发：保存 / 启动反向代理 / 模型刷新
-              </Text>
-            </Space>
-          </div>
-          <div className="wm-ide-grid">
-            {ideCards.map((ide) => (
-              <Card
-                key={ide.id}
-                size="small"
-                title={ide.label}
-                style={{ borderRadius: 6 }}
-                extra={ideStatusBadge(ide.synced, ide.error)}
-              >
-                {ide.error ? (
-                  <div style={{ color: "#ff4d4f", fontSize: 12 }}>{ide.error}</div>
-                ) : ide.synced ? (
-                  <div style={{ fontSize: 12, color: "#52c41a" }}>
-                    已同步 {ide.written} 个模型到 {ide.label} 模型列表
-                  </div>
-                ) : (
-                  <Space size={8}>
-                    <span style={{ fontSize: 12 }}>检测到 {ide.label} 未配置</span>
-                    {ide.hasManualGuide && (
-                      <Button
-                        size="small"
-                        type="link"
-                        onClick={() => {
-                          setGuideIdeId(ide.id);
-                          setGuideOpen(true);
-                        }}
-                      >
-                        ？手工配置
-                      </Button>
-                    )}
-                  </Space>
-                )}
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ============ ② WorkMami 设置 ============ */}
+      {/* ============ 设置卡 ============ */}
       <Card
         size="small"
         style={{ marginBottom: 16 }}
         title={
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>② WorkMami 设置</span>
+            <span>自定义模型</span>
             {saveStatusBadge}
           </div>
         }
       >
+        {/* IDE 自动配置状态（仅展示，无操作按钮） */}
+        {ideCards.length > 0 && (
+          <>
+            <div className="wm-ide-grid" style={{ marginBottom: 16 }}>
+              {ideCards.map((ide) => (
+                <Card
+                  key={ide.id}
+                  size="small"
+                  title={ide.label}
+                  style={{ borderRadius: 6 }}
+                  extra={ideStatusBadge(ide.synced, ide.error)}
+                />
+              ))}
+            </div>
+            <hr className="wm-divider-dashed" />
+          </>
+        )}
         {/* Switch 行 */}
         <div className="wm-switch-row">
           <Switch
@@ -599,11 +492,6 @@ export default function Proxy() {
               value={formValues.contextWindow}
               onChange={(v) => onFieldChange("contextWindow", (v ?? 0) as number)}
             />
-            {selectedModel?.contextWindow && (
-              <div style={{ fontSize: 11, color: "#8c8c8c", marginTop: 2 }}>
-                所选模型上限 {selectedModel.contextWindow.toLocaleString()}，可手动调低
-              </div>
-            )}
           </div>
 
           {/* 默认思考强度 */}
@@ -654,113 +542,7 @@ export default function Proxy() {
             />
           </div>
         </div>
-
-        {/* 底部说明 */}
-        <div className="wm-footer-note">
-          自动保存后 WorkBuddy 即可自动发现模型（已自动配置到 WorkBuddy 模型列表）。
-        </div>
       </Card>
-
-      {/* ============ Modal: 手工配置向导 ============ */}
-      <Modal
-        open={guideOpen}
-        onCancel={() => setGuideOpen(false)}
-        title="WorkBuddy 手工配置向导"
-        footer={null}
-        width={560}
-        maskClosable
-        destroyOnHidden
-      >
-        <div style={{ color: "#8c8c8c", fontSize: 12, marginBottom: 16 }}>
-          自动配置失败或需要逐项核对时使用。WorkMami 已把支持的模型自动写入 WorkBuddy 的模型列表，重启 WorkBuddy 即可直接选用，通常无需手工配置。
-        </div>
-
-        {/* 绿色通用区 */}
-        <div className="wm-guide-block wm-guide-block--green">
-          <div style={{ fontWeight: 500, marginBottom: 8 }}>接口地址 + API Key（填到 WorkBuddy 对应字段）</div>
-          <div style={{ fontSize: 12, color: "#595959", marginBottom: 4 }}>接口地址</div>
-          <Space.Compact style={{ width: "100%", marginBottom: 8 }}>
-            <Input readOnly value={baseUrl} className="wm-mono" />
-            <Tooltip title="复制">
-              <Button icon={<CopyOutlined />} onClick={() => copyText(baseUrl, "已复制接口地址")} />
-            </Tooltip>
-          </Space.Compact>
-
-          <div style={{ fontSize: 12, color: "#595959", marginBottom: 4 }}>API Key</div>
-          <Space.Compact style={{ width: "100%" }}>
-            <Input.Password readOnly value={apiKey} className="wm-mono" visibilityToggle />
-            <Tooltip title="复制">
-              <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
-            </Tooltip>
-          </Space.Compact>
-        </div>
-
-        {/* 蓝色提示条 */}
-        <div className="wm-guide-block wm-guide-block--blue">
-          WorkBuddy 设置 → 模型 → 添加模型，逐项照抄、复制粘贴即可。
-        </div>
-
-        {/* 中间白区：供应商 + 模型名称 + 高级配置 + 默认思考强度 */}
-        <div className="wm-guide-block wm-guide-block--white">
-          <div style={{ marginBottom: 10 }}>
-            <Text strong>供应商（仅支持 OpenAI 兼容协议 API）</Text>
-            <div style={{ marginTop: 4 }}>
-              <Input readOnly value="自定义" className="wm-mono" />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 10 }}>
-            <Text strong>模型名称</Text>
-            <div style={{ marginTop: 4 }}>
-              <Select
-                showSearch
-                style={{ width: "100%" }}
-                value={defaultModel || undefined}
-                placeholder="选择模型"
-                optionFilterProp="label"
-                loading={modelsLoading}
-                options={modelOptions}
-                onChange={(id) => onModelChange(id)}
-                notFoundContent={modelsLoading ? "加载中…" : modelsError || "点右侧刷新获取模型"}
-              />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 10 }}>
-            <Text strong>高级配置</Text>
-            <Text type="secondary" style={{ display: "block", marginBottom: 6 }}>
-              已按所选模型自动勾好，照此勾选：
-            </Text>
-            <Space size={14} wrap>
-              {capChecks.map((c) => (
-                <Tooltip title={c.tip} key={c.label}>
-                  <Checkbox checked={c.checked} disabled>
-                    {c.label}
-                  </Checkbox>
-                </Tooltip>
-              ))}
-            </Space>
-          </div>
-
-          <div>
-            <Text strong>默认思考强度</Text>
-            <Select
-              disabled
-              value="auto"
-              style={{ width: "100%", marginTop: 4 }}
-              options={[{ value: "auto", label: "自动" }]}
-            />
-          </div>
-        </div>
-
-        {/* 底部灰色区：最后一步 */}
-        <div className="wm-guide-block wm-guide-block--gray">
-          <Text strong>最后一步</Text>
-          <div style={{ fontSize: 12, color: "#595959", marginTop: 4 }}>
-            在 WorkBuddy 弹窗点「测试连接」，成功后保存即可；WorkMami 会在后台自动分配账号与积分。
-          </div>
-        </div>
-      </Modal>
     </div>
   );
 }
