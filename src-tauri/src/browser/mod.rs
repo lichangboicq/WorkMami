@@ -1,7 +1,7 @@
 //! 成长中心人工操作窗口：为每个账号拉起一个**独立浏览器 profile**。
 //!
 //! 背景：WorkMami 只保存插件 Bearer token（供 /v2/plugin、/billing 等 JSON 接口），
-//! 不持有网页 cookie 会话；成长中心 SPA（www.workbuddy.cn/profile/growth-center）
+//! 不持有网页 cookie 会话；成长中心 SPA（www.codebuddy.cn/profile/growth-space）
 //! 靠浏览器自身登录态判定身份，插件 token 无法注入网页。因此给每个 uid 分配独立的
 //! `--user-data-dir`，由浏览器自己保存该账号的网页登录。
 //!
