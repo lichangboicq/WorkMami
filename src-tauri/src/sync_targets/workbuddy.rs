@@ -31,11 +31,11 @@ impl IdeSyncTarget for WorkBuddyTarget {
         let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
         let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
 
+        let display_map = crate::model_display::real_to_display(models);
         let ours: Vec<Value> = models
             .iter()
             .filter_map(|m| {
                 let id = m.get("id").and_then(|v| v.as_str())?;
-                let name = m.get("name").and_then(|v| v.as_str()).unwrap_or(id);
                 let reasoning = m.get("raw").and_then(|r| r.get("reasoning"));
                 let can_disable = reasoning
                     .and_then(|r| r.get("canDisableThinking"))
@@ -47,10 +47,17 @@ impl IdeSyncTarget for WorkBuddyTarget {
                     .filter(|s| !s.is_empty())
                     .unwrap_or("medium");
                 let credits = m.get("credits").and_then(|v| v.as_str()).unwrap_or("");
-                let suffix = if credits.is_empty() { "WorkMami" } else { credits };
+                // WorkBuddy 会按「name:id」渲染自定义模型条目，只有 name 与 id 完全一致
+                // 时才只显示一个名字。这里统一用展示用 id 作为 name，倍率放到 credits 字段，
+                // 由官方渲染成右侧的「0.51x」，与内置模型排版一致。
+                let display_id = display_map
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_else(|| crate::model_display::pretty_model_id(id));
                 Some(json!({
-                    "id": id,
-                    "name": format!("{name} ({suffix})"),
+                    "id": display_id,
+                    "name": display_id,
+                    "credits": credits,
                     "url": url,
                     "apiKey": ps.api_key,
                     "maxInputTokens": m.get("contextWindow").and_then(|v| v.as_i64()).filter(|v| *v > 0).unwrap_or(131072),

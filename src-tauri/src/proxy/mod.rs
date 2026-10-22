@@ -230,17 +230,17 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
         .filter(|s| !s.trim().is_empty())
         .unwrap_or("")
         .to_string();
-    let requested = if requested_raw.is_empty() || !is_known_model(&state, &requested_raw) {
-        if !requested_raw.is_empty() && requested_raw != ps.default_model {
+    let requested = if requested_raw.is_empty() {
+        ps.default_model.clone()
+    } else {
+        resolve_model_id(&state, &requested_raw).unwrap_or_else(|| {
             tracing::warn!(
                 "请求模型 {:?} 不在已知列表中，回落到默认模型 {:?}",
                 requested_raw,
                 ps.default_model
             );
-        }
-        ps.default_model.clone()
-    } else {
-        requested_raw
+            ps.default_model.clone()
+        })
     };
     if let Some(obj) = req.as_object_mut() {
         obj.insert("model".into(), json!(requested));
@@ -276,21 +276,33 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
 }
 
 // ---------- 模型验证 ----------
-/// 检查请求的模型名是否在已知列表中（缓存的模型列表 + 默认模型）。
-/// 若缓存为空（尚未拉取过模型列表），视为"全部放行"避免误拦。
-fn is_known_model(state: &Arc<AppState>, model: &str) -> bool {
+/// 把客户端传入的模型名解析为上游真实模型 id。
+/// WorkBuddy 自定义模型条目用展示用 id（如 Deepseek-V4-Pro）作为模型名，
+/// 这里通过同一套展示名映射还原成真实 id（deepseek-v4-pro）。
+/// 缓存为空（尚未拉取过模型列表）时原样放行，避免启动初期误拦。
+fn resolve_model_id(state: &Arc<AppState>, requested: &str) -> Option<String> {
+    if requested.is_empty() {
+        return None;
+    }
     let ps = state.proxy_settings();
-    if model == ps.default_model {
-        return true;
+    if requested == ps.default_model {
+        return Some(requested.to_string());
     }
     let cache = state.models_cache.lock().unwrap();
-    // 缓存为空时不做校验，放行（避免启动初期误拦）
     if cache.is_empty() {
-        return true;
+        return Some(requested.to_string());
     }
-    cache.iter().any(|m| {
-        m.get("id").and_then(|i| i.as_str()) == Some(model)
-    })
+    // 1) 真实 id 精确匹配（其他 IDE 直接同步真实 id 的情况）
+    if let Some(id) = cache.iter().find_map(|m| {
+        let id = m.get("id")?.as_str()?;
+        (id == requested).then(|| id.to_string())
+    }) {
+        return Some(id);
+    }
+    // 2) 展示用 id 匹配
+    crate::model_display::real_to_display(&cache)
+        .into_iter()
+        .find_map(|(real, display)| (display == requested).then_some(real))
 }
 
 // ---------- 调度 ----------

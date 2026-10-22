@@ -327,6 +327,7 @@ pub struct DesktopInfo {
     #[serde(default)]
     pub accounts: Option<serde_json::Value>,
     #[serde(default)]
+    #[allow(non_snake_case, reason = "WorkBuddy desktop.info 上游字段名必须严格匹配才能正确反序列化")]
     pub allAccounts: Option<serde_json::Value>,
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,

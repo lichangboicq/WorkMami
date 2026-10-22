@@ -9,12 +9,12 @@ import {
   Input,
   message,
   Modal,
-  Popconfirm,
   Progress,
   Row,
   Space,
   Switch,
   Tag,
+  theme as antdTheme,
   Tooltip,
 } from "antd";
 import {
@@ -90,41 +90,38 @@ function GrowthPlanIcon({
   );
 }
 
-// 卡片底部操作项：图标 + 文字标签，避免纯图标按钮语义不清。
+// 卡片底部操作项：仅图标 + Tooltip 说明，避免文字标签在小卡片里换行、在亮色主题下看不清。
 function CardAction({
   icon,
-  label,
+  title,
+  tooltip,
   onClick,
   danger,
   disabled,
 }: {
   icon: ReactNode;
-  label: string;
+  title: string;
+  tooltip?: string;
   onClick?: () => void;
   danger?: boolean;
   disabled?: boolean;
 }) {
   return (
-    <span
-      role="button"
-      tabIndex={onClick && !disabled ? 0 : -1}
-      onClick={disabled ? undefined : onClick}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 4,
-        fontSize: 12,
-        lineHeight: 1,
-        cursor: onClick && !disabled ? "pointer" : "default",
-        color: danger ? "#ff4d4f" : "rgba(255,255,255,0.85)",
-        opacity: disabled ? 0.45 : 1,
-        userSelect: "none",
-      }}
-    >
-      {icon}
-      <span>{label}</span>
-    </span>
+    // Tooltip 必须包住真实 DOM 节点（span），否则挂在函数组件上事件会丢失
+    <Tooltip title={tooltip ?? title}>
+      <span className="wm-card-action-wrap">
+        <Button
+          type="text"
+          size="small"
+          className="wm-card-action"
+          icon={icon}
+          onClick={onClick}
+          danger={danger}
+          disabled={disabled}
+          aria-label={title}
+        />
+      </span>
+    </Tooltip>
   );
 }
 
@@ -402,6 +399,7 @@ function AccountCard({
   onTags: () => void;
 }) {
   const q = a.quota;
+  const { token } = antdTheme.useToken();
   const [open, setOpen] = useState(false);
   const pct = q && q.total > 0 ? Math.round((q.remaining / q.total) * 100) : 0;
   // 卡片概览只列「还有剩余」的批次（按到期升序）：已用完的批次没有到期压力，
@@ -415,10 +413,11 @@ function AccountCard({
   return (
     <Card
       size="small"
+      className="wm-account-card"
       title={
-        <Space>
+        <Space size={8} className="wm-account-title-row">
           <Badge status={a.enabled ? "processing" : "default"} />
-          <span>{a.nickname || "未命名"}</span>
+          <span className="wm-account-name">{a.nickname || "未命名"}</span>
           <Tooltip title={`UID: ${a.uid}`}>
             <Tag className="wm-mono">{uidTail}</Tag>
           </Tooltip>
@@ -429,43 +428,35 @@ function AccountCard({
         <CardAction
           key="r"
           icon={<ReloadOutlined />}
-          label="刷新积分"
+          title="刷新积分"
           onClick={onRefresh}
         />,
-        <Tooltip
-          key="g"
-          title={
-            bound
-              ? "去成长计划做任务攒积分"
-              : "成长计划未记忆：删除该账号后重新扫码登录一次即可自动记忆"
-          }
-        >
-          <span style={{ display: "inline-flex" }}>
-            <CardAction
-              icon={<GrowthPlanIcon />}
-              label="成长计划"
-              disabled={!bound}
-              onClick={onOpenGrowth}
-            />
-          </span>
-        </Tooltip>,
-        <CardAction key="l" icon={<BillIcon />} label="积分明细" onClick={onLedger} />,
         <CardAction
-          key="t"
-          icon={<EditOutlined />}
-          label="编辑标签"
-          onClick={onTags}
+          key="g"
+          icon={<GrowthPlanIcon />}
+          title="成长计划"
+          tooltip={bound ? "成长计划" : "重新添加此账号即可访问成长计划"}
+          disabled={!bound}
+          onClick={onOpenGrowth}
         />,
-        <Popconfirm
+        <CardAction key="l" icon={<BillIcon />} title="积分明细" onClick={onLedger} />,
+        <CardAction key="t" icon={<EditOutlined />} title="编辑标签" onClick={onTags} />,
+        <CardAction
           key="d"
-          title="确定删除该账号？"
-          description="仅移除 WorkMami 记录，您的 WorkBuddy 继续正常使用，无影响。"
-          onConfirm={onDelete}
-          okText="删除"
-          cancelText="取消"
-        >
-          <CardAction icon={<DeleteOutlined />} label="删除账号" danger />
-        </Popconfirm>,
+          icon={<DeleteOutlined />}
+          title="删除账号"
+          danger
+          onClick={() =>
+            Modal.confirm({
+              title: "确定删除该账号？",
+              content: "仅移除 WorkMami 记录，您的 WorkBuddy 继续正常使用，无影响。",
+              okText: "删除",
+              okButtonProps: { danger: true },
+              cancelText: "取消",
+              onOk: onDelete,
+            })
+          }
+        />,
       ]}
     >
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
@@ -507,7 +498,7 @@ function AccountCard({
                 <span style={{ fontSize: 22, fontWeight: 700 }}>
                   {fmtNum(q.remaining)}
                 </span>{" "}
-                <span style={{ opacity: 0.65, fontSize: 12 }}>/ {fmtNum(q.total)}</span>
+                <span className="wm-account-total">/ {fmtNum(q.total)}</span>
               </span>
               {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
             </div>
@@ -516,7 +507,7 @@ function AccountCard({
               status={pct < 15 ? "exception" : "normal"}
               showInfo={false}
             />
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
+            <div className="wm-account-subtext">
               已用 {fmtNum(q.used)} · 更新于 {fmtTime(q.updated_at)}
             </div>
             {(activeResources.length > 0 || usedUpCount > 0) && (
@@ -533,7 +524,8 @@ function AccountCard({
                   <div
                     style={{
                       marginTop: 6,
-                      border: "1px solid rgba(255,255,255,0.08)",
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      background: token.colorFillQuaternary,
                       borderRadius: 6,
                       overflow: "hidden",
                     }}
@@ -542,9 +534,9 @@ function AccountCard({
                       {activeResources.map((r, i) => {
                         const e = fmtExpire(r.expire_at);
                         const color = r.expired
-                          ? "#ff4d4f"
+                          ? token.colorError
                           : r.expiring_soon
-                            ? "#faad14"
+                            ? token.colorWarning
                             : undefined;
                         return (
                           <div
@@ -558,10 +550,14 @@ function AccountCard({
                               gap: 8,
                             }}
                           >
-                            <span style={{ opacity: 0.85 }}>{r.name}</span>
+                            <span className="wm-account-resource-name">{r.name}</span>
                             <span style={{ display: "flex", gap: 10 }}>
                               <b style={{ color }}>{fmtNum(r.remaining)}</b>
-                              <span style={{ opacity: 0.7, color }}>{e.text}</span>
+                              <span
+                                style={{ color: color ?? token.colorTextTertiary }}
+                              >
+                                {e.text}
+                              </span>
                             </span>
                           </div>
                         );
@@ -570,7 +566,7 @@ function AccountCard({
                   </div>
                 )}
                 {usedUpCount > 0 && (
-                  <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                  <div className="wm-account-faint">
                     另有 {usedUpCount} 笔已用完 · 完整记录见「积分清单」
                   </div>
                 )}
@@ -578,10 +574,10 @@ function AccountCard({
             )}
           </div>
         ) : (
-          <div style={{ opacity: 0.65 }}>积分未同步，点击刷新</div>
+          <div className="wm-account-subtext">积分未同步，点击刷新</div>
         )}
 
-        <div style={{ fontSize: 12, opacity: 0.75 }}>
+        <div className="wm-account-subtext">
           最近使用：{fmtTime(a.last_used_at)}
         </div>
       </Space>
