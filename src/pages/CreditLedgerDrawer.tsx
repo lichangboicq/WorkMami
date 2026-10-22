@@ -13,6 +13,7 @@ import {
 import type { ColumnsType } from "antd/es/table";
 import { api, errText } from "../api";
 import type { CreditLedger, CreditReward, CreditUsageRow } from "../types";
+import { InfoIcon } from "../components/WBIcon";
 
 function fmtNum(n: number): string {
   return Math.round(n).toLocaleString("zh-CN");
@@ -127,7 +128,7 @@ export default function CreditLedgerDrawer({
         <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>平台奖励积分</span>
           <Tooltip title="官方活动发放、签到、做任务、派猫猫旅行等获得的积分批次，各有独立到期时间">
-            <span style={{ marginLeft: 6, opacity: 0.65 }}>ⓘ</span>
+            <InfoIcon style={{ marginLeft: 6, opacity: 0.65 }} />
           </Tooltip>
         </div>
 

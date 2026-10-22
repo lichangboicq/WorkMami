@@ -6,6 +6,7 @@ import {
   Card,
   Checkbox,
   Col,
+  Collapse,
   Divider,
   Form,
   Input,
@@ -15,6 +16,7 @@ import {
   Select,
   Space,
   Switch,
+  Tag,
   Tooltip,
   Typography,
 } from "antd";
@@ -49,6 +51,9 @@ export default function Proxy() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState("");
+  // 手工配置 WorkBuddy 的镜像 UI 收归按钮后面：模型已自动写入 WorkBuddy 的 models.json，
+  // 一般不需要手工配置，用户主动点击后才展示。
+  const [showManualGuide, setShowManualGuide] = useState(false);
 
   useEffect(() => {
     const p = settings.proxy;
@@ -92,7 +97,8 @@ export default function Proxy() {
   const onSave = async () => {
     try {
       const v = await form.validateFields();
-      const next: PS = { ...settings.proxy, ...v };
+      // apiKey 已不绑定 Form.Item（只在右栏镜像卡展示/刷新），需显式并入，避免保存时丢值。
+      const next: PS = { ...settings.proxy, ...v, apiKey: form.getFieldValue("apiKey") || v.apiKey };
       setSaving(true);
       await saveSettings({ ...settings, proxy: next });
       message.success("代理设置已保存");
@@ -160,185 +166,200 @@ export default function Proxy() {
   }, [models, defaultModel]);
   const selectedModel = models.find((m) => m.id === defaultModel);
 
-  const baseUrl = proxy?.baseUrl || `http://${settings.proxy.host}:${settings.proxy.port}/v1`;
+  // 监听地址若为 0.0.0.0（监听所有网卡），给本地客户端展示回环地址；其余情况按实际 host 展示。
+  const displayHost = settings.proxy.host === "0.0.0.0" ? "127.0.0.1" : settings.proxy.host;
+  const baseUrl = `http://${displayHost}:${settings.proxy.port}/v1`;
+
+  const running = Boolean(proxy?.running);
+
+  // —— 镜像卡：1:1 复刻 WorkBuddy「编辑模型」弹窗，值自动填好，用户照着复制/勾选 ——
+  // 注意：下面的勾选框「不可改」是刻意设计——每种 LLM 有与之匹配的独特能力参数，
+  // 必须和官方一致模型才能正常工作；小白用户不需要也不应该改，照抄即可。请勿改为可交互。
+  const capChecks: { label: string; checked: boolean; tip: string }[] = [
+    {
+      label: "工具调用",
+      checked: Boolean(selectedModel?.supportsToolCall),
+      tip: "自动跟随所选模型",
+    },
+    {
+      label: "图片输入",
+      checked: Boolean(selectedModel?.supportsImages),
+      tip: "自动跟随所选模型",
+    },
+    {
+      label: "思考模式",
+      checked: Boolean(selectedModel?.supportsReasoning),
+      tip: "自动跟随所选模型",
+    },
+    {
+      label: "仅思考模式",
+      checked: Boolean(selectedModel?.raw?.onlyReasoning),
+      tip: "自动跟随所选模型",
+    },
+    {
+      label: "允许关闭思考",
+      checked: Boolean(
+        (selectedModel?.raw?.reasoning as Record<string, unknown> | undefined)?.canDisableThinking,
+      ),
+      tip: "自动跟随所选模型",
+    },
+    {
+      label: "自定义协议",
+      checked: false,
+      tip: "无需勾选",
+    },
+  ];
+
+  const mirrorLabel = (t: string) => <Text strong>{t}</Text>;
 
   return (
     <div className="wm-page">
       <Row gutter={16}>
+        {/* ============ 左：WorkMami 自己的设置 ============ */}
         <Col xs={24} lg={14}>
-          <Card title="本地反向代理" size="small">
+          <Card title="WorkMami 设置" size="small" style={{ marginBottom: 16 }}>
             <Form form={form} layout="vertical" initialValues={settings.proxy}>
-              <Space size="large" wrap>
-                <Form.Item
-                  name="enabled"
-                  label="启用反代"
-                  valuePropName="checked"
-                >
-                  <Switch />
+              <Space size="large" wrap align="center">
+                <Form.Item name="enabled" valuePropName="checked" style={{ marginBottom: 0 }}>
+                  <Switch checkedChildren="已开启" unCheckedChildren="已关闭" />
                 </Form.Item>
-                <Form.Item name="host" label="监听地址">
-                  <Input style={{ width: 140 }} />
-                </Form.Item>
-                <Form.Item name="port" label="端口">
-                  <InputNumber style={{ width: 100 }} min={1} max={65535} />
-                </Form.Item>
+                <Tag color={running ? "green" : enabled ? "orange" : "default"}>
+                  {running ? "服务运行中" : enabled ? "待保存后启动" : "未启动"}
+                </Tag>
               </Space>
 
               {!enabled && (
                 <Alert
                   type="warning"
                   showIcon
-                  style={{ marginBottom: 16 }}
-                  message="反代未启用，保存后不会启动 HTTP 服务。"
-                />
-              )}
-              {(!apiKey || apiKey === "") && (
-                <Alert
-                  type="error"
-                  showIcon
-                  style={{ marginBottom: 16 }}
-                  message="API Key 为空：任何本地进程都能调用你的账号积分，建议设置密钥。"
+                  style={{ marginTop: 12 }}
+                  message="未开启：开启并保存后，右侧接入信息才可用。"
                 />
               )}
 
-              <Form.Item
-                label="访问密钥 (Bearer Key)"
-                tooltip="已自动生成，无需手动设置；客户端需在 Authorization: Bearer <key> 中携带"
-              >
-                <Space.Compact style={{ width: "100%" }}>
-                  <Form.Item name="apiKey" noStyle>
-                    <Input.Password
-                      className="wm-mono"
-                      placeholder="自动生成 SK-… 随机密钥"
-                      visibilityToggle
-                    />
-                  </Form.Item>
-                  <Tooltip title="随机生成新密钥">
-                    <Button
-                      icon={<ReloadOutlined />}
-                      onClick={() => {
-                        form.setFieldValue("apiKey", genApiKey());
-                        message.success("已生成新密钥，记得保存");
-                      }}
-                    />
-                  </Tooltip>
-                  <Tooltip title="复制密钥">
-                    <Button
-                      icon={<CopyOutlined />}
-                      onClick={() => copyText(apiKey || "", "已复制 API Key")}
-                    />
-                  </Tooltip>
-                </Space.Compact>
-              </Form.Item>
-
-              <Row gutter={12}>
-                <Col span={12}>
-                  <Form.Item name="strategy" label="调度策略">
-                    <Select
-                      options={[
-                        { value: "expiring-first", label: "先消耗临近到期的积分" },
-                        { value: "smart", label: "先消耗余额多的账号" },
-                        { value: "drain", label: "先消耗余额少的账号" },
-                        { value: "round-robin", label: "各账号平均消耗" },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item label="模型名称" tooltip="实时拉取 WorkBuddy 内置模型，上新后点右侧刷新即可看到">
-                    <Space.Compact style={{ width: "100%" }}>
-                      <Form.Item name="defaultModel" noStyle>
-                        <Select
-                          showSearch
-                          style={{ width: "100%" }}
-                          placeholder="选择模型"
-                          optionFilterProp="label"
-                          loading={modelsLoading}
-                          options={modelOptions}
-                          onChange={onModelChange}
-                          notFoundContent={
-                            modelsLoading ? "加载中…" : modelsError || "点右侧刷新获取模型"
-                          }
-                        />
-                      </Form.Item>
-                      <Tooltip title="刷新模型列表">
-                        <Button
-                          icon={<ReloadOutlined />}
-                          loading={modelsLoading}
-                          onClick={() => loadModels()}
-                        />
-                      </Tooltip>
-                    </Space.Compact>
-                  </Form.Item>
-                  {modelsError && (
-                    <div style={{ color: "#ff4d4f", fontSize: 12, marginTop: -18, marginBottom: 12 }}>
-                      {modelsError}
-                    </div>
-                  )}
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    name="contextWindow"
-                    label="上下文窗口(tokens)"
-                    extra={
-                      selectedModel?.contextWindow
-                        ? `所选模型上限 ${selectedModel.contextWindow.toLocaleString()}，可手动调低`
-                        : undefined
-                    }
-                  >
-                    <InputNumber style={{ width: "100%" }} min={1000} step={1000} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="reasoningEffort" label="默认思考强度">
-                    <Select
-                      options={[
-                        { value: "none", label: "关闭" },
-                        { value: "low", label: "低" },
-                        { value: "medium", label: "中" },
-                        { value: "high", label: "高" },
-                      ]}
-                    />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="stickyTtlMin" label="会话粘性窗口(分钟)">
-                    <InputNumber style={{ width: "100%" }} min={0} />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item name="maxRetries" label="Failover 最大换号数">
-                    <InputNumber style={{ width: "100%" }} min={1} max={10} />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Divider />
+              <Divider style={{ margin: "20px 0 12px" }} />
               <Button type="primary" loading={saving} onClick={onSave}>
                 保存设置
               </Button>
+              <Text type="secondary" style={{ marginLeft: 12 }}>
+                保存后 WorkBuddy 即可自动发现模型（已同步到 WorkBuddy 模型列表）。
+              </Text>
+
+              {/* —— 小白不需要动的高级参数，折叠收起 —— */}
+              <Collapse
+                ghost
+                defaultActiveKey={["adv"]}
+                style={{ marginTop: 12 }}
+                items={[
+                  {
+                    key: "adv",
+                        label: "高级设置（WorkMami 独有参数，一般不用动）",
+                        children: (
+                          <>
+                            <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                              仅在 WorkMami 生效，WorkBuddy 无对应项，保持默认即可。
+                            </Text>
+                      <Row gutter={12}>
+                        <Col span={12}>
+                          <Form.Item name="host" label="监听地址">
+                            <Input style={{ width: "100%" }} placeholder="默认 127.0.0.1" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="port" label="端口">
+                            <InputNumber style={{ width: "100%" }} min={1} max={65535} placeholder="默认 8787" />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="strategy" label="积分调度策略">
+                            <Select
+                              options={[
+                                { value: "expiring-first", label: "先消耗临近到期的积分" },
+                                { value: "smart", label: "先消耗余额多的账号" },
+                                { value: "drain", label: "先消耗余额少的账号" },
+                                { value: "round-robin", label: "各账号平均消耗" },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item
+                            name="contextWindow"
+                            label="上下文窗口(tokens)"
+                            extra={
+                              selectedModel?.contextWindow
+                                ? `所选模型上限 ${selectedModel.contextWindow.toLocaleString()}，可手动调低`
+                                : undefined
+                            }
+                          >
+                            <InputNumber style={{ width: "100%" }} min={1000} step={1000} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="reasoningEffort" label="默认思考强度">
+                            <Select
+                              options={[
+                                { value: "none", label: "关闭" },
+                                { value: "low", label: "低" },
+                                { value: "medium", label: "中" },
+                                { value: "high", label: "高" },
+                              ]}
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="stickyTtlMin" label="会话粘性窗口(分钟)">
+                            <InputNumber style={{ width: "100%" }} min={0} />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item name="maxRetries" label="Failover 最大换号数">
+                            <InputNumber style={{ width: "100%" }} min={1} max={10} />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                          </>
+                    ),
+                  },
+                ]}
+              />
             </Form>
           </Card>
         </Col>
 
+        {/* ============ 右：WorkBuddy 配置向导（默认自动同步；手工配置收归按钮后） ============ */}
         <Col xs={24} lg={10}>
-          <Card title="WorkBuddy配置指南（设置→模型→添加模型）" size="small" style={{ marginBottom: 16 }}>
-            <Space direction="vertical" style={{ width: "100%" }}>
-              <Text strong>服务状态</Text>
-              <Alert
-                type={proxy?.running ? "success" : "info"}
-                showIcon
-                message={
-                  proxy?.running
-                    ? "运行中"
-                    : settings.proxy.enabled
-                      ? "已启用但未运行"
-                      : "未启用"
-                }
-              />
-              <Text strong>供应商（仅支持 OpenAI 兼容协议 API）</Text>
+          <Card title="WorkBuddy 配置向导" size="small" style={{ marginBottom: 16 }}>
+            <Alert
+              type="success"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="已自动配置：WorkMami 会把支持的模型自动写入 WorkBuddy 的模型列表，重启 WorkBuddy 即可直接选用，通常无需手工配置。"
+            />
+
+            {!showManualGuide ? (
+              <div style={{ textAlign: "center", padding: "16px 0" }}>
+                <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                  自动配置失败或需要逐项核对时，可打开手工配置向导。
+                </Text>
+                <Button onClick={() => setShowManualGuide(true)}>
+                  打开手工配置向导
+                </Button>
+              </div>
+            ) : (
+              <>
+            <Alert
+              type="info"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="WorkBuddy 设置 → 模型 → 添加模型，逐项照抄、复制粘贴即可。"
+            />
+
+            <Space direction="vertical" style={{ width: "100%" }} size={4}>
+              {mirrorLabel("供应商（仅支持 OpenAI 兼容协议 API）")}
               <Input readOnly value="自定义" className="wm-mono" />
-              <Text strong>接口地址</Text>
+
+              <div style={{ marginTop: 6 }}>{mirrorLabel("接口地址")}</div>
               <Space.Compact style={{ width: "100%" }}>
                 <Input readOnly value={baseUrl} className="wm-mono" />
                 <Tooltip title="复制">
@@ -348,74 +369,91 @@ export default function Proxy() {
                   />
                 </Tooltip>
               </Space.Compact>
-              <Text strong style={{ marginTop: 8 }}>
-                API Key
-              </Text>
+
+              <div style={{ marginTop: 6 }}>{mirrorLabel("API Key")}</div>
               <Space.Compact style={{ width: "100%" }}>
                 <Input.Password readOnly value={apiKey || ""} className="wm-mono" visibilityToggle />
-                <Tooltip title="复制密钥">
+                <Tooltip title="复制">
                   <Button
                     icon={<CopyOutlined />}
                     onClick={() => copyText(apiKey || "", "已复制 API Key")}
                   />
                 </Tooltip>
-              </Space.Compact>
-              <Text strong style={{ marginTop: 8 }}>
-                模型名称
-              </Text>
-              <Space.Compact style={{ width: "100%" }}>
-                <Input readOnly value={defaultModel || ""} className="wm-mono" placeholder="未选择" />
-                <Tooltip title="复制模型名">
+                <Tooltip title="随机生成新密钥，生成后记得回左边保存">
                   <Button
-                    icon={<CopyOutlined />}
-                    disabled={!defaultModel}
-                    onClick={() => copyText(defaultModel || "", "已复制模型名")}
+                    icon={<ReloadOutlined />}
+                    onClick={() => {
+                      form.setFieldValue("apiKey", genApiKey());
+                      message.success("已生成新密钥，记得回左边保存");
+                    }}
                   />
                 </Tooltip>
               </Space.Compact>
-              {selectedModel && (
-                <div style={{ marginTop: 8 }}>
-                  <Text strong>高级配置</Text>
-                  <Space size={14} wrap style={{ marginTop: 6 }}>
-                    <Checkbox checked={selectedModel.supportsToolCall} disabled>
-                      工具调用
-                    </Checkbox>
-                    <Checkbox checked={selectedModel.supportsImages} disabled>
-                      图片输入
-                    </Checkbox>
-                    <Checkbox checked={selectedModel.supportsReasoning} disabled>
-                      思考模式
-                    </Checkbox>
-                    <Checkbox checked={Boolean(selectedModel.raw?.onlyReasoning)} disabled>
-                      仅思考模式
-                    </Checkbox>
-                    <Checkbox
-                      checked={Boolean(
-                        (selectedModel.raw?.reasoning as Record<string, unknown> | undefined)
-                          ?.canDisableThinking,
-                      )}
-                      disabled
-                    >
-                      允许关闭思考
-                    </Checkbox>
-                    <Tooltip title="WorkMami 走标准转发路径，无需开启">
-                      <Checkbox checked={false} disabled>
-                        自定义协议
+
+              <div style={{ marginTop: 6 }}>{mirrorLabel("模型名称")}</div>
+              <Space.Compact style={{ width: "100%" }}>
+                <Select
+                  showSearch
+                  style={{ width: "100%" }}
+                  value={defaultModel || undefined}
+                  placeholder="选择模型"
+                  optionFilterProp="label"
+                  loading={modelsLoading}
+                  options={modelOptions}
+                  onChange={(id) => {
+                    form.setFieldValue("defaultModel", id);
+                    onModelChange(id);
+                  }}
+                  notFoundContent={
+                    modelsLoading ? "加载中…" : modelsError || "点右侧刷新获取模型"
+                  }
+                />
+                <Tooltip title="刷新模型列表">
+                  <Button
+                    icon={<ReloadOutlined />}
+                    loading={modelsLoading}
+                    onClick={() => loadModels()}
+                  />
+                </Tooltip>
+              </Space.Compact>
+              {modelsError && (
+                <div style={{ color: "#ff4d4f", fontSize: 12 }}>{modelsError}</div>
+              )}
+
+              <div style={{ marginTop: 8 }}>
+                <Text strong>高级配置</Text>
+                <Text type="secondary" style={{ display: "block", marginBottom: 6 }}>
+                  已按所选模型自动勾好，照此勾选：
+                </Text>
+                <Space size={14} wrap>
+                  {capChecks.map((c) => (
+                    <Tooltip title={c.tip} key={c.label}>
+                      <Checkbox checked={c.checked} disabled>
+                        {c.label}
                       </Checkbox>
                     </Tooltip>
-                  </Space>
-                </div>
-              )}
-              <Text strong style={{ marginTop: 8 }}>
-                默认思考强度
-              </Text>
-              <Select
-                disabled
-                value="auto"
-                style={{ width: "100%" }}
-                options={[{ value: "auto", label: "自动（使用请求层默认值）" }]}
-              />
+                  ))}
+                </Space>
+              </div>
+
+              <div style={{ marginTop: 6 }}>
+                {mirrorLabel("默认思考强度")}
+                <Select
+                  disabled
+                  value="auto"
+                  style={{ width: "100%", marginTop: 4 }}
+                  options={[{ value: "auto", label: "自动" }]}
+                />
+              </div>
             </Space>
+
+            <Divider style={{ margin: "12px 0 8px" }} />
+            <Text strong>最后一步</Text>
+            <Text type="secondary" style={{ display: "block" }}>
+              在 WorkBuddy 弹窗点「测试连接」，成功后保存即可；WorkMami 会在后台自动分配账号与积分。
+            </Text>
+              </>
+            )}
           </Card>
         </Col>
       </Row>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   Alert,
   Badge,
@@ -20,13 +20,13 @@ import {
 import {
   DeleteOutlined,
   EditOutlined,
-  ProfileOutlined,
   ReloadOutlined,
   UserAddOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
 import type { Account } from "../types";
+import { BillIcon } from "../components/WBIcon";
 import CreditLedgerDrawer from "./CreditLedgerDrawer";
 
 const sourceLabel: Record<string, string> = {
@@ -57,6 +57,77 @@ function fmtExpire(ms?: number | null): { text: string; days: number | null } {
   return { text: `${date}（剩 ${days} 天）`, days };
 }
 
+// 官方成长计划导航图标（取自 WorkBuddy usercenter 前端 bundle，currentColor 单色，随文字着色/置灰）
+function GrowthPlanIcon({
+  style,
+  onClick,
+}: {
+  style?: CSSProperties;
+  onClick?: () => void;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="14"
+      height="14"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        verticalAlign: "-0.125em",
+        ...style,
+      }}
+      onClick={onClick}
+    >
+      <path
+        fill="currentColor"
+        fillRule="evenodd"
+        transform="matrix(0.707107 0.707107 -0.707107 0.707107 7.99988 -0.000304222)"
+        d="M10.7915 2.3866L10.7922 2.3851L10.8082 2.3531L10.8324 2.3046L10.8434 2.2826L10.8509 2.2674Q11.0516 1.8517 10.9643 1.4155Q10.8844 1.0156 10.5912 0.7226Q10.2981 0.4295 9.8983 0.3495Q9.4621 0.2624 9.0509 0.4609L9.034 0.4693L9.0092 0.4817L8.96 0.5062L8.9285 0.5219Q7.3825 1.2844 5.657 1.2845Q3.9315 1.2845 2.3841 0.5215L2.3525 0.5058L2.3047 0.4819L2.2826 0.4709L2.2674 0.4633Q1.8516 0.2627 1.4155 0.3499Q1.0156 0.4298 0.7225 0.7229Q0.4295 1.016 0.3495 1.4159Q0.2623 1.852 0.4608 2.2632L0.4692 2.2802L0.4817 2.3052L0.5062 2.3544L0.5219 2.3859Q1.2843 3.9319 1.2843 5.6573Q1.2843 7.3828 0.5213 8.9301L0.5056 8.9617L0.4817 9.0095L0.4707 9.0316L0.4632 9.0468Q0.2625 9.4625 0.3497 9.8987Q0.4296 10.2985 0.7227 10.5916Q1.0158 10.8847 1.4157 10.9647Q1.8518 11.0519 2.263 10.8534L2.28 10.845L2.305 10.8326L2.3542 10.8079L2.3859 10.7922Q3.9318 10.0299 5.6571 10.03Q7.3824 10.03 8.9297 10.793L8.9615 10.8087L9.0092 10.8326L9.0313 10.8437L9.0466 10.8512Q9.4623 11.0519 9.8984 10.9647Q10.2983 10.8848 10.5914 10.5917Q10.8845 10.2986 10.9644 9.8987Q11.0516 9.4626 10.8532 9.0514L10.8448 9.0343L10.8323 9.0093L10.8076 8.9598L10.7917 8.9278Q10.0296 7.3822 10.0296 5.6572Q10.0296 3.933 10.7915 2.3866ZM9.7333 1.8196L9.7166 1.8531L9.7159 1.8546Q8.8296 3.6525 8.8296 5.6572Q8.8297 7.662 9.7168 9.4613L9.7341 9.4961L9.7589 9.5457L9.7686 9.5651L9.7725 9.5731Q9.8182 9.6678 9.7429 9.7431Q9.6675 9.8185 9.5774 9.775L9.5677 9.7702L9.5456 9.7592L9.495 9.7339L9.4604 9.7167Q7.6622 8.83 5.6571 8.83Q3.6521 8.8299 1.8524 9.7173L1.8179 9.7345L1.7686 9.7591L1.7493 9.7687L1.7413 9.7727Q1.6466 9.8184 1.5713 9.7431Q1.4959 9.6678 1.5394 9.5775L1.5442 9.568L1.5552 9.5459L1.5805 9.4953L1.5975 9.4609Q2.4843 7.6625 2.4843 5.6573Q2.4843 3.6521 1.5967 1.8524L1.5797 1.818L1.5551 1.7687L1.5454 1.7494L1.5415 1.7415Q1.4958 1.6468 1.5711 1.5714Q1.6464 1.4961 1.7366 1.5396L1.7462 1.5443L1.7683 1.5554L1.8189 1.5807L1.8533 1.5977Q3.6518 2.4845 5.6571 2.4845Q7.6624 2.4844 9.4621 1.5967L9.4965 1.5797L9.5456 1.5551L9.5648 1.5454L9.5727 1.5416Q9.6674 1.4958 9.7428 1.5711Q9.8181 1.6465 9.7746 1.7367L9.7699 1.7462L9.7589 1.7683L9.7333 1.8196Z"
+      />
+    </svg>
+  );
+}
+
+// 卡片底部操作项：图标 + 文字标签，避免纯图标按钮语义不清。
+function CardAction({
+  icon,
+  label,
+  onClick,
+  danger,
+  disabled,
+}: {
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+  danger?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <span
+      role="button"
+      tabIndex={onClick && !disabled ? 0 : -1}
+      onClick={disabled ? undefined : onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        fontSize: 12,
+        lineHeight: 1,
+        cursor: onClick && !disabled ? "pointer" : "default",
+        color: danger ? "#ff4d4f" : "rgba(255,255,255,0.85)",
+        opacity: disabled ? 0.45 : 1,
+        userSelect: "none",
+      }}
+    >
+      {icon}
+      <span>{label}</span>
+    </span>
+  );
+}
+
 export default function Accounts() {
   const accounts = useStore((s) => s.accounts);
   const reloadAccounts = useStore((s) => s.reloadAccounts);
@@ -79,6 +150,19 @@ export default function Accounts() {
   const [tagUid, setTagUid] = useState("");
   const [tagValue, setTagValue] = useState<string>("");
 
+  // 各账号是否已在独立窗口记忆成长中心网页登录态：{uid: boolean}
+  const [boundMap, setBoundMap] = useState<Record<string, boolean>>({});
+  const refreshBound = async () => {
+    try {
+      setBoundMap(await api.growthBoundAll());
+    } catch {
+      /* 状态查询失败不影响主流程 */
+    }
+  };
+  useEffect(() => {
+    refreshBound();
+  }, [accounts]);
+
   useEffect(() => {
     let timer: ReturnType<typeof setInterval> | undefined;
     // 只要有待抓取的会话就持续轮询，与弹窗是否显示无关（点「后台等待」也不会中断）。
@@ -88,9 +172,9 @@ export default function Accounts() {
           const res = await api.oauthPoll(oauthSession);
           if (res.status === "authorized") {
             setOauthStatus("authorized");
-            message.success("登录成功，账号已入库");
+            message.success("登录成功，账号已入库，成长计划已记忆");
             await reloadAccounts();
-            // 自动关闭弹窗并复位，登录窗口由后端负责关闭
+            // 自动关闭弹窗并复位（登录用的是外部独立浏览器，无窗口需要后端关闭）
             setOauthOpen(false);
             setOauthSession("");
             setOauthStatus("idle");
@@ -176,7 +260,7 @@ export default function Accounts() {
         showIcon
         style={{ marginBottom: 16 }}
         message="账号通过网页授权添加"
-        description="点击「网页授权添加账号」会弹出一个 WorkBuddy 登录窗口，登录后自动抓取凭证入库。授权后即可刷新积分、签到、派猫猫旅行并接入本地反代。"
+        description="点击「网页授权添加账号」会打开一个独立浏览器登录窗口（每个账号专属 profile，互不串号），登录后自动抓取凭证入库，并立即记忆该账号的成长计划登录态。授权后即可刷新积分、签到、派猫猫旅行并接入本地反代。"
       />
 
       <div className="wm-toolbar">
@@ -200,6 +284,15 @@ export default function Accounts() {
               <AccountCard
                 a={a}
                 onRefresh={() => refreshOne(a.uid)}
+                bound={!!boundMap[a.uid]}
+                onOpenGrowth={async () => {
+                  try {
+                    const r = await api.openGrowthCenter(a.uid);
+                    message.success(`已用 ${r.browser || "浏览器"} 打开成长计划`);
+                  } catch (e) {
+                    message.error(errText(e));
+                  }
+                }}
                 onLedger={() => {
                   setLedgerUid(a.uid);
                   setLedgerName(a.nickname);
@@ -247,19 +340,19 @@ export default function Accounts() {
           <Alert
             type="info"
             showIcon
-            message="请在弹出的登录窗口中完成登录"
-            description="已为你打开 WorkBuddy 登录窗口，请使用微信扫码或手机号登录。登录成功后 WorkMami 会自动抓取凭证并入库，无需其他操作。"
+            message="请在打开的浏览器登录窗口中完成登录"
+            description="已为你用独立浏览器 profile 打开 WorkBuddy 登录页，请使用微信扫码或手机号登录。登录成功后 WorkMami 会自动抓取凭证入库，并把该 profile 记忆到这个账号（成长计划直接带登录态），无需其他操作。"
           />
         )}
         {oauthStatus === "authorized" && (
-          <Alert type="success" showIcon message="登录成功，账号已入库" />
+          <Alert type="success" showIcon message="登录成功，账号已入库，成长计划已记忆" />
         )}
         {oauthStatus === "expired" && (
           <Alert
             type="error"
             showIcon
             message="未抓取到凭证"
-            description="可能你关闭了登录窗口、登录超时，或该页面未把 token 存到可读位置。可重试；若反复失败请反馈。"
+            description="可能你关闭了浏览器登录窗口、登录超时，或该页面未把 token 存到可读位置。可重试；若反复失败请反馈。"
           />
         )}
       </Modal>
@@ -292,6 +385,8 @@ export default function Accounts() {
 function AccountCard({
   a,
   onRefresh,
+  bound,
+  onOpenGrowth,
   onLedger,
   onToggle,
   onDelete,
@@ -299,6 +394,8 @@ function AccountCard({
 }: {
   a: Account;
   onRefresh: () => void;
+  bound: boolean;
+  onOpenGrowth: () => void;
   onLedger: () => void;
   onToggle: (v: boolean) => void;
   onDelete: () => void;
@@ -329,24 +426,45 @@ function AccountCard({
       }
       extra={<Switch size="small" checked={a.enabled} onChange={onToggle} />}
       actions={[
-        <Tooltip title="刷新积分" key="r">
-          <ReloadOutlined onClick={onRefresh} />
+        <CardAction
+          key="r"
+          icon={<ReloadOutlined />}
+          label="刷新积分"
+          onClick={onRefresh}
+        />,
+        <Tooltip
+          key="g"
+          title={
+            bound
+              ? "去成长计划做任务攒积分"
+              : "成长计划未记忆：删除该账号后重新扫码登录一次即可自动记忆"
+          }
+        >
+          <span style={{ display: "inline-flex" }}>
+            <CardAction
+              icon={<GrowthPlanIcon />}
+              label="成长计划"
+              disabled={!bound}
+              onClick={onOpenGrowth}
+            />
+          </span>
         </Tooltip>,
-        <Tooltip title="积分清单" key="l">
-          <ProfileOutlined onClick={onLedger} />
-        </Tooltip>,
-        <Tooltip title="编辑标签" key="t">
-          <EditOutlined onClick={onTags} />
-        </Tooltip>,
+        <CardAction key="l" icon={<BillIcon />} label="积分明细" onClick={onLedger} />,
+        <CardAction
+          key="t"
+          icon={<EditOutlined />}
+          label="编辑标签"
+          onClick={onTags}
+        />,
         <Popconfirm
           key="d"
           title="确定删除该账号？"
-          description="仅移除 WorkMami 记录，不影响官方登录文件。"
+          description="仅移除 WorkMami 记录，您的 WorkBuddy 继续正常使用，无影响。"
           onConfirm={onDelete}
           okText="删除"
           cancelText="取消"
         >
-          <DeleteOutlined />
+          <CardAction icon={<DeleteOutlined />} label="删除账号" danger />
         </Popconfirm>,
       ]}
     >

@@ -162,6 +162,8 @@ pub async fn list_models(state: State<'_, Arc<AppState>>, uid: Option<String>) -
         .collect();
     // 更新缓存：反代对外暴露 /v1/models 时直接用真实列表。
     *state.models_cache.lock().unwrap() = vals.clone();
+    // 自动同步到 %USERPROFILE%\.workbuddy\models.json，WorkBuddy 可直接发现模型，免手工配置。
+    proxy::sync_models_json(&state);
     Ok(vals)
 }
 
@@ -173,8 +175,8 @@ pub struct OAuthStart {
 }
 
 #[tauri::command]
-pub async fn oauth_begin(app: tauri::AppHandle, state: State<'_, Arc<AppState>>) -> R<OAuthStart> {
-    let session_id = oauth::begin(&app, state.api.clone()).await?;
+pub async fn oauth_begin(state: State<'_, Arc<AppState>>) -> R<OAuthStart> {
+    let session_id = oauth::begin(state.api.clone()).await?;
     Ok(OAuthStart { session_id })
 }
 
@@ -309,6 +311,37 @@ pub async fn travel_records(state: State<'_, Arc<AppState>>, uid: String) -> R<V
         .ok_or_else(|| WmError::Credential("无本地凭证".into()))?;
     let records = state.api.buddy_travel_records(&tokens, 1, 50).await?;
     Ok(records)
+}
+
+// ---------- 成长中心（独立浏览器 profile，人工领积分活动） ----------
+/// 直接打开成长中心：仅当该账号已在独立目录记忆网页登录态才放行；
+/// 未记忆则不启动浏览器，返回 bound:false 由前端提示先重新登录。
+#[tauri::command]
+pub fn open_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Value> {
+    if state.accounts.get(&uid).is_none() {
+        return Err(WmError::NotFound("账号不存在".into()));
+    }
+    crate::browser::open_growth_center(&uid)
+}
+
+/// 登录/记忆成长中心：拉起独立浏览器窗口供扫码建立网页登录态
+/// （“退出账号重新登录”的落点），成功后该账号即被记忆。
+#[tauri::command]
+pub fn bind_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Value> {
+    if state.accounts.get(&uid).is_none() {
+        return Err(WmError::NotFound("账号不存在".into()));
+    }
+    crate::browser::bind_growth_center(&uid)
+}
+
+/// 批量返回各账号是否已在独立目录记忆网页登录态：{uid: bool}，供卡片展示状态。
+#[tauri::command]
+pub fn growth_bound_all(state: State<'_, Arc<AppState>>) -> R<Value> {
+    let mut map = serde_json::Map::new();
+    for acc in state.accounts.all() {
+        map.insert(acc.uid.clone(), serde_json::json!(crate::browser::is_bound(&acc.uid)));
+    }
+    Ok(serde_json::Value::Object(map))
 }
 
 // ---------- 数据管理 ----------

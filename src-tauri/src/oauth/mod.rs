@@ -13,7 +13,6 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use chrono::Utc;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use crate::accounts;
 use crate::api::ApiClient;
@@ -23,23 +22,6 @@ use crate::wbauth::AuthTokens;
 
 /// 会话有效期（秒），与官方 OAUTH_TIMEOUT 对齐。
 const OAUTH_TIMEOUT_SECONDS: i64 = 600;
-
-/// 登录窗口 label 前缀，用于识别与清理。
-const OAUTH_LABEL_PREFIX: &str = "oauth-";
-
-/// 窗口事件回调：用户关闭/销毁登录窗口时，若尚未抓到 token，
-/// 立即把该会话标记为结束，避免前端弹窗永远卡在 pending 反复纠缠。
-pub fn on_window_event(label: &str, destroyed: bool) {
-    let _ = destroyed;
-    if let Some(sid) = label.strip_prefix(OAUTH_LABEL_PREFIX) {
-        let mut m = caps().lock().unwrap();
-        if let Some(c) = m.get_mut(sid) {
-            if c.captured.is_none() {
-                c.done = true;
-            }
-        }
-    }
-}
 
 /// 已抓到的登录结果。
 struct Captured {
@@ -57,6 +39,10 @@ struct Capture {
     created: i64,
     done: bool,
     captured: Option<Captured>,
+    /// 本次登录用的独立浏览器子进程（外部浏览器，非 Tauri WebView）。
+    child: Option<std::process::Child>,
+    /// 临时 profile 目录名（pending-<session>），登录成功后别名到 uid。
+    temp: String,
 }
 
 static CAPTURES: OnceLock<Mutex<HashMap<String, Capture>>> = OnceLock::new();
@@ -70,10 +56,22 @@ pub enum PollOutcome {
     Expired,
 }
 
-/// 发起登录：申请 state、打开登录窗口、后台轮询 token。返回会话 id。
-pub async fn begin(app: &AppHandle, api: Arc<ApiClient>) -> WmResult<String> {
+/// 发起登录：申请 state、用**完全独立的浏览器 profile**打开登录页、后台轮询 token。
+///
+/// 不再使用 Tauri WebView 登录窗：所有窗口共享同一 WebView2 存储，多账号会话互相污染，
+/// 以前靠「整库清除 + sleep 赌异步清理完成」规避，竞态脆弱（清晚会抹掉本次登录会话）。
+/// 现在每次登录分配独立临时 profile（browser-profiles/pending-<session>），在真实浏览器里
+/// 扫码，登录态天然落在该 profile 内；拿到 uid 后立即把目录别名到该账号
+/// （browser::bind_profile），一次扫码同时完成 token 入库 + 成长中心登录态记忆。
+pub async fn begin(api: Arc<ApiClient>) -> WmResult<String> {
     let (state_token, auth_url) = api.oauth_state().await?;
     let session_id = uuid::Uuid::new_v4().to_string();
+
+    let (_label, exe) = crate::browser::detect().ok_or_else(|| {
+        WmError::Other("未找到可用浏览器（Microsoft Edge 或 Google Chrome），请安装其一后重试".into())
+    })?;
+    let temp_dir = crate::browser::temp_profile_dir(&session_id);
+    let child = crate::browser::launch_child(&exe, &temp_dir, &auth_url)?;
 
     caps().lock().unwrap().insert(
         session_id.clone(),
@@ -82,47 +80,13 @@ pub async fn begin(app: &AppHandle, api: Arc<ApiClient>) -> WmResult<String> {
             created: Utc::now().timestamp(),
             done: false,
             captured: None,
+            child: Some(child),
+            temp: crate::browser::temp_profile_name(&session_id),
         },
     );
 
-    // 先关闭可能残留的旧登录窗，避免多次点击叠加出多个窗口（看起来像"一直弹"）。
-    for (lbl, w) in app.webview_windows() {
-        if lbl.starts_with(OAUTH_LABEL_PREFIX) {
-            let _ = w.close();
-        }
-    }
-
-    // 打开登录窗口（用户在此扫码/登录，动作会把账号与 state 绑定）。
-    // 需求：加第 2+ 个账号时，store 里还残留上一个账号的 codebuddy.cn 会话，直接开 authUrl 会弹“选择账号”。
-    // 做法：先建窗停在 about:blank → 清一次共享 WebView 会话（去掉上一个账号的 cookie）→ 留足时间等异步清理跑完
-    //       → 再 navigate 到 authUrl。关键：清理必须赶在登录页加载之前完成，否则会把本次登录会话一起抹掉→“账号不存在”。
-    // 只影响 WebView 存储，不动已入库账号的 Bearer token（存于本地 vault），故不影响第一个账号的验证/刷新/签到。
-    let label = format!("{OAUTH_LABEL_PREFIX}{session_id}");
-    let url: tauri::Url = auth_url.parse().map_err(|e| WmError::Other(format!("登录地址无效: {e}")))?;
-    let blank: tauri::Url = "about:blank".parse().map_err(|e| WmError::Other(format!("空白地址无效: {e}")))?;
-    let win = WebviewWindowBuilder::new(app, &label, WebviewUrl::External(blank))
-        .title("WorkBuddy 登录")
-        .inner_size(980.0, 760.0)
-        .min_inner_size(520.0, 480.0)
-        .resizable(true)
-        .build()
-        .map_err(|e| WmError::Other(format!("打开登录窗口失败: {e}")))?;
-    // 在主窗触发整库清理（macOS/Windows 均为共享 store）；登录窗停在 about:blank 不受影响。
-    match app.get_webview_window("main") {
-        Some(main) => {
-            let _ = main.clear_all_browsing_data();
-        }
-        None => {
-            let _ = win.clear_all_browsing_data();
-        }
-    }
-    // 清理是异步的且无完成回调，给足余量（上次 450ms 不够会抢跑），确保清理先于登录页加载完成。
-    tokio::time::sleep(Duration::from_millis(1200)).await;
-    let _ = win.navigate(url);
-
-    // 后台轮询 token
+    // 后台轮询 token（与窗口无关；外部浏览器进程自行存活）
     let sid = session_id.clone();
-    let app2 = app.clone();
     tauri::async_runtime::spawn(async move {
         for _ in 0..(OAUTH_TIMEOUT_SECONDS / 2) {
             tokio::time::sleep(Duration::from_millis(2000)).await;
@@ -149,9 +113,6 @@ pub async fn begin(app: &AppHandle, api: Arc<ApiClient>) -> WmResult<String> {
                     if uid.is_empty() {
                         // 拿到 token 但取不到 uid：视为失败，结束等待
                         caps().lock().unwrap().entry(sid.clone()).and_modify(|c| c.done = true);
-                        if let Some(w) = app2.get_webview_window(&label) {
-                            let _ = w.close();
-                        }
                         return;
                     }
 
@@ -166,9 +127,6 @@ pub async fn begin(app: &AppHandle, api: Arc<ApiClient>) -> WmResult<String> {
                             expires_at: tok.expires_at,
                         });
                     });
-                    if let Some(w) = app2.get_webview_window(&label) {
-                        let _ = w.close();
-                    }
                     return;
                 }
                 Ok(None) => continue,
@@ -197,6 +155,21 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
     }));
 
     if let Some((access, refresh, domain, uid, nickname, etype, expires_at)) = captured {
+        // 立刻记忆 profile 位置：登录态所在的临时目录别名到该 uid。
+        // 此后点击「成长计划」按钮，直接从该目录（--user-data-dir）启动浏览器即带登录态。
+        let temp_name = {
+            let mut m = caps().lock().unwrap();
+            let t = m.get(session_id).map(|c| c.temp.clone()).unwrap_or_default();
+            if let Some(c) = m.get_mut(session_id) {
+                c.child = None; // 句柄移交完毕；浏览器窗口留给用户继续使用
+            }
+            t
+        };
+        if !temp_name.is_empty() && !uid.is_empty() {
+            crate::browser::bind_profile(&uid, &temp_name);
+            // 衔接体验：同一 profile 里打开成长中心（浏览器若仍开着则新开标签页）
+            let _ = crate::browser::open_growth_in(&crate::browser::profile_dir(&uid));
+        }
         let tokens = AuthTokens {
             access_token: access,
             refresh_token: refresh,
@@ -217,11 +190,30 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
         return Ok(PollOutcome::Authorized(acc));
     }
 
-    let expired = {
-        let m = caps().lock().unwrap();
-        m.get(session_id)
-            .map(|c| c.done || Utc::now().timestamp() - c.created > OAUTH_TIMEOUT_SECONDS)
-            .unwrap_or(true)
-    };
-    Ok(if expired { PollOutcome::Expired } else { PollOutcome::Pending })
+    // 会话过期：若登录浏览器已被用户关闭，顺手清掉无登录态的临时 profile；
+    // 浏览器还开着则保留（避免删运行中目录），残留目录不影响后续会话。
+    {
+        let expired = {
+            let m = caps().lock().unwrap();
+            m.get(session_id)
+                .map(|c| c.done || Utc::now().timestamp() - c.created > OAUTH_TIMEOUT_SECONDS)
+                .unwrap_or(true)
+        };
+        if expired {
+            let mut m = caps().lock().unwrap();
+            if let Some(c) = m.get_mut(session_id) {
+                let exited = match c.child.as_mut() {
+                    Some(child) => child.try_wait().map(|s| s.is_some()).unwrap_or(false),
+                    None => true,
+                };
+                if exited {
+                    c.child = None;
+                    let dir = crate::browser::temp_profile_dir(session_id);
+                    let _ = std::fs::remove_dir_all(&dir);
+                }
+            }
+            return Ok(PollOutcome::Expired);
+        }
+    }
+    Ok(PollOutcome::Pending)
 }
