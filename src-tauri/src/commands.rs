@@ -16,6 +16,7 @@ use crate::oauth;
 use crate::proxy;
 use crate::scheduler;
 use crate::state::{AppSettings, AppState};
+use crate::sync_targets;
 use crate::wbauth;
 
 type R<T> = Result<T, WmError>;
@@ -56,6 +57,7 @@ pub async fn save_settings(state: State<'_, Arc<AppState>>, settings: AppSetting
     } else {
         proxy::stop(state.inner());
     }
+    sync_targets::sync_all(&state);
     Ok(())
 }
 
@@ -162,9 +164,88 @@ pub async fn list_models(state: State<'_, Arc<AppState>>, uid: Option<String>) -
         .collect();
     // 更新缓存：反代对外暴露 /v1/models 时直接用真实列表。
     *state.models_cache.lock().unwrap() = vals.clone();
-    // 自动同步到 %USERPROFILE%\.workbuddy\models.json，WorkBuddy 可直接发现模型，免手工配置。
-    proxy::sync_models_json(&state);
+    // 自动同步到所有已注册 IDE（WorkBuddy 等）。
+    sync_targets::sync_all(&state);
     Ok(vals)
+}
+
+// ---------- IDE 自动配置 ----------
+/// 一键自动配置所有已注册 IDE（前端「一键自动配置全部」按钮调用）
+#[tauri::command]
+pub fn sync_all_ides(state: State<'_, Arc<AppState>>) -> R<Vec<sync_targets::SyncResult>> {
+    Ok(sync_targets::sync_all(&state))
+}
+
+/// 只探测不写盘，供页面首次渲染 IDE 卡列表
+#[tauri::command]
+pub fn ide_sync_status(state: State<'_, Arc<AppState>>) -> R<Vec<sync_targets::SyncResult>> {
+    Ok(sync_targets::status_only(&state))
+}
+
+/// 按需拉某 IDE 的手工配置说明（Modal 里「？手工配置」点击时调用）
+#[tauri::command]
+pub fn ide_manual_guide(ide_id: String) -> R<serde_json::Value> {
+    Ok(sync_targets::manual_guide_json(&ide_id))
+}
+
+/// 原子操作：生成新随机 API Key + 写 settings.proxy.api_key + 若 enabled 则启停反向代理
+#[tauri::command]
+pub async fn regenerate_api_key(state: State<'_, Arc<AppState>>) -> R<String> {
+    use rand::RngCore;
+    let mut bytes = [0u8; 16];
+    rand::thread_rng().fill_bytes(&mut bytes);
+    let hex = bytes.iter().map(|b| format!("{:02x}", b)).collect::<String>();
+    let new_key = format!("SK-{hex}");
+
+    // 2) 写 settings
+    let mut settings = state.settings.read().unwrap().clone();
+    settings.proxy.api_key = new_key.clone();
+    *state.settings.write().unwrap() = settings.clone();
+
+    // 3) 持久化
+    state.save_settings()?;
+
+    // 4) 若 enabled 则重启反向代理让新 key 生效
+    if settings.proxy.enabled {
+        proxy::stop(state.inner());
+        proxy::start(state.inner().clone()).await;
+    }
+
+    Ok(new_key)
+}
+
+/// 测试反向代理自身是否可访问（GET /v1/models）。前端"🔗 测试连接"按钮调用
+#[tauri::command]
+pub async fn proxy_test_connection(state: State<'_, Arc<AppState>>) -> R<serde_json::Value> {
+    use serde_json::{Value, json};
+    let ps = state.proxy_settings();
+    if !ps.enabled {
+        return Ok(json!({ "ok": false, "error": "反向代理未开启，先去设置里打开并保存" }));
+    }
+    let running = *state.proxy_running.lock().unwrap();
+    if !running {
+        return Ok(json!({ "ok": false, "error": "反向代理未在运行，可能端口被占用或启动失败" }));
+    }
+    let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
+    let url = format!("http://{display_host}:{}/v1/models", ps.port);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| WmError::Other(format!("构造 HTTP 客户端失败: {e}")))?;
+
+    match client.get(&url).header("Authorization", format!("Bearer {}", ps.api_key)).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            let body: Value = resp.json().await.unwrap_or_default();
+            let n = body.get("data").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+            Ok(json!({ "ok": true, "modelCount": n, "message": format!("反向代理响应正常，返回 {} 个模型", n) }))
+        }
+        Ok(resp) => {
+            let code = resp.status().as_u16();
+            Ok(json!({ "ok": false, "status": code, "error": format!("反向代理返回 {}", resp.status()) }))
+        }
+        Err(e) => Ok(json!({ "ok": false, "error": format!("连接失败：{}", e) })),
+    }
 }
 
 // ---------- OAuth 网页授权（内嵌登录窗抓取） ----------

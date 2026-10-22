@@ -1,7 +1,15 @@
 // 全局状态：账号列表、设置、主题、反代状态。
 import { create } from "zustand";
 import { api, errText } from "./api";
-import type { Account, AppInfo, AppSettings, ProxyStatus } from "./types";
+import type {
+  Account,
+  AppInfo,
+  AppSettings,
+  ManualGuideJson,
+  ProxyStatus,
+  ProxyTestResult,
+  SyncResult,
+} from "./types";
 
 export const defaultSettings: AppSettings = {
   proxy: {
@@ -27,6 +35,7 @@ interface Store {
   settings: AppSettings;
   accounts: Account[];
   proxy?: ProxyStatus;
+  syncStatus: SyncResult[];
   loading: boolean;
 
   init: () => Promise<void>;
@@ -34,11 +43,16 @@ interface Store {
   reloadProxy: () => Promise<void>;
   saveSettings: (s: AppSettings) => Promise<void>;
   setThemePref: (t: string) => void;
+  syncAllIdes: () => Promise<SyncResult[]>;
+  ideManualGuide: (ideId: string) => Promise<ManualGuideJson | null>;
+  proxyTestConnection: () => Promise<ProxyTestResult>;
+  regenerateApiKey: () => Promise<string>;
 }
 
 export const useStore = create<Store>((set, get) => ({
   settings: defaultSettings,
   accounts: [],
+  syncStatus: [],
   loading: false,
 
   init: async () => {
@@ -51,6 +65,11 @@ export const useStore = create<Store>((set, get) => ({
         api.proxyStatus(),
       ]);
       set({ info, settings, accounts, proxy });
+      try {
+        set({ syncStatus: await api.ideSyncStatus() });
+      } catch {
+        /* IDE 自动配置状态拉取失败忽略 */
+      }
     } catch (e) {
       console.error("初始化失败:", errText(e));
     } finally {
@@ -85,4 +104,13 @@ export const useStore = create<Store>((set, get) => ({
     set({ settings: s });
     void api.saveSettings(s);
   },
+
+  syncAllIdes: async () => {
+    const r = await api.syncAllIdes();
+    set({ syncStatus: r });
+    return r;
+  },
+  ideManualGuide: async (ideId: string) => api.ideManualGuide(ideId),
+  proxyTestConnection: async () => api.proxyTestConnection(),
+  regenerateApiKey: async () => api.regenerateApiKey(),
 }));

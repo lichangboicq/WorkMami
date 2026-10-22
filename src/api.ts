@@ -12,13 +12,16 @@ import type {
   DashboardSummary,
   DataItem,
   HeatCell,
+  ManualGuideJson,
   ModelInfo,
   OAuthPoll,
   OAuthStart,
   ProxyStatus,
+  ProxyTestResult,
   RefreshResult,
   RequestRow,
   Summary,
+  SyncResult,
   TopItem,
   TravelOverview,
   TrendPoint,
@@ -119,6 +122,15 @@ export const api = {
     }),
   dashboardAccountBilling: (fromMs: number, toMs: number) =>
     invoke<AccountBilling>("dashboard_account_billing", { fromMs, toMs }),
+
+  // IDE 自动配置
+  syncAllIdes: () => invoke<SyncResult[]>("sync_all_ides"),
+  ideSyncStatus: () => invoke<SyncResult[]>("ide_sync_status"),
+  ideManualGuide: (ideId: string) =>
+    invoke<ManualGuideJson | null>("ide_manual_guide", { ideId }),
+  proxyTestConnection: () =>
+    invoke<ProxyTestResult>("proxy_test_connection"),
+  regenerateApiKey: () => invoke<string>("regenerate_api_key"),
 };
 
 // 错误信息规整：后端 WmError 序列化为 {code, message}，也可能是字符串。

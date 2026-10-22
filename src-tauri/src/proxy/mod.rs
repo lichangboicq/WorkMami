@@ -23,6 +23,7 @@ use tokio::sync::Notify;
 use crate::accounts::{self, Account};
 use crate::api::{api_base, should_refresh};
 use crate::state::{AppState, Strategy};
+use crate::sync_targets;
 use crate::usage::RequestLog;
 
 pub struct ProxyHandle;
@@ -67,8 +68,8 @@ pub async fn start(state: Arc<AppState>) -> bool {
     };
 
     let notify = Arc::new(Notify::new());
-    // 反代启动即同步一次 models.json（用缓存的模型列表；若有 host/port/key 变更可即时纠正）。
-    sync_models_json(&state);
+    // 反代启动即自动同步所有已注册 IDE 配置。
+    sync_targets::sync_all(&state);
     let my_gen = {
         let mut g = state.proxy_gen.lock().unwrap();
         *g += 1;
@@ -94,92 +95,6 @@ pub async fn start(state: Arc<AppState>) -> bool {
         }
     });
     true
-}
-
-// ---------- models.json 自动同步 ----------
-/// 把反代支持的模型自动写入 %USERPROFILE%\.workbuddy\models.json，
-/// WorkBuddy 启动时即可直接发现并使用 WorkMami 模型，无需手工逐项配置。
-/// 合并策略：只替换本工具写入的条目（带 managedBy=WorkMami 标记），保留用户其它自定义模型（如本地模型）。
-pub fn sync_models_json(state: &Arc<AppState>) {
-    let models: Vec<Value> = state.models_cache.lock().unwrap().clone();
-    if models.is_empty() {
-        return; // 尚未拉取到模型列表，不动文件
-    }
-    let ps = state.proxy_settings();
-    let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { &ps.host };
-    let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
-
-    let ours: Vec<Value> = models
-        .iter()
-        .filter_map(|m| {
-            let id = m.get("id").and_then(|v| v.as_str())?;
-            let name = m.get("name").and_then(|v| v.as_str()).unwrap_or(id);
-            let reasoning = m.get("raw").and_then(|r| r.get("reasoning"));
-            let can_disable = reasoning
-                .and_then(|r| r.get("canDisableThinking"))
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
-            let default_effort = m
-                .get("defaultEffort")
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .unwrap_or("medium");
-            // 名称后缀用积分倍率（价格），便于区分同名模型；缺失时回退 WorkMami 标识。
-            let credits = m.get("credits").and_then(|v| v.as_str()).unwrap_or("");
-            let suffix = if credits.is_empty() { "WorkMami" } else { credits };
-            Some(json!({
-                "id": id,
-                "name": format!("{name} ({suffix})"),
-                "url": url,
-                "apiKey": ps.api_key,
-                "maxInputTokens": m.get("contextWindow").and_then(|v| v.as_i64()).filter(|v| *v > 0).unwrap_or(131072),
-                "maxOutputTokens": m.get("maxOutputTokens").and_then(|v| v.as_i64()).filter(|v| *v > 0).unwrap_or(8192),
-                "supportsToolCall": m.get("supportsToolCall").and_then(|v| v.as_bool()).unwrap_or(true),
-                "supportsImages": m.get("supportsImages").and_then(|v| v.as_bool()).unwrap_or(false),
-                "supportsReasoning": m.get("supportsReasoning").and_then(|v| v.as_bool()).unwrap_or(false),
-                "reasoning": {
-                    "defaultEffort": default_effort,
-                    "supportedEfforts": ["low", "medium", "high"],
-                    "canDisableThinking": can_disable,
-                },
-                "managedBy": "WorkMami",
-            }))
-        })
-        .collect();
-    if ours.is_empty() {
-        return;
-    }
-
-    let path = crate::platform::workbuddy_paths().home.join("models.json");
-    let mut kept: Vec<Value> = std::fs::read(&path)
-        .ok()
-        .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-        .and_then(|v| v.as_array().cloned())
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|e| {
-            // 保留非 WorkMami 管理的条目（本地模型 / 用户手工配置等）
-            e.get("managedBy").and_then(|v| v.as_str()) != Some("WorkMami")
-        })
-        .collect();
-    let base = kept.len();
-    kept.extend(ours);
-
-    match serde_json::to_vec_pretty(&kept) {
-        Ok(bytes) => {
-            // 先写临时文件再原子替换，避免 WorkBuddy 恰好在读时读到半截 JSON。
-            let tmp = path.with_extension("json.wm-tmp");
-            if std::fs::write(&tmp, &bytes).is_ok() {
-                if let Err(e) = std::fs::rename(&tmp, &path) {
-                    tracing::warn!("写入 models.json 失败: {e}");
-                    let _ = std::fs::remove_file(&tmp);
-                } else {
-                    tracing::info!("已同步 {} 个模型到 models.json（保留原有 {} 项）", kept.len() - base, base);
-                }
-            }
-        }
-        Err(e) => tracing::warn!("序列化 models.json 失败: {e}"),
-    }
 }
 
 pub fn stop(state: &Arc<AppState>) {
