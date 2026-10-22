@@ -81,15 +81,42 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 **环境要求**：Node.js 18+、Rust（stable，rust-version 1.80+）、macOS 需 Xcode Command Line Tools、Windows 需 MSVC 工具链与 WebView2。
 
 ```bash
-# 安装依赖
+# 安装依赖（只需一次）
 npm install
 
-# 开发模式（热更新）
+# 开发模式（前端热更新 + Rust 后端实时重编译）
 npm run tauri dev
 
-# 构建正式包（macOS 会产出 .app 与 .dmg）
+# 构建正式包（macOS 产出 .app 与 .dmg，Windows 产出 exe + 安装包）
 npm run tauri build
+
+# 只产 exe、跳过 NSIS / MSI 安装包（构建更快，适合绿色分发或调试 release）
+npm run tauri build --no-bundle
+# 产物位置：src-tauri/target/release/workmami.exe
 ```
+
+### ⚠️ Release 构建的常见坑（必看）
+
+Tauri 2 的 release 包必须走 **tauri-cli**（`npm run tauri build`），**不能**直接 `cargo build --release`，否则：
+
+- `tauri_build::build()` 不会被正确调用，前端资源（`dist/`）不会被内嵌进 exe；
+- exe 启动后会去连 `tauri.conf.json` 里的 `devUrl`（默认 `http://127.0.0.1:1420`），没起 dev server 的用户看到的就是**"ERR_CONNECTION_REFUSED"** 或白屏。
+
+正确姿势只有两条：
+
+```bash
+# ✅ 方式一：npm run tauri build（内嵌前端 + 自动打安装包）
+npm run tauri build
+
+# ✅ 方式二：只产 release exe、跳过安装包
+npm run tauri build --no-bundle
+
+# ❌ 禁止：直接 cargo build --release（会丢前端资源）
+```
+
+> Windows 用户如果发现 exe 启动后显示 "127.0.0.1 - 网络错误"，十有八九就是被这条踩坑了——删掉旧 exe，改用上面的方式重新 build 即可。
+
+### 交叉构建
 
 在 Apple 芯片上为 Intel Mac 交叉构建：
 

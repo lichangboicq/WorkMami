@@ -2,6 +2,7 @@
 
 mod accounts;
 mod api;
+mod browser;
 mod commands;
 mod data;
 mod error;
@@ -41,20 +42,14 @@ pub fn run() {
             Some(vec![]),
         ));
 
-    // 登录窗口被关闭/销毁时终止对应 OAuth 会话，避免前端弹窗卡在 pending。
+    // 主窗口点 X 不退出：隐藏至托盘（托盘菜单“退出”才是真正退出）。
+    // OAuth 登录已改为外部独立浏览器 profile（无 Tauri 登录窗），无需窗口事件清理。
     builder = builder.on_window_event(|window, event| {
-        match event {
-            tauri::WindowEvent::Destroyed => oauth::on_window_event(window.label(), true),
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                if window.label() == "main" {
-                    // 主窗口点 X 不退出，隐藏至托盘（托盘菜单“退出”才是真正退出）
-                    api.prevent_close();
-                    let _ = window.hide();
-                } else {
-                    oauth::on_window_event(window.label(), false);
-                }
+        if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+            if window.label() == "main" {
+                api.prevent_close();
+                let _ = window.hide();
             }
-            _ => {}
         }
     });
 
@@ -72,8 +67,8 @@ pub fn run() {
         }
     
         // 账号统一通过"网页授权"添加（扫描无法取得可用 token，已退役）。
-        // 登录窗会话隔离（清掉上一个账号的 WebView 会话、避免"选择账号"弹窗）已下沉到 oauth::begin，
-        // 每次开窗前清一次并等清理跑完再导航；不在此处启动时清，避免与快速点击的 begin 清理重叠。
+        // 登录在**外部浏览器的独立 profile**（browser-profiles/pending-<session>）中完成，
+        // 多账号会话天然隔离；登录成功后目录别名到 uid（见 oauth::begin / browser::bind_profile）。
     
         // 启动反代（若配置为启用）
         if app_state.proxy_settings().enabled {
@@ -167,6 +162,9 @@ pub fn run() {
         commands::travel_depart,
         commands::travel_claim,
         commands::travel_records,
+        commands::open_growth_center,
+        commands::bind_growth_center,
+        commands::growth_bound_all,
         commands::data_list,
         commands::data_read,
         commands::data_delete,

@@ -16,6 +16,9 @@ src-tauri/gen/schemas/
 .vscode/
 .idea/
 
+# workbuddy artifacts
+.workbuddy/
+
 # temp extraction artifacts
 .wbtmp/
 

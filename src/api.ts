@@ -67,6 +67,21 @@ export const api = {
     invoke<unknown>("travel_depart", { uid, locationId }),
   travelClaim: (uid: string) => invoke<unknown>("travel_claim", { uid }),
 
+  // 成长中心：按钮 disabled 已在 UI 层保证只在已记忆时调用
+  openGrowthCenter: (uid: string) =>
+    invoke<{
+      browser?: string;
+      profileDir?: string;
+      url: string;
+    }>("open_growth_center", { uid }),
+  // 登录/记忆：拉起独立窗口供扫码建立网页登录态（退出账号重新登录的落点）
+  bindGrowthCenter: (uid: string) =>
+    invoke<{ browser: string; profileDir: string; url: string }>("bind_growth_center", {
+      uid,
+    }),
+  // 各账号是否已记忆网页登录态：{uid: boolean}
+  growthBoundAll: () => invoke<Record<string, boolean>>("growth_bound_all"),
+
   // 数据管理
   dataUids: () => invoke<string[]>("data_uids"),
   dataList: (category: string, uid?: string) =>

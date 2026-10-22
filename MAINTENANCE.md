@@ -99,6 +99,18 @@ Start-Process "C:\Program Files\WorkMami\WorkMami.exe"
 - 亮色主题 token：`colorTextSecondary rgba(0,0,0,0.65)`、`colorTextTertiary 0.45`、`colorTextPlaceholder 0.45`、`colorTextDisabled 0.55`（暗色不动）。
 - 全页面辅助文字 opacity 统一上调（0.4~0.65 → 0.6~0.8）；硬编码浅灰（下拉倍率、侧边栏）加深至双主题达标色。
 
+### 4.6 成长中心独立浏览器窗口 + 登录态门禁（人工领积分）
+- 背景：WorkMami 只存插件 Bearer token（JSON API 用），不持有网页 cookie 会话；成长中心 SPA（`https://www.workbuddy.cn/profile/growth-center`）靠浏览器自身登录态，token 无法注入网页。
+- 新增 `src-tauri/src/browser/mod.rs`：按 uid 分配独立 `--user-data-dir`（`<数据目录>/browser-profiles/<uid>`），探测本机 Edge（优先，系统自带）→ Chrome，spawn 带 `--no-first-run --no-default-browser-check`；多账号目录隔离不串号。
+- **门禁（is_bound）**：只读打开 profile 的 Chromium `Cookies` 库（`Default/Network/Cookies`、回落 `Default/Cookies`），查 `host_key LIKE '%workbuddy.cn%' OR '%codebuddy.cn%'` 记录数 >0 才算已记忆；库被锁读不了时回落"文件非空"，避免误拒。
+- 命令（commands.rs，均已在 lib.rs 注册）：
+  - `open_growth_center(uid)`：已记忆才 spawn 打开；未记忆**不启动浏览器**，返回 `{bound:false, reason}`，前端 warning 拒绝。
+  - `bind_growth_center(uid)`：不校验拉起独立窗口扫码；后端保留，前端按钮已移除、暂不调用。
+  - `growth_bound_all()`：返回 `{uid:bool}` 供卡片展示「成长计划已/未记忆」。
+- 前端：卡片只保留**一个**入口按钮（官方成长中心 sparkle 图标，取自 www.workbuddy.cn usercenter 前端 bundle，currentColor 单色），Tooltip 名「去成长计划做任务攒积分」；未记忆置灰，点击弹固定文案"请退出此账号重新扫码登录，即可记忆成长计划的地址"，已记忆才打开；已删除独立的"登录/记忆"按钮与昵称尾号核对。`api.openGrowthCenter / growthBoundAll`。
+- 注意：WorkMami 内删除账号重走 OAuth 只刷新插件 token，**不会**建立网页独立目录；网页记忆需独立窗口扫码产生 cookie。
+- 浏览器选择为自动探测、暂未做设置项；要固定 Chrome 调整 `browser/mod.rs::candidates()` 顺序即可。
+
 ## 5. 本机运行/配置位置
 
 | 内容 | 路径 |
@@ -110,3 +122,5 @@ Start-Process "C:\Program Files\WorkMami\WorkMami.exe"
 ## 6. 待决策项（未改动，仅记录）
 
 - **无 Buddy 账号的重复旅行尝试**：未领取 Buddy 的账号，`travel/status` 返回 `idle + 未达上限`，自动托管每 60 分钟巡检都会尝试 `depart` 并被服务端拒绝；`depart_failed` 不计入「当日完工」，熔断不触发，当天每小时重试、次日继续。短期频率低风险可控，长期持续失败请求不建议放任。可选修法：识别「无旅行资格」（idle + records 全空 + depart 特定错误码）后按账号跳过，复用 `travel_done_date` 思路做账号级熔断。详见 `src-tauri/src/scheduler/mod.rs::travel_tick`。
+
+- **成长中心「扫错账号」自动识别（未做，当前仅人工核对）**：外部独立 Edge/Chrome 的 cookie 由系统加密，`is_bound` 只能判断"有无 workbuddy cookie"，**读不回网页会话归属**，故在 A 窗口扫 B 的码不会被自动发现（危害是张冠李戴，非直接封号）。当前不做身份核对，未过门禁只弹固定重新登录提示。要做到自动一体化核对，两条路：① CDP——独立实例带 `--remote-debugging-port` 启动，经 DevToolsActivePort 连 websocket，读页面 localStorage/调当前用户接口回读身份与目标 uid 比对（需引入 tokio-tungstenite、先抓网页当前用户接口）；② 改 Tauri 内嵌 WebView 扫码，登录后 execute_script 回读身份比对（放弃外部独立浏览器，需真机调网页持久化）。
