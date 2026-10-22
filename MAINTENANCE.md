@@ -90,8 +90,8 @@ Start-Process "C:\Program Files\WorkMami\WorkMami.exe"
 - 后端 `ModelInfo` 增加 `credits / tags / isDefault / vendor / raw`（raw 为官方 `listAvailableModels` 完整原始对象），`models_cache` 全量带出；原始落盘 `%APPDATA%\WorkMami\models-debug.json`。
 - 前端下拉：显示「模型名 + 彩色徽章（颜色取自接口 badge:名称:#颜色）+ 右侧积分倍率 x0.xx」；底层 value 仍是真实模型 id；不显示灰色小字 id。
 
-### 4.4 反代页（WorkBuddy配置指南）
-- 文案更名：`接入信息 → WorkBuddy配置指南（设置→模型→添加模型）`；`反代运行中 → 运行中`；`Base URL → 接口地址`；`默认模型 → 模型名称`。
+### 4.4 自定义模型页（WorkBuddy配置指南）
+- 文案更名：`接入信息 → WorkBuddy配置指南（设置→模型→添加模型）`；`自定义模型运行中 → 运行中`；`Base URL → 接口地址`；`默认模型 → 模型名称`。
 - 布局对齐 WorkBuddy「编辑模型」弹窗：服务状态 → 供应商（只读，恒为「自定义」）→ 接口地址 → API Key → 模型名称 → 高级配置 → 默认思考强度。
 - 高级配置为只读建议复选框（勾选状态按官方能力字段自动给出）：工具调用 `supportsToolCall`、图片输入 `supportsImages`、思考模式 `supportsReasoning`、仅思考模式 `raw.onlyReasoning`、允许关闭思考 `raw.reasoning.canDisableThinking`、自定义协议恒不勾（标准转发路径无需开启）。
 - 默认思考强度只读显示「自动（使用请求层默认值）」；移除上下文/输出灰字与 OpenAI 端点说明段；删除「调度与模型」分隔符。

@@ -8,7 +8,7 @@
 //!   field 信封 --(master key 32B)--> 明文
 //!   keyblob.wrapped --(protector key 32B)--> master key
 //! protector key 由官方 daemon/钥匙串下发，本机不一定可解析；解析失败时上层
-//! 降级为“一键重新网页授权”，不影响反代使用（新 token 为明文返回）。
+//! 降级为“一键重新网页授权”，不影响自定义模型使用（新 token 为明文返回）。
 
 use aes_gcm::{
     aead::{Aead, KeyInit},

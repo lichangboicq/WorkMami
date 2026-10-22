@@ -1,4 +1,4 @@
-//! 用量库（workmami-usage.db）：记录反代请求，并提供看板聚合查询。
+//! 用量库（workmami-usage.db）：记录自定义模型请求，并提供看板聚合查询。
 //! 同时把 WorkBuddy 本地 session_usage 表作为 “app” 来源并入，覆盖 App 内消耗。
 
 use std::sync::Mutex;

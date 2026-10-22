@@ -138,7 +138,7 @@ impl IdeSyncTarget for WorkBuddyTarget {
                 },
                 ManualField {
                     label: "API Key".into(),
-                    value: "（在 WorkMami 设置 → 反代设置里配置后复制）".into(),
+                    value: "（在 WorkMami 设置 → 自定义模型里配置后复制）".into(),
                     copy: false,
                 },
                 ManualField {
@@ -147,7 +147,7 @@ impl IdeSyncTarget for WorkBuddyTarget {
                     copy: true,
                 },
             ],
-            footer: "接口地址中的 8765 请替换为你实际配置的反代端口；模型列表以 http://127.0.0.1:<port>/v1/models 为准".into(),
+            footer: "接口地址中的 8765 请替换为你实际配置的自定义模型端口；模型列表以 http://127.0.0.1:<port>/v1/models 为准".into(),
         })
     }
 }

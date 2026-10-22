@@ -2,7 +2,7 @@
 //!
 //! WorkBuddy 的自定义模型条目会按「name = id」渲染，只要两者一致就只显示一个清爽的名字，
 //! 倍率则走 credits 字段显示在右侧。这里把官方展示名（如 `Deepseek-V4-Pro`）用作展示用 id，
-//! 反代再用同一套映射把它还原成上游真实 id。
+//! 自定义模型再用同一套映射把它还原成上游真实 id。
 
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};

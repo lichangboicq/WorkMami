@@ -6,7 +6,7 @@
 //!   2. 打开 authUrl 让用户扫码/登录（服务端把该账号与 state 绑定）
 //!   3. GET  /v2/plugin/auth/token?state= → 登录完成后返回 {accessToken, refreshToken, domain, expiresIn}
 //!   4. GET  /v2/plugin/login/account?state=（带 Bearer + X-Domain）→ {uid, nickname, enterprise...}
-//! 拿到的是真正的插件 Bearer accessToken，可同时驱动积分/签到接口与本地反代。
+//! 拿到的是真正的插件 Bearer accessToken，可同时驱动积分/签到接口与本地自定义模型。
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};

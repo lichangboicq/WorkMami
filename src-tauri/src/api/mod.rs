@@ -19,7 +19,7 @@ use crate::wbauth::AuthTokens;
 /// 插件/业务 API 域名：OAuth 与 /v2/plugin、/v2/billing 都走这个域。
 /// 账号 token 默认签发给 www.codebuddy.cn，业务请求 host 必须与 X-Domain 一致，否则网关拒绝。
 pub const PLUGIN_API: &str = "https://www.codebuddy.cn";
-/// 反代上游 chat 域名。
+/// 自定义模型上游 chat 域名。
 pub const UPSTREAM_CHAT: &str = "https://copilot.tencent.com";
 /// 加油站/成长中心网页。
 pub const GROWTH_CENTER_URL: &str = "https://www.workbuddy.cn/profile/growth-center";
@@ -133,7 +133,7 @@ fn package_display_name(code: &str, raw_name: &str) -> String {
 /// 封装 reqwest 客户端。
 pub struct ApiClient {
     http: reqwest::Client,
-    /// 反代流式（chat completions SSE）专用客户端：只设连接超时，不设总超时。
+    /// 自定义模型流式（chat completions SSE）专用客户端：只设连接超时，不设总超时。
     /// 与 `http` 分开的关键原因：reqwest 的 `.timeout()` 是涵盖“读完整个响应体”的总超时，
     /// 而长任务（写文档/多轮工具调用/推理模型思考）的 SSE 可持续数分钟到数十分钟，
     /// 若共用 30 秒总超时会在中途掉掉连接，导致下游“网络错误重试→用户已取消”。
@@ -186,7 +186,7 @@ impl ApiClient {
         req
     }
 
-    /// 反代（异步）：向上游 chat completions 发起请求，返回原始响应。
+    /// 自定义模型（异步）：向上游 chat completions 发起请求，返回原始响应。
     /// 使用 http_stream（无总超时），避免长任务 SSE 被 30 秒掉断。
     pub async fn post_chat_async(
         &self,

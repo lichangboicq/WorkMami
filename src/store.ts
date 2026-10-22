@@ -1,13 +1,11 @@
-// 全局状态：账号列表、设置、主题、反代状态。
+// 全局状态：账号列表、设置、主题、自定义模型状态。
 import { create } from "zustand";
 import { api, errText } from "./api";
 import type {
   Account,
   AppInfo,
   AppSettings,
-  ManualGuideJson,
   ProxyStatus,
-  ProxyTestResult,
   SyncResult,
 } from "./types";
 
@@ -44,9 +42,6 @@ interface Store {
   saveSettings: (s: AppSettings) => Promise<void>;
   setThemePref: (t: string) => void;
   syncAllIdes: () => Promise<SyncResult[]>;
-  ideManualGuide: (ideId: string) => Promise<ManualGuideJson | null>;
-  proxyTestConnection: () => Promise<ProxyTestResult>;
-  regenerateApiKey: () => Promise<string>;
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -110,7 +105,4 @@ export const useStore = create<Store>((set, get) => ({
     set({ syncStatus: r });
     return r;
   },
-  ideManualGuide: async (ideId: string) => api.ideManualGuide(ideId),
-  proxyTestConnection: async () => api.proxyTestConnection(),
-  regenerateApiKey: async () => api.regenerateApiKey(),
 }));

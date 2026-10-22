@@ -204,7 +204,7 @@ export interface BalancePoint {
   remaining: number;
 }
 
-// 请求流水（本工具代理/导入的每条记录）
+// 请求流水（本工具转发/导入的每条记录）
 export interface RequestRow {
   ts: number;
   uid: string;
@@ -310,19 +310,6 @@ export interface TravelOverview {
 
 // —— IDE 自动配置（sync_targets）——
 
-export interface ManualField {
-  label: string;
-  value: string; // 静态值 / "from:api_key" / "from:base_url" 前端按占位符替换
-  copy: boolean;
-}
-
-export interface ManualGuideJson {
-  title: string;
-  subtitle: string;
-  fields: ManualField[];
-  footer: string;
-}
-
 export interface SyncResult {
   id: string;
   label: string;
@@ -331,12 +318,4 @@ export interface SyncResult {
   written: number;
   error?: string | null;
   hasManualGuide: boolean;
-}
-
-export interface ProxyTestResult {
-  ok: boolean;
-  status?: number;
-  modelCount?: number;
-  message?: string;
-  error?: string;
 }
