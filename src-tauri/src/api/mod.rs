@@ -21,8 +21,9 @@ use crate::wbauth::AuthTokens;
 pub const PLUGIN_API: &str = "https://www.codebuddy.cn";
 /// 自定义模型上游 chat 域名。
 pub const UPSTREAM_CHAT: &str = "https://copilot.tencent.com";
-/// 加油站/成长中心网页。
-pub const GROWTH_CENTER_URL: &str = "https://www.workbuddy.cn/profile/growth-center";
+/// 加油站/成长中心网页：扫码登录 cookie 落在 codebuddy.cn，成长空间必须同域打开才能带登录态
+/// （workbuddy.cn 与 codebuddy.cn 是不同可注册域，cookie 不互通）。
+pub const GROWTH_CENTER_URL: &str = "https://www.codebuddy.cn/profile/growth-space";
 
 /// 插件接口前缀（OAuth / 刷新）。
 pub const PLUGIN_PREFIX: &str = "/v2/plugin";

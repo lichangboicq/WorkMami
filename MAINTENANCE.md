@@ -102,7 +102,8 @@ Start-Process "C:\Program Files\WorkMami\WorkMami.exe"
 - 全页面辅助文字 opacity 统一上调（0.4~0.65 → 0.6~0.8）；硬编码浅灰（下拉倍率、侧边栏）加深至双主题达标色。
 
 ### 4.6 成长中心独立浏览器窗口 + 登录态门禁（人工领积分）
-- 背景：WorkMami 只存插件 Bearer token（JSON API 用），不持有网页 cookie 会话；成长中心 SPA（`https://www.workbuddy.cn/profile/growth-center`）靠浏览器自身登录态，token 无法注入网页。
+- 背景：WorkMami 只存插件 Bearer token（JSON API 用），不持有网页 cookie 会话；成长中心 SPA（`https://www.codebuddy.cn/profile/growth-space`）靠浏览器自身登录态，token 无法注入网页。
+- 2026-10-22：成长中心地址由 `workbuddy.cn/profile/growth-center` 改为 `codebuddy.cn/profile/growth-space`——扫码登录页在 codebuddy.cn，cookie 只落在 codebuddy.cn；workbuddy.cn 是独立可注册域，cookie 不互通，原地址打开必不带登录态。
 - 新增 `src-tauri/src/browser/mod.rs`：按 uid 分配独立 `--user-data-dir`（`<数据目录>/browser-profiles/<uid>`），探测本机 Edge（优先，系统自带）→ Chrome，spawn 带 `--no-first-run --no-default-browser-check`；多账号目录隔离不串号。
 - **门禁（is_bound）**：只读打开 profile 的 Chromium `Cookies` 库（`Default/Network/Cookies`、回落 `Default/Cookies`），查 `host_key LIKE '%workbuddy.cn%' OR '%codebuddy.cn%'` 记录数 >0 才算已记忆；库被锁读不了时回落"文件非空"，避免误拒。
 - 命令（commands.rs，均已在 lib.rs 注册）：
