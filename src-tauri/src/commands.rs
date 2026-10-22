@@ -49,7 +49,13 @@ pub async fn save_settings(state: State<'_, Arc<AppState>>, settings: AppSetting
     {
         *state.settings.write().unwrap() = settings.clone();
     }
-    state.save_settings()?;
+    // fs::write 阻塞 I/O → blocking 线程
+    {
+        let st: Arc<AppState> = state.inner().clone();
+        tokio::task::spawn_blocking(move || {
+            let _ = st.save_settings(); // fs write 失败不阻塞主流程
+        });
+    }
     // 依据 enabled 启停反代
     if settings.proxy.enabled {
         proxy::stop(state.inner());
@@ -57,7 +63,11 @@ pub async fn save_settings(state: State<'_, Arc<AppState>>, settings: AppSetting
     } else {
         proxy::stop(state.inner());
     }
-    sync_targets::sync_all(&state);
+    // sync_all 内部 fs::read/write/rename → blocking 线程
+    {
+        let st: Arc<AppState> = state.inner().clone();
+        tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
+    }
     Ok(())
 }
 
@@ -164,8 +174,11 @@ pub async fn list_models(state: State<'_, Arc<AppState>>, uid: Option<String>) -
         .collect();
     // 更新缓存：反代对外暴露 /v1/models 时直接用真实列表。
     *state.models_cache.lock().unwrap() = vals.clone();
-    // 自动同步到所有已注册 IDE（WorkBuddy 等）。
-    sync_targets::sync_all(&state);
+    // 自动同步到所有已注册 IDE（WorkBuddy 等）。阻塞 I/O → blocking 线程
+    {
+        let st: Arc<AppState> = state.inner().clone();
+        tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
+    }
     Ok(vals)
 }
 

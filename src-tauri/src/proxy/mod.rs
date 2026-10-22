@@ -68,8 +68,11 @@ pub async fn start(state: Arc<AppState>) -> bool {
     };
 
     let notify = Arc::new(Notify::new());
-    // 反代启动即自动同步所有已注册 IDE 配置。
-    sync_targets::sync_all(&state);
+    // 反代启动即自动同步所有已注册 IDE 配置。阻塞 I/O → blocking 线程
+    {
+        let st = state.clone();
+        tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
+    }
     let my_gen = {
         let mut g = state.proxy_gen.lock().unwrap();
         *g += 1;
