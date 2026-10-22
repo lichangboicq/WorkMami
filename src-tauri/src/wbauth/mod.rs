@@ -369,7 +369,7 @@ pub fn load_and_decrypt() -> WmResult<(DesktopInfo, Option<AuthTokens>)> {
     Ok((info, tokens))
 }
 
-fn decrypt_auth_section(auth: &serde_json::Value, key: &[u8; 32]) -> WmResult<AuthTokens> {
+fn decrypt_auth_section(auth: &serde_json::Value, _key: &[u8; 32]) -> WmResult<AuthTokens> {
     let obj = auth
         .as_object()
         .ok_or_else(|| WmError::Crypto("auth 段缺失".into()))?;

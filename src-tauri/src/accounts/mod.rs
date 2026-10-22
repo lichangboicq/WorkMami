@@ -5,7 +5,7 @@ use std::sync::RwLock;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::error::{WmError, WmResult};
+use crate::error::WmResult;
 use crate::platform::workmami_paths;
 use crate::wbauth::AuthTokens;
 

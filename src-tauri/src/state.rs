@@ -254,7 +254,7 @@ impl AppState {
 
     pub fn sticky_account(&self, hash: &str, ttl_min: u32) -> Option<String> {
         let now = Utc::now().timestamp_millis();
-        let mut m = self.sticky.lock().unwrap();
+        let m = self.sticky.lock().unwrap();
         if let Some((uid, exp)) = m.get(hash) {
             if *exp > now && !self_is_cooling(&self.cooldown, uid, now) {
                 return Some(uid.clone());

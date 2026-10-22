@@ -11,6 +11,7 @@ mod platform;
 mod proxy;
 mod scheduler;
 mod state;
+mod sync_targets;
 mod usage;
 mod vault;
 mod wbauth;
@@ -153,6 +154,11 @@ pub fn run() {
         commands::refresh_quota,
         commands::credit_ledger,
         commands::list_models,
+        commands::sync_all_ides,
+        commands::ide_sync_status,
+        commands::ide_manual_guide,
+        commands::regenerate_api_key,
+        commands::proxy_test_connection,
         commands::oauth_begin,
         commands::oauth_poll,
         commands::checkin_status,
