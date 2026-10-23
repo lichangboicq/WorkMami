@@ -406,6 +406,7 @@ body {
 .wm-model-chip__name {
   font-weight: 500;
   font-size: 12.5px;
+  line-height: 16px; /* 与 badge 总高(14+2边框)、credits 行高统一，三者文本同轴垂直居中 */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -421,7 +422,8 @@ body {
 }
 .wm-model-chip__credits {
   font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
+  font-size: 12px;
+  line-height: 16px;
   color: var(--ant-color-text-tertiary, #8c8c8c);
   white-space: nowrap;
 }

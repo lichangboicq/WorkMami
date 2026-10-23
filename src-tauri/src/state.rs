@@ -39,16 +39,10 @@ pub struct ProxySettings {
     /// 访问本地自定义模型所需的 key；留空表示不校验
     pub api_key: String,
     pub strategy: Strategy,
-    /// 上下文窗口（token），注入上游前据此裁剪
-    pub context_window: u32,
     /// 默认思考强度：low/medium/high/none
     pub reasoning_effort: String,
     /// 默认模型（客户端未指定时）
     pub default_model: String,
-    /// 会话粘性窗口（分钟）
-    pub sticky_ttl_min: u32,
-    /// failover 最大重试账号数
-    pub max_retries: u32,
 }
 
 impl Default for ProxySettings {
@@ -59,11 +53,8 @@ impl Default for ProxySettings {
             port: 8765,
             api_key: String::new(),
             strategy: Strategy::default(),
-            context_window: 128_000,
             reasoning_effort: "medium".into(),
             default_model: "wb-balanced".into(),
-            sticky_ttl_min: 30,
-            max_retries: 3,
         }
     }
 }
@@ -125,8 +116,6 @@ pub struct AppState {
     pub settings: RwLock<AppSettings>,
     /// 账号冷却到期时间（unix ms）
     pub cooldown: Mutex<HashMap<String, i64>>,
-    /// 会话粘性：session_hash -> (uid, 到期 ms)
-    pub sticky: Mutex<HashMap<String, (String, i64)>>,
     /// 轮询游标
     pub rr_cursor: Mutex<usize>,
     /// 自定义模型运行控制
@@ -165,7 +154,6 @@ impl AppState {
             api: Arc::new(ApiClient::new()),
             settings: RwLock::new(settings),
             cooldown: Mutex::new(HashMap::new()),
-            sticky: Mutex::new(HashMap::new()),
             rr_cursor: Mutex::new(0),
             proxy_shutdown: Mutex::new(None),
             proxy_running: Mutex::new(false),
@@ -245,33 +233,30 @@ impl AppState {
 
     pub fn cool_down(&self, uid: &str, ms: i64) {
         let now = Utc::now().timestamp_millis();
-        self.cooldown.lock().unwrap().insert(uid.to_string(), now + ms);
+        self.cool_down_until(uid, now + ms);
+    }
+
+    /// 冷却到绝对时间点（unix ms）：用于落实服务器通知的「预计几点几分可再次使用」。
+    pub fn cool_down_until(&self, uid: &str, until_ms: i64) {
+        self.cooldown.lock().unwrap().insert(uid.to_string(), until_ms);
     }
 
     pub fn clear_cooling(&self, uid: &str) {
         self.cooldown.lock().unwrap().remove(uid);
     }
 
-    pub fn sticky_account(&self, hash: &str, ttl_min: u32) -> Option<String> {
+    /// 账号池中最早恢复可用的时间点（unix ms）；None = 无账号处于冷却。
+    /// 供「全部账号频控中」时告知客户端预计恢复时间。
+    pub fn earliest_recovery_ms(&self) -> Option<i64> {
         let now = Utc::now().timestamp_millis();
-        let m = self.sticky.lock().unwrap();
-        if let Some((uid, exp)) = m.get(hash) {
-            if *exp > now && !self_is_cooling(&self.cooldown, uid, now) {
-                return Some(uid.clone());
-            }
-        }
-        let _ttl = ttl_min;
-        None
+        self.cooldown
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|t| **t > now)
+            .min()
+            .copied()
     }
-
-    pub fn set_sticky(&self, hash: &str, uid: &str, ttl_min: u32) {
-        let now = Utc::now().timestamp_millis();
-        self.sticky.lock().unwrap().insert(hash.to_string(), (uid.to_string(), now + ttl_min as i64 * 60_000));
-    }
-}
-
-fn self_is_cooling(cd: &Mutex<HashMap<String, i64>>, uid: &str, now: i64) -> bool {
-    cd.lock().unwrap().get(uid).map(|t| *t > now).unwrap_or(false)
 }
 
 /// 供命令层使用的便捷时间类型别名。
