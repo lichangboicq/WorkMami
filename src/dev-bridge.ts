@@ -5,7 +5,10 @@
 export const BRIDGE_PORT = 1421;
 
 export function hasTauri(): boolean {
-  return !!(globalThis as any).__TAURI__;
+  // Tauri 2 始终注入 __TAURI_INTERNALS__（核心 IPC 标记），
+  // __TAURI__ 只有 withGlobalTauri: true 才注入。前者更可靠。
+  const g = globalThis as any;
+  return !!(g.__TAURI_INTERNALS__ || g.__TAURI__);
 }
 
 /// 返回一个可直接调用的 invoke 实现。
