@@ -45,9 +45,9 @@ function useSystemDark() {
 }
 
 function SiderFooter({ isDark }: { isDark: boolean }) {
-  const sub = isDark ? "#a6a6a6" : "#595959";
-  const faint = isDark ? "#8a8a8a" : "#6b7280";
-  const divider = isDark ? "#26262a" : "#f0f0f0";
+  const sub = isDark ? "#9a9aa6" : "#5b5568";
+  const faint = isDark ? "#6f6f7a" : "#8a8397";
+  const divider = isDark ? "#1f1f26" : "#ece8ef";
   return (
     <div
       style={{
@@ -110,21 +110,45 @@ export default function App() {
   const theme = useMemo<ThemeConfig>(
     () => ({
       token: {
-        colorPrimary: "#1677ff",
-        borderRadius: 8,
+        // 品牌色：与 Logo 玫瑰粉渐变同色系，替换默认 antd 蓝
+        colorPrimary: "#ec4899",
+        colorInfo: "#ec4899",
+        borderRadius: 10,
+        // fontSize 回到 antd 默认 14 —— 之前 13 让全页面缩小一截
+        fontSize: 14,
+        controlHeight: 36,
+        controlHeightSM: 30,
+        controlItemBgHover: isDark ? "rgba(236,72,153,0.16)" : "rgba(236,72,153,0.08)",
+        colorBgLayout: isDark ? "#0b0b0d" : "#f6f5f7",
+        colorBgContainer: isDark ? "#141418" : "#ffffff",
+        colorBorderRadiusSecondary: 8,
+        wireframe: false,
         ...(isDark
-          ? { colorTextDisabled: "rgba(255,255,255,0.5)" }
+          ? {
+              colorText: "rgba(255,255,255,0.88)",
+              colorTextSecondary: "rgba(255,255,255,0.65)",
+              colorTextTertiary: "rgba(255,255,255,0.45)",
+              colorTextDisabled: "rgba(255,255,255,0.4)",
+            }
           : {
-              colorTextSecondary: "rgba(0,0,0,0.65)",
-              colorTextTertiary: "rgba(0,0,0,0.45)",
-              colorTextPlaceholder: "rgba(0,0,0,0.45)",
-              colorTextDisabled: "rgba(0,0,0,0.55)",
+              colorTextSecondary: "rgba(22,16,28,0.62)",
+              colorTextTertiary: "rgba(22,16,28,0.42)",
+              colorTextPlaceholder: "rgba(22,16,28,0.38)",
+              colorTextDisabled: "rgba(22,16,28,0.42)",
             }),
       },
       algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     }),
     [isDark],
   );
+
+  const siderBg = isDark ? "#0f0f13" : "#ffffff";
+  const siderBorder = isDark ? "#1f1f26" : "#ece8ef";
+  const headerBg = isDark ? "#141418" : "#ffffff";
+  const contentBg = isDark ? "#0b0b0d" : "#f6f5f7";
+  const subText = isDark ? "#9a9aa6" : "#5b5568";
+  const faintText = isDark ? "#6f6f7a" : "#8a8397";
+  const divider = isDark ? "#1f1f26" : "#ece8ef";
 
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
@@ -135,6 +159,8 @@ export default function App() {
               display: "flex",
               flexDirection: "column",
               height: "100vh",
+              background: siderBg,
+              borderRight: `1px solid ${siderBorder}`,
             }}
           >
           <div
@@ -145,7 +171,7 @@ export default function App() {
               alignItems: "center",
               gap: 10,
               padding: "0 16px",
-              borderBottom: `1px solid ${isDark ? "#26262a" : "#f0f0f0"}`,
+              borderBottom: `1px solid ${siderBorder}`,
             }}
           >
             <img
@@ -156,7 +182,7 @@ export default function App() {
                 height: 40,
                 borderRadius: 10,
                 display: "block",
-                boxShadow: "0 2px 10px rgba(236,72,153,0.4)",
+                boxShadow: "0 3px 14px rgba(236,72,153,0.35)",
               }}
             />
             <div style={{ lineHeight: 1.15 }}>
@@ -177,9 +203,9 @@ export default function App() {
               <div
                 style={{
                   fontSize: 11,
-                  color: isDark ? "#a8a8a8" : "#595959",
+                  color: subText,
                   marginTop: 2,
-                  letterSpacing: 0,
+                  letterSpacing: 0.3,
                   whiteSpace: "nowrap",
                 }}
               >
@@ -200,17 +226,17 @@ export default function App() {
         <Layout>
           <Header
             style={{
-              background: isDark ? "#141414" : "#fff",
+              background: headerBg,
               padding: "0 24px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               height: 56,
               lineHeight: "56px",
-              borderBottom: `1px solid ${isDark ? "#303030" : "#f0f0f0"}`,
+              borderBottom: `1px solid ${divider}`,
             }}
           >
-            <span style={{ fontSize: 15, fontWeight: 600 }}>
+            <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.2 }}>
               {MENU.find((m) => m.key === active)?.label}
             </span>
             <Segmented
@@ -223,7 +249,7 @@ export default function App() {
               ]}
             />
           </Header>
-          <Content style={{ background: isDark ? "#000" : "#f5f5f5" }}>
+          <Content style={{ background: contentBg }}>
             {active === "accounts" && <Accounts />}
             {active === "proxy" && <ProxySettings />}
             {active === "data" && <DataPage />}

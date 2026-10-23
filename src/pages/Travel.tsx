@@ -214,7 +214,7 @@ export default function Travel() {
         <Row gutter={24} align="middle">
           <Col>
             <Space>
-              <Text strong>自动托管</Text>
+              <Text strong>自动旅行捡分</Text>
               <Switch
                 checked={settings.travel.autoEnabled}
                 onChange={toggleAuto}
@@ -245,20 +245,6 @@ export default function Travel() {
           </Col>
         </Row>
       </Card>
-
-      {settings.travel.autoEnabled && (
-        <Alert
-          type="info"
-          showIcon
-          style={{ marginBottom: 16 }}
-          message="自动托管已开启：后台每 60 分钟自动巡检一次"
-          description={
-            <span>
-              猫猫在家（空闲）时，会在下一次巡检（最迟约 60 分钟）按“{POLICY_LABEL[settings.travel.locationPolicy] || settings.travel.locationPolicy}”策略自动出发；旅行到站后也会在下一次巡检自动领取奖励，无需手动操作。一天只能派一次猫，一旦连续确认今日已达上限，后台当日会停止巡检以免高频调用官方接口触发风控（次日自动恢复）。仅在本客户端运行期间生效（页面每 5 分钟自动刷新，也可手动刷新）。
-            </span>
-          }
-        />
-      )}
 
       {/* 各账号旅行卡片 */}
       <Row gutter={[16, 16]}>
@@ -326,8 +312,7 @@ export default function Travel() {
                             type="warning"
                             showIcon
                             style={{ marginBottom: 12 }}
-                            message="今日旅行次数已达上限"
-                            description="服务端判定该账号今天的旅行次数已用完，自动托管会暂停派猫，明日额度刷新后恢复出发。今天仍可尝试手动出发（以服务端为准）。"
+                            message="猫猫跑累了，明天再来"
                           />
                         ) : (
                           <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
