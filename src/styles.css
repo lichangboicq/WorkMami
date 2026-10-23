@@ -1,3 +1,8 @@
+/* ========================================================================
+   WorkMami —— 全局视觉基底
+   设计方向：精致实用工具风，品牌玫瑰粉点缀，亮暗双主题都细腻
+   ======================================================================== */
+
 html,
 body,
 #root {
@@ -7,20 +12,25 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+  /* 中文优先 + 系统回退，统一的中文字形观感 */
+  font-family: "PingFang SC", "HarmonyOS Sans SC", "Noto Sans SC",
+    "Microsoft YaHei", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* 正文默认字重略轻，层级感由 label / value 字重拉开 */
+  font-weight: 400;
 }
 
 /* —— 页面容器 —— */
 .wm-page {
-  padding: 20px 24px;
+  /* 垂直节奏基准：顶部 24 呼吸感 / 底部 24 不贴底 / 左右 20 够 antd 控件 */
+  padding: 24px 20px 24px;
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
-  /* 为顶部细进度条留出空间（不会被 Layout 截断） */
   position: relative;
 }
 
@@ -39,57 +49,67 @@ body {
   margin-bottom: 16px;
 }
 
-/* —— 等宽字体 —— */
+/* —— 等宽字体（密钥 / 数字 / 版本号） —— */
 .wm-mono {
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
-  letter-spacing: 0.2px;
+  letter-spacing: 0.15px;
+  font-weight: 500;
 }
 
-/* —— 指标卡 —— */
+/* —— 指标卡（Dashboard / 余额等） —— */
 .wm-metric-card {
   text-align: center;
 }
 
 .wm-metric-value {
-  font-size: 26px;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 28px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  /* 给大数字一点品牌色点缀 */
+  background: linear-gradient(90deg, #ec4899 0%, #f472b6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .wm-metric-label {
   font-size: 12px;
-  opacity: 0.75;
-  margin-top: 4px;
+  opacity: 0.7;
+  margin-top: 5px;
+  letter-spacing: 0.3px;
 }
 
 .wm-preview {
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.65;
+  letter-spacing: 0.1px;
   max-height: 60vh;
   overflow: auto;
 }
 
-/* ============================================================
-   自定义模型页 —— 顶部细进度条（实时保存触发）
-   ============================================================ */
+/* ========================================================================
+   顶部细进度条（实时保存触发）
+   ======================================================================== */
 .wm-top-progress {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #1677ff 0%, #69b1ff 100%);
+  height: 2px;
+  background: linear-gradient(90deg, #ec4899 0%, #f472b6 60%, #fb7185 100%);
   z-index: 9999;
   pointer-events: none;
-  box-shadow: 0 0 6px rgba(22, 119, 255, 0.55);
-  /* 用 transform: scaleX 替代 width 动画，不会阻塞 layout；origin 从左开始 */
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.55), 0 0 2px rgba(236, 72, 153, 0.85);
   transform-origin: left center;
   animation: wm-progress-scale 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards,
-             wm-progress-fade 0.25s ease-in 0.65s forwards;
+    wm-progress-fade 0.25s ease-in 0.65s forwards;
 }
 
 @keyframes wm-progress-scale {
@@ -102,28 +122,30 @@ body {
   to   { opacity: 0; }
 }
 
-/* —— 保留旧 width 动画 keyframes（历史兼容） —— */
 @keyframes wm-progress {
   from { width: 0%; }
   to   { width: 100%; }
 }
 
-/* ============================================================
-   自定义模型页 —— 字段标签 + 脏红点
-   ============================================================ */
+/* ========================================================================
+   字段标签 + 脏红点
+   ======================================================================== */
 .wm-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .wm-field-label {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.2px;
   user-select: none;
+  opacity: 0.92;
 }
 
 .wm-field-label__text {
@@ -141,7 +163,6 @@ body {
   vertical-align: middle;
   box-shadow: 0 0 0 0 rgba(250, 140, 22, 0.7);
   animation: wm-dirty-pulse 2s ease-in-out infinite;
-  /* 让它在暗/亮主题下都有足够的存在感 */
 }
 
 @keyframes wm-dirty-pulse {
@@ -149,11 +170,13 @@ body {
   50%      { box-shadow: 0 0 0 4px rgba(250, 140, 22, 0); }
 }
 
-/* ============================================================
-   自定义模型页 —— 保存状态徽章（Card title 内）
-   ============================================================ */
+/* ========================================================================
+   保存状态徽章（Card title 内）
+   ======================================================================== */
 .wm-save-status {
-  font-size: 12px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -161,19 +184,19 @@ body {
 }
 
 .wm-save-status__dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   display: inline-block;
 }
 
-.wm-save-status.is-idle .wm-save-status__dot    { background: #52c41a; }
-.wm-save-status.is-saving .wm-save-status__dot { background: #1677ff; animation: wm-dot-blink 0.9s ease-in-out infinite; }
-.wm-save-status.is-dirty .wm-save-status__dot  { background: #fa8c16; animation: wm-dot-blink 1.2s ease-in-out infinite; }
-.wm-save-status.is-error .wm-save-status__dot  { background: #ff4d4f; }
+.wm-save-status.is-idle .wm-save-status__dot    { background: #52c41a; box-shadow: 0 0 0 2px rgba(82,196,26,0.18); }
+.wm-save-status.is-saving .wm-save-status__dot { background: #ec4899; animation: wm-dot-blink 0.9s ease-in-out infinite; box-shadow: 0 0 0 2px rgba(236,72,153,0.2); }
+.wm-save-status.is-dirty .wm-save-status__dot  { background: #fa8c16; animation: wm-dot-blink 1.2s ease-in-out infinite; box-shadow: 0 0 0 2px rgba(250,140,22,0.2); }
+.wm-save-status.is-error .wm-save-status__dot  { background: #ff4d4f; box-shadow: 0 0 0 2px rgba(255,77,79,0.2); }
 
 .wm-save-status.is-idle    { color: #52c41a; }
-.wm-save-status.is-saving  { color: #1677ff; }
+.wm-save-status.is-saving  { color: #ec4899; }
 .wm-save-status.is-dirty   { color: #fa8c16; }
 .wm-save-status.is-error   { color: #ff4d4f; cursor: pointer; }
 
@@ -182,9 +205,10 @@ body {
   50%      { opacity: 0.35; }
 }
 
-/* ============================================================
-   自定义模型页 —— Switch 行
-   ============================================================ */
+/* ========================================================================
+   Switch 行（现在既在 Card 1 title，也可能在其他行内）
+   —— 不再承担区块过渡职责，margin-bottom 由外层容器控制
+   ======================================================================== */
 .wm-switch-row {
   display: flex;
   align-items: center;
@@ -193,21 +217,35 @@ body {
 
 .wm-run-state {
   font-size: 12px;
-  opacity: 0.65;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease, color 0.2s ease;
 }
 .wm-run-state.is-live {
   color: #52c41a;
   opacity: 1;
 }
 
-/* ============================================================
-   自定义模型页 —— 字段网格（auto-fill 自适应列数，单列 180-260px）
-   ============================================================ */
+/* ========================================================================
+   字段网格（auto-fill 自适应列数，单列 180-260px）
+   现在在 Card 1 body 里直接作为首块，不再需要额外的 margin-top，
+   间距由 card body 的 padding 统一提供
+   ======================================================================== */
 .wm-field-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 260px));
   gap: 16px;
-  margin-top: 16px;
+  margin-top: 0;
+}
+
+/* 每个字段容器统一显式布局：label 在上，input 在下，间距 6px
+   之前依赖浏览器 block 默认，antd 组件包装后可能漂移 */
+.wm-field-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0; /* 防内容过长撑坏 grid cell */
 }
 
 .wm-field-grid__full {
@@ -215,16 +253,61 @@ body {
   max-width: 640px;
 }
 
-/* ============================================================
-   自定义模型页 —— 主卡（16px 圆角 + 轻阴影分层）
-   ============================================================ */
+.wm-field-grid__wide {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .wm-field-grid__wide {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ========================================================================
+   主卡（16px 圆角 + 双层阴影分层 + 轻描边）
+   body padding 统一：16px 顶 / 20px 左右 / 24px 底
+   ======================================================================== */
 .wm-proxy-card.ant-card {
   border-radius: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 1px 2px rgba(18, 12, 28, 0.04),
+    0 6px 18px rgba(18, 12, 28, 0.06),
+    0 18px 42px rgba(18, 12, 28, 0.04);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
 }
+.wm-proxy-card.ant-card:hover {
+  border-color: rgba(236, 72, 153, 0.18);
+  box-shadow:
+    0 1px 2px rgba(18, 12, 28, 0.05),
+    0 8px 24px rgba(18, 12, 28, 0.08),
+    0 24px 56px rgba(236, 72, 153, 0.06);
+}
+
+/* 暗色主题下卡片边框 + 阴影调整 */
+[data-theme="dark"] .wm-proxy-card.ant-card,
+.ant-card.wm-proxy-card[data-theme="dark"] {
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.35),
+    0 22px 48px rgba(0, 0, 0, 0.3);
+}
+
 .wm-proxy-card .ant-card-head {
   border-radius: 16px 16px 0 0;
+  min-height: 50px;
+}
+
+.wm-proxy-card .ant-card-head-title {
+  padding: 13px 0;
+}
+
+.wm-proxy-card .ant-card-body {
+  /* 统一 body padding：顶 16 贴合 head 下方，底 24 呼吸感 */
+  padding: 16px 20px 24px;
 }
 
 .wm-card-title {
@@ -234,7 +317,9 @@ body {
   gap: 12px;
 }
 
-/* —— IDE 自动配置状态：标题行轻量圆点 —— */
+/* ========================================================================
+   IDE 自动配置状态：标题行轻量圆点
+   ======================================================================== */
 .wm-ide-row {
   display: flex;
   flex-wrap: wrap;
@@ -248,23 +333,29 @@ body {
   align-items: center;
   gap: 5px;
   font-size: 12px;
+  font-weight: 500;
   opacity: 0.75;
   white-space: nowrap;
+  transition: opacity 0.2s ease, color 0.2s ease;
 }
 
 .wm-ide-chip__dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--ant-color-text-tertiary, #8c8c8c);
   flex-shrink: 0;
 }
-.wm-ide-chip.is-ok .wm-ide-chip__dot      { background: #52c41a; }
-.wm-ide-chip.is-pending .wm-ide-chip__dot { background: #fa8c16; }
-.wm-ide-chip.is-error .wm-ide-chip__dot   { background: #ff4d4f; }
+.wm-ide-chip.is-ok .wm-ide-chip__dot      { background: #52c41a; box-shadow: 0 0 0 2px rgba(82,196,26,0.2); }
+.wm-ide-chip.is-pending .wm-ide-chip__dot { background: #fa8c16; box-shadow: 0 0 0 2px rgba(250,140,22,0.2); }
+.wm-ide-chip.is-error .wm-ide-chip__dot   { background: #ff4d4f; box-shadow: 0 0 0 2px rgba(255,77,79,0.2); }
 .wm-ide-chip.is-error                     { color: #ff4d4f; opacity: 1; }
 
-/* IDE 演示 GIF tooltip：覆盖 antd 默认 250px max-width，图片直出 */
+.wm-ide-chip:hover {
+  opacity: 1;
+}
+
+/* IDE 演示 GIF tooltip */
 .wm-ide-gif-tooltip {
   max-width: none;
   padding: 4px;
@@ -282,14 +373,15 @@ body {
   margin-bottom: 12px;
   font-size: 14px;
   font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
-/* ============================================================
-   自定义模型页 —— Modal 内部的三段式容器
-   ============================================================ */
+/* ========================================================================
+   Modal 内部三段式容器
+   ======================================================================== */
 .wm-guide-block {
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 14px 16px;
   margin-bottom: 12px;
   border: 1px solid transparent;
 }
@@ -298,13 +390,12 @@ body {
 .wm-guide-block--white { background: #fff; border-color: #e8e8e8; }
 .wm-guide-block--gray  { background: #fafafa; border-color: #f0f0f0; }
 
-/* 暗色主题下也过得去的版本（跟随 antd） */
 [data-theme="dark"] .wm-guide-block--white { background: #1f1f1f; border-color: #303030; }
 [data-theme="dark"] .wm-guide-block--gray  { background: #141414; border-color: #262626; }
 
-/* ============================================================
-   账号卡片 —— 标题省略 + 底部纯图标操作（亮/暗主题自适应）
-   ============================================================ */
+/* ========================================================================
+   账号卡片
+   ======================================================================== */
 .wm-account-card .ant-card-head-title {
   overflow: hidden;
 }
@@ -323,23 +414,18 @@ body {
   vertical-align: bottom;
 }
 
-/* 操作区只放图标：均分分栏、不换行、点击区域撑满整格 */
 .wm-account-card .ant-card-actions > li {
   margin: 2px 0;
 }
-
-/* antd 会把每个 action 再包一层 span，这里一并撑满 */
 .wm-account-card .ant-card-actions > li > span {
   width: 100%;
 }
-
 .wm-account-card .ant-card-actions .wm-card-action-wrap {
   display: inline-flex;
   align-items: stretch;
   width: 100%;
   height: 34px;
 }
-
 .wm-account-card .ant-card-actions .wm-card-action.ant-btn {
   display: inline-flex;
   align-items: center;
@@ -350,63 +436,67 @@ body {
   border-radius: 0;
 }
 
-/* 次级文字统一走继承色 + 透明度，亮/暗主题下都不会出现白字白底 */
-.wm-account-total         { font-size: 12px; opacity: 0.65; }
-.wm-account-subtext       { font-size: 12px; opacity: 0.75; }
-.wm-account-faint         { font-size: 11px; opacity: 0.6; margin-top: 4px; }
+.wm-account-total         { font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; opacity: 0.9; letter-spacing: 0.2px; }
+.wm-account-subtext       { font-size: 12px; font-weight: 500; opacity: 0.75; }
+.wm-account-faint         { font-size: 11px; opacity: 0.6; margin-top: 4px; letter-spacing: 0.2px; }
 .wm-account-resource-name { opacity: 0.85; }
 
-/* ============================================================
+/* ========================================================================
    其它
-   ============================================================ */
+   ======================================================================== */
 .wm-footer-note {
-  margin-top: 20px;
+  /* 跨 section 的纵向节奏也纳入 4 的倍数体系 */
+  margin-top: 24px;
   color: var(--ant-color-text-secondary, #8c8c8c);
   font-size: 12px;
+  letter-spacing: 0.2px;
 }
 
 .wm-section-wrap {
   margin-bottom: 16px;
 }
 
-/* ============================================================
-   自定义模型页 —— 模型支持列表（只读展示）
-   ============================================================ */
-.wm-model-gallery-card {
-  position: relative;
-  transition: border-color 0.2s ease;
-  width: fit-content;
-  min-width: min(360px, 100%);
-  max-width: 100%;
-  margin-top: 20px;
-  padding: 12px 14px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-}
-.wm-model-gallery-card:hover {
-  border-color: var(--ant-color-primary, #1677ff);
-}
-
+/* ========================================================================
+   支持的模型 —— gallery + chip
+   现在直接作为 Card 2 body 的子元素，不再有额外的嵌套外框
+   ======================================================================== */
 .wm-model-gallery {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  /* 标题行到 chip 组的距离 */
+  margin-top: 8px;
 }
 
 .wm-model-chip {
-  border: 1px solid var(--ant-color-border, #d9d9d9);
-  border-radius: 6px;
-  padding: 8px 10px;
-  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: rgba(255, 255, 255, 0.65);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-}
-.wm-model-chip__name {
-  font-weight: 500;
+  gap: 8px;
   font-size: 12.5px;
-  line-height: 16px; /* 与 badge 总高(14+2边框)、credits 行高统一，三者文本同轴垂直居中 */
+  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  user-select: none;
+}
+[data-theme="dark"] .wm-model-chip {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.09);
+}
+.wm-model-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(236, 72, 153, 0.35);
+  background: rgba(236, 72, 153, 0.06);
+  box-shadow: 0 4px 12px rgba(236, 72, 153, 0.12);
+}
+
+.wm-model-chip__name {
+  font-weight: 600;
+  font-size: 12.5px;
+  line-height: 16px;
+  letter-spacing: 0.2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -415,17 +505,21 @@ body {
   font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-size: 10px;
   line-height: 14px;
-  padding: 0 4px;
+  padding: 0 5px;
   border-radius: 3px;
   border: 1px solid;
+  font-weight: 500;
+  letter-spacing: 0.3px;
   white-space: nowrap;
 }
 .wm-model-chip__credits {
   font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: 12.5px;
   line-height: 16px;
+  font-weight: 600;
   color: var(--ant-color-text-tertiary, #8c8c8c);
   white-space: nowrap;
+  letter-spacing: -0.2px;
 }
 
 .wm-model-gallery-loading,
@@ -434,7 +528,43 @@ body {
   font-size: 12px;
   padding: 8px 0;
   text-align: center;
+  letter-spacing: 0.2px;
 }
 .wm-model-gallery-error {
   color: #ff4d4f;
+}
+
+/* ========================================================================
+   antd 输入控件在页面里的微调（统一圆角 / 字重）
+   不覆盖语义，只统一视觉
+   ======================================================================== */
+.wm-proxy-card .ant-input,
+.wm-proxy-card .ant-input-number,
+.wm-proxy-card .ant-input-number-input,
+.wm-proxy-card .ant-select-selector {
+  border-radius: 8px !important;
+  font-size: 13px;
+  font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.wm-proxy-card .ant-input-affix-wrapper,
+.wm-proxy-card .ant-input-password,
+.wm-proxy-card .ant-input-password input {
+  font-weight: 500;
+}
+
+.wm-proxy-card .ant-input-affix-wrapper-focused,
+.wm-proxy-card .ant-input-focused,
+.wm-proxy-card .ant-input-number-focused,
+.wm-proxy-card .ant-input-number:focus-within,
+.wm-proxy-card .ant-select-focused .ant-select-selector,
+.wm-proxy-card .ant-select-selector:focus-within {
+  border-color: #ec4899 !important;
+  box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.18) !important;
+}
+
+/* Switch 激活时的品牌色覆盖（让 antd 默认蓝跟品牌走） */
+.wm-proxy-card .ant-switch-checked {
+  background: #ec4899 !important;
 }

@@ -257,13 +257,140 @@ export default function Proxy() {
       {/* ============ 顶部细进度条 ============ */}
       {writingProgress && <div aria-hidden className="wm-top-progress" />}
 
-      {/* ============ 设置卡 ============ */}
+      {/* ============ Card 1：WorkMami 开关 + 参数 ============ */}
       <Card
         size="small"
         className="wm-proxy-card"
         title={
           <div className="wm-card-title">
-            {/* IDE 自动配置状态：已自动完成，仅轻量示状态 */}
+            {/* Switch 开关 + 运行状态，放标题行最左侧 */}
+            <div className="wm-switch-row">
+              <Switch
+                checked={enabled}
+                checkedChildren="开"
+                unCheckedChildren="关"
+                onChange={onToggleEnabled}
+              />
+              {dirtyDot("enabled")}
+              {(running || enabled) && (
+                <span className={`wm-run-state${running ? " is-live" : ""}`}>
+                  {running ? "运行中" : "待启动"}
+                </span>
+              )}
+            </div>
+            {/* 保存状态徽章 */}
+            {saveStatusBadge}
+          </div>
+        }
+      >
+        {/* 字段网格 */}
+        <div className="wm-field-grid">
+          {/* API Key */}
+          <div className="wm-field-grid__wide">
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
+              {dirtyDot("apiKey")}
+            </label>
+            <Space.Compact style={{ width: "100%" }}>
+              <Input.Password
+                value={apiKey}
+                className="wm-mono"
+                onChange={(e) => onFieldChange("apiKey", e.target.value)}
+              />
+              <Tooltip title="复制">
+                <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
+              </Tooltip>
+              <Tooltip title="重生成新密钥">
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => {
+                    const nk = genApiKey();
+                    setFormValues((prev) => ({ ...prev, apiKey: nk }));
+                    onFieldChange("apiKey", nk);
+                    message.success("已生成新密钥，正在自动保存");
+                  }}
+                />
+              </Tooltip>
+            </Space.Compact>
+          </div>
+
+          {/* 积分调度策略 */}
+          <div>
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.strategy}</span>
+              {dirtyDot("strategy")}
+            </label>
+            <Select
+              style={{ width: "100%" }}
+              value={formValues.strategy}
+              options={[
+                { value: "expiring-first", label: "先消耗临近到期的积分" },
+                { value: "smart", label: "先消耗余额多的账号" },
+                { value: "drain", label: "先消耗余额少的账号" },
+                { value: "round-robin", label: "各账号平均消耗" },
+              ]}
+              onChange={(v) => onFieldChange("strategy", v as PS["strategy"])}
+            />
+          </div>
+
+          {/* 监听地址 */}
+          <div>
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.host}</span>
+              {dirtyDot("host")}
+            </label>
+            <Input
+              value={formValues.host}
+              placeholder="默认 127.0.0.1"
+              onChange={(e) => onFieldChange("host", e.target.value)}
+            />
+          </div>
+
+          {/* 端口 */}
+          <div>
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.port}</span>
+              {dirtyDot("port")}
+            </label>
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              max={65535}
+              placeholder="默认 8765"
+              value={formValues.port}
+              onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
+            />
+          </div>
+
+          {/* 默认思考强度 */}
+          <div>
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.reasoningEffort}</span>
+              {dirtyDot("reasoningEffort")}
+            </label>
+            <Select
+              style={{ width: "100%" }}
+              value={formValues.reasoningEffort}
+              options={[
+                { value: "none", label: "关闭" },
+                { value: "low", label: "低" },
+                { value: "medium", label: "中" },
+                { value: "high", label: "高" },
+              ]}
+              onChange={(v) => onFieldChange("reasoningEffort", v as string)}
+            />
+          </div>
+
+        </div>
+      </Card>
+
+      {/* ============ Card 2：IDE 自动配置 + 支持的大模型 ============ */}
+      <Card
+        size="small"
+        className="wm-proxy-card"
+        title={
+          <div className="wm-card-title">
+            {/* IDE 自动配置状态：轻量示状态 */}
             <div className="wm-ide-row">
               {ideCards.map((ide) => {
                 const statusText = ide.error || (ide.synced ? "已自动配置" : "待配置");
@@ -296,176 +423,57 @@ export default function Proxy() {
                 );
               })}
             </div>
-            {saveStatusBadge}
           </div>
         }
       >
-        {/* Switch 行 */}
-        <div className="wm-switch-row">
-          <Switch
-            checked={enabled}
-            checkedChildren="开"
-            unCheckedChildren="关"
-            onChange={onToggleEnabled}
-          />
-          {dirtyDot("enabled")}
-          {(running || enabled) && (
-            <span className={`wm-run-state${running ? " is-live" : ""}`}>
-              {running ? "运行中" : "待启动"}
-            </span>
-          )}
+        {/* 支持的大模型 */}
+        <div className="wm-field-label">
+          <span className="wm-field-label__text">支持的模型</span>
+          <Tooltip title="刷新">
+            <ReloadOutlined
+              style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
+              onClick={() => loadModels()}
+            />
+          </Tooltip>
         </div>
 
-        {/* 字段网格 */}
-        <div className="wm-field-grid">
-          {/* API Key —— 通栏置首 */}
-          <div className="wm-field-grid__full">
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
-              {dirtyDot("apiKey")}
-            </label>
-            <Space.Compact style={{ width: "100%" }}>
-              <Input.Password
-                value={apiKey}
-                className="wm-mono"
-                onChange={(e) => onFieldChange("apiKey", e.target.value)}
-              />
-              <Tooltip title="复制">
-                <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
-              </Tooltip>
-              <Tooltip title="重生成新密钥">
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    const nk = genApiKey();
-                    setFormValues((prev) => ({ ...prev, apiKey: nk }));
-                    onFieldChange("apiKey", nk);
-                    message.success("已生成新密钥，正在自动保存");
-                  }}
-                />
-              </Tooltip>
-            </Space.Compact>
-          </div>
-
-          {/* 监听地址 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.host}</span>
-              {dirtyDot("host")}
-            </label>
-            <Input
-              value={formValues.host}
-              placeholder="默认 127.0.0.1"
-              onChange={(e) => onFieldChange("host", e.target.value)}
-            />
-          </div>
-
-          {/* 端口 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.port}</span>
-              {dirtyDot("port")}
-            </label>
-            <InputNumber
-              style={{ width: "100%" }}
-              min={1}
-              max={65535}
-              placeholder="默认 8765"
-              value={formValues.port}
-              onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
-            />
-          </div>
-
-          {/* 积分调度策略 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.strategy}</span>
-              {dirtyDot("strategy")}
-            </label>
-            <Select
-              style={{ width: "100%" }}
-              value={formValues.strategy}
-              options={[
-                { value: "expiring-first", label: "先消耗临近到期的积分" },
-                { value: "smart", label: "先消耗余额多的账号" },
-                { value: "drain", label: "先消耗余额少的账号" },
-                { value: "round-robin", label: "各账号平均消耗" },
-              ]}
-              onChange={(v) => onFieldChange("strategy", v as PS["strategy"])}
-            />
-          </div>
-
-          {/* 默认思考强度 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.reasoningEffort}</span>
-              {dirtyDot("reasoningEffort")}
-            </label>
-            <Select
-              style={{ width: "100%" }}
-              value={formValues.reasoningEffort}
-              options={[
-                { value: "none", label: "关闭" },
-                { value: "low", label: "低" },
-                { value: "medium", label: "中" },
-                { value: "high", label: "高" },
-              ]}
-              onChange={(v) => onFieldChange("reasoningEffort", v as string)}
-            />
-          </div>
-
-        </div>
-
-        {/* 支持的模型 */}
-        <div className="wm-model-gallery-card">
-          <label className="wm-field-label">
-            <span className="wm-field-label__text">支持的模型</span>
-            <Tooltip title="刷新">
-              <ReloadOutlined
-                style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
-                onClick={() => loadModels()}
-              />
-            </Tooltip>
-          </label>
-
-          {/* 模型 chip 网格 */}
-          {modelsLoading ? (
-            <div className="wm-model-gallery-loading">加载中…</div>
-          ) : models.length === 0 ? (
-            <div className="wm-model-gallery-empty">无模型，点刷新重试</div>
-          ) : (
-            <div className="wm-model-gallery">
-              {models.map((m) => {
-                const badges = (m.tags || [])
-                  .filter((t) => t.startsWith("badge:"))
-                  .map((t) => {
-                    const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
-                    return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
-                  });
-                const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
-                return (
-                  <div key={m.id} className="wm-model-chip">
-                    <div className="wm-model-chip__name">{m.name}</div>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      {badges.map((b) => (
-                        <span
-                          key={b.name}
-                          className="wm-model-chip__badge"
-                          style={{ color: b.color, borderColor: b.color }}
-                        >
-                          {b.name}
-                        </span>
-                      ))}
-                      {credits && <span className="wm-model-chip__credits">{credits}</span>}
-                    </div>
+        {/* 模型 chip 网格 */}
+        {modelsLoading ? (
+          <div className="wm-model-gallery-loading">加载中…</div>
+        ) : models.length === 0 ? (
+          <div className="wm-model-gallery-empty">无模型，点刷新重试</div>
+        ) : (
+          <div className="wm-model-gallery">
+            {models.map((m) => {
+              const badges = (m.tags || [])
+                .filter((t) => t.startsWith("badge:"))
+                .map((t) => {
+                  const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
+                  return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
+                });
+              const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
+              return (
+                <div key={m.id} className="wm-model-chip">
+                  <div className="wm-model-chip__name">{m.name}</div>
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    {badges.map((b) => (
+                      <span
+                        key={b.name}
+                        className="wm-model-chip__badge"
+                        style={{ color: b.color, borderColor: b.color }}
+                      >
+                        {b.name}
+                      </span>
+                    ))}
+                    {credits && <span className="wm-model-chip__credits">{credits}</span>}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
-          {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
-        </div>
+        {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
       </Card>
     </div>
   );
