@@ -63,7 +63,9 @@ pub fn run() {
         platform::init_paths();
         let app_state = Arc::new(AppState::load()?);
         app.manage(app_state.clone());
-    
+        // 注入 AppHandle：代理转发层（非 command 上下文）发系统通知需要
+        let _ = app_state.app_handle.set(app.handle().clone());
+
         // 一次性迁移：旧钥匙串 token → 本地加密 vault（迁移后 keyring 条目删除）
         {
             let uids: Vec<String> = app_state.accounts.all().iter().map(|a| a.uid.clone()).collect();
