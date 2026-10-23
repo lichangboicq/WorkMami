@@ -8,6 +8,8 @@ mod accounts;
 mod api;
 mod browser;
 mod commands;
+#[cfg(debug_assertions)]
+mod dev_bridge;
 mod data;
 mod error;
 mod model_display;
@@ -65,6 +67,10 @@ pub fn run() {
         app.manage(app_state.clone());
         // 注入 AppHandle：代理转发层（非 command 上下文）发系统通知需要
         let _ = app_state.app_handle.set(app.handle().clone());
+
+        // dev bridge：让 Trae 内置浏览器等普通客户端也能调用 invoke
+        #[cfg(debug_assertions)]
+        dev_bridge::start(app_state.clone());
 
         // 一次性迁移：旧钥匙串 token → 本地加密 vault（迁移后 keyring 条目删除）
         {

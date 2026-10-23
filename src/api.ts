@@ -1,5 +1,18 @@
-// 统一封装 Tauri invoke，集中类型与错误处理。
-import { invoke } from "@tauri-apps/api/core";
+// 统一封装 invoke，集中类型与错误处理。
+// 走 Tauri 原生还是本地 axum bridge，由 dev-bridge 在 main.tsx 里判定好，
+// 挂到 window.__WM_INVOKE__，这里每次调用时动态读取，避免模块加载时序竞争。
+type AnyInvoke = (cmd: string, args?: Record<string, unknown>) => Promise<any>;
+const rawInvoke: AnyInvoke = async (cmd, args) => {
+  const fn = (globalThis as any).__WM_INVOKE__ as AnyInvoke | undefined;
+  if (fn) return fn(cmd, args);
+  // fallback：Tauri runtime 下动态 import 原生 API
+  const m = await import("@tauri-apps/api/core");
+  return m.invoke(cmd as any, args as any);
+};
+// 包一层泛型签名，让原有 invoke<T>(...) 调用全部编译通过。
+function invoke<T = unknown>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  return rawInvoke(cmd, args) as Promise<T>;
+}
 import type {
   Account,
   AccountBilling,
