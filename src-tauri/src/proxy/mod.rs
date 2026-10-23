@@ -25,6 +25,7 @@ use crate::api::{api_base, should_refresh};
 use crate::state::{AppState, Strategy};
 use crate::sync_targets;
 use crate::usage::RequestLog;
+use tauri_plugin_notification::NotificationExt;
 
 pub struct ProxyHandle;
 
@@ -267,13 +268,24 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
     let mut failures = 0usize;
     let mut rate_limited_only = true;
     let mut earliest_retry: Option<i64> = None;
+    // 本次请求首个频控事件（旧uid + 报文原文）：换号成功后弹托盘通知用
+    let mut pending_notice: Option<(String, String)> = None;
     for acc in &candidates {
         match forward_once(&state, acc, req.clone(), is_stream, &ua, &requested).await {
-            Ok(resp) => return resp,
+            Ok(resp) => {
+                // 先频控、后成功 → 价值汇报（旁路，失败静默，绝不阻塞转发）
+                if let Some((old_uid, raw)) = pending_notice.take() {
+                    notify_rate_limit_switch(&state, &old_uid, acc, &raw);
+                }
+                return resp;
+            }
             Err(e) => {
                 failures += 1;
-                if let FwdErr::RateLimited { retry_at, .. } = &e {
+                if let FwdErr::RateLimited { retry_at, raw } = &e {
                     earliest_retry = Some(earliest_retry.map_or(*retry_at, |v: i64| v.min(*retry_at)));
+                    if pending_notice.is_none() {
+                        pending_notice = Some((acc.uid.clone(), raw.clone()));
+                    }
                 } else {
                     rate_limited_only = false;
                 }
@@ -330,6 +342,54 @@ fn rate_limited_resp(retry_at_ms: i64) -> Response {
         }})),
     )
         .into_response()
+}
+
+// ---------- 限流换号价值汇报（托盘通知） ----------
+/// 通知文案组装（纯函数便于测试）：空报文回退官方核心词「访问频率过高」。
+/// 标题：已切换账号至{新账号昵称}；正文：账号{旧账号昵称}遇到错误：{报文原文}。
+fn rate_notice_copy(new_nick: &str, old_nick: &str, raw: &str) -> (String, String) {
+    let raw = if raw.trim().is_empty() { "访问频率过高" } else { raw };
+    (format!("已切换账号至{new_nick}"), format!("账号{old_nick}遇到错误：{raw}"))
+}
+
+/// 频控被拦、换号化解成功后弹一条系统通知（跨平台统一：Windows 托盘区 toast / macOS 右上横幅）。
+/// 全局 2 分钟节流仅为异常循环安全阀：正常频率（约 1 次/小时）每次必弹，不排队、不补发。
+pub(crate) fn notify_rate_limit_switch(state: &Arc<AppState>, old_uid: &str, new_acc: &Account, raw: &str) {
+    {
+        let mut last = state.last_rate_notice_ms.lock().unwrap();
+        let now = Utc::now().timestamp_millis();
+        if now.saturating_sub(*last) < 120_000 {
+            return;
+        }
+        *last = now; // 先占位再发送，防并发双弹
+    }
+    let Some(app) = state.app_handle.get().cloned() else { return }; // AppHandle 未注入（纯防御）
+    let (title, body) = rate_notice_copy(
+        &account_label(state, &new_acc.uid),
+        &account_label(state, old_uid),
+        raw,
+    );
+    // 旁路线程发送：绝不阻塞响应返回；任何失败仅 warn 静默
+    std::thread::spawn(move || {
+        if let Err(e) = app.notification().builder().title(&title).body(&body).show() {
+            tracing::warn!("限流通知发送失败: {e}");
+        }
+    });
+}
+
+/// 通知里的账号称呼：昵称原样全量不截断；为空回退 uid 尾 4 位。
+fn account_label(state: &Arc<AppState>, uid: &str) -> String {
+    match state.accounts.get(uid) {
+        Some(a) if !a.nickname.trim().is_empty() => a.nickname.clone(),
+        _ => uid
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect(),
+    }
 }
 
 // ---------- 模型验证 ----------
@@ -1083,7 +1143,7 @@ fn err_resp(code: StatusCode, msg: &str) -> Response {
 
 #[cfg(test)]
 mod tests {
-    use super::raw_error_text;
+    use super::{raw_error_text, rate_notice_copy};
 
     #[test]
     fn raw_error_text_extracts_json_message() {
@@ -1103,5 +1163,18 @@ mod tests {
     fn raw_error_text_keeps_json_without_message_as_is() {
         let body = r#"{"code":429}"#;
         assert_eq!(raw_error_text(body), body);
+    }
+
+    #[test]
+    fn notice_copy_matches_filed_copy() {
+        let (t, b) = rate_notice_copy("柏霖HK", "柏霖", "访问频率过高，21:35 后重试");
+        assert_eq!(t, "已切换账号至柏霖HK");
+        assert_eq!(b, "账号柏霖遇到错误：访问频率过高，21:35 后重试");
+    }
+
+    #[test]
+    fn notice_copy_empty_raw_falls_back() {
+        let (_, b) = rate_notice_copy("新账号", "旧账号", "   ");
+        assert_eq!(b, "账号旧账号遇到错误：访问频率过高");
     }
 }
