@@ -272,7 +272,7 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
             Ok(resp) => return resp,
             Err(e) => {
                 failures += 1;
-                if let FwdErr::RateLimited { retry_at } = &e {
+                if let FwdErr::RateLimited { retry_at, .. } = &e {
                     earliest_retry = Some(earliest_retry.map_or(*retry_at, |v: i64| v.min(*retry_at)));
                 } else {
                     rate_limited_only = false;
@@ -290,8 +290,8 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
 
 // ---------- 转发错误分类 ----------
 enum FwdErr {
-    /// 频控/限流：附服务器通知的预计恢复时间（unix ms）。
-    RateLimited { retry_at: i64 },
+    /// 频控/限流：附服务器通知的预计恢复时间（unix ms）与报文原文（通知用）。
+    RateLimited { retry_at: i64, raw: String },
     /// 这一组积分已耗尽（换下一组临期积分接棒）。
     QuotaOut,
     Other(String),
@@ -300,7 +300,7 @@ enum FwdErr {
 impl FwdErr {
     fn msg(&self) -> String {
         match self {
-            FwdErr::RateLimited { retry_at } => {
+            FwdErr::RateLimited { retry_at, .. } => {
                 format!("访问频率过高，预计 {} 恢复", fmt_hm(*retry_at))
             }
             FwdErr::QuotaOut => "账号积分耗尽".into(),
@@ -547,7 +547,7 @@ async fn forward_once(
         dump_chat_debug(&upstream_req, 429, &text);
         let retry_at = parse_retry_at(&headers, &text, started);
         state.cool_down_until(&acc.uid, retry_at);
-        return Err(FwdErr::RateLimited { retry_at });
+        return Err(FwdErr::RateLimited { retry_at, raw: raw_error_text(&text) });
     }
     if !status.is_success() {
         let txt = resp.text().await.unwrap_or_default();
@@ -677,6 +677,19 @@ fn parse_retry_text(text: &str, now_ms: i64) -> Option<i64> {
     None
 }
 
+/// 429 报文原文提取：JSON 且含 error.message → 取 message；否则整段原文（一字不改、不截断）。
+fn raw_error_text(body: &str) -> String {
+    serde_json::from_str::<Value>(body)
+        .ok()
+        .and_then(|v| {
+            v.get("error")
+                .and_then(|e| e.get("message"))
+                .and_then(|m| m.as_str())
+                .map(String::from)
+        })
+        .unwrap_or_else(|| body.to_string())
+}
+
 /// SSE error 事件分类：积分耗尽 → 摘池+刷新；频控类 → 冷却至预计恢复时间；其余按普通错误换号。
 fn classify_sse_error(state: &Arc<AppState>, uid: &str, msg: &str, now_ms: i64) -> FwdErr {
     if is_quota_exhausted(msg) {
@@ -694,7 +707,7 @@ fn classify_sse_error(state: &Arc<AppState>, uid: &str, msg: &str, now_ms: i64) 
     if rate {
         let retry_at = parse_retry_text(msg, now_ms).unwrap_or(now_ms + 60_000);
         state.cool_down_until(uid, retry_at);
-        return FwdErr::RateLimited { retry_at };
+        return FwdErr::RateLimited { retry_at, raw: msg.to_string() };
     }
     FwdErr::Other(format!("上游限流/错误(自动换号): {msg}"))
 }
@@ -1066,4 +1079,29 @@ fn err_resp(code: StatusCode, msg: &str) -> Response {
         Json(json!({"error": {"message": msg, "type": "proxy_error"}})),
     )
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::raw_error_text;
+
+    #[test]
+    fn raw_error_text_extracts_json_message() {
+        let body = r#"{"error":{"message":"访问频率过高","type":"rate_limit_error"}}"#;
+        assert_eq!(raw_error_text(body), "访问频率过高");
+    }
+
+    #[test]
+    fn raw_error_text_keeps_plain_text_verbatim() {
+        assert_eq!(
+            raw_error_text("访问频率过高，21:35 后重试"),
+            "访问频率过高，21:35 后重试"
+        );
+    }
+
+    #[test]
+    fn raw_error_text_keeps_json_without_message_as_is() {
+        let body = r#"{"code":429}"#;
+        assert_eq!(raw_error_text(body), body);
+    }
 }
