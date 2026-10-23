@@ -4,8 +4,19 @@
 type AnyInvoke = (cmd: string, args?: Record<string, unknown>) => Promise<any>;
 const rawInvoke: AnyInvoke = async (cmd, args) => {
   const fn = (globalThis as any).__WM_INVOKE__ as AnyInvoke | undefined;
-  if (fn) return fn(cmd, args);
-  // fallback：Tauri runtime 下动态 import 原生 API
+  if (fn) {
+    try {
+      return await fn(cmd, args);
+    } catch (e) {
+      // bridge 不可达（典型场景：release 构建下 dev_bridge 未编译），
+      // fallback 到原生 Tauri invoke。
+      if (e && String(e).includes("Failed to fetch")) {
+        // fallthrough 到下面
+      } else {
+        throw e;
+      }
+    }
+  }
   const m = await import("@tauri-apps/api/core");
   return m.invoke(cmd as any, args as any);
 };
