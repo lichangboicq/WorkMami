@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ReactNode } from "react";
 import {
   Button,
   Card,
@@ -50,7 +49,6 @@ const FIELD_LABELS: Record<string, string> = {
   stickyTtlMin: "会话粘性窗口(分钟)",
   maxRetries: "Failover 最大换号数",
   apiKey: "API Key",
-  defaultModel: "默认模型",
 };
 
 export default function Proxy() {
@@ -209,65 +207,6 @@ export default function Proxy() {
 
   const enabled = formValues.enabled;
   const apiKey = formValues.apiKey;
-  const defaultModel = formValues.defaultModel;
-
-  // 选中模型后，以其官方参数为准自动回填上下文窗口 / 思考强度（仍可手动微调）。
-  const onModelChange = (id: string) => {
-    const m = models.find((x) => x.id === id);
-    if (!m) return;
-    const next: PS = { ...formValues, defaultModel: id };
-    if (m.contextWindow > 0) next.contextWindow = m.contextWindow;
-    if (m.defaultEffort) next.reasoningEffort = m.defaultEffort;
-    setFormValues(next);
-  };
-
-  const modelOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const badgeRe = /^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/;
-    const opts: { value: string; label: ReactNode }[] = models.map((m) => {
-      seen.add(m.id);
-      const badges = (m.tags || [])
-        .filter((t) => t.startsWith("badge:"))
-        .map((t) => {
-          const mm = t.match(badgeRe);
-          return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
-        });
-      const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
-      const label = (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", paddingRight: 8 }}>
-          <span style={{ fontWeight: 500, whiteSpace: "nowrap" }}>{m.name}</span>
-          <div style={{ display: "flex", gap: 4, overflow: "hidden", flexShrink: 1 }}>
-            {badges.map((b) => (
-              <span
-                key={b.name}
-                style={{
-                  color: b.color,
-                  border: `1px solid ${b.color}`,
-                  borderRadius: 4,
-                  fontSize: 11,
-                  lineHeight: "14px",
-                  padding: "0 4px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {b.name}
-              </span>
-            ))}
-          </div>
-          {credits && (
-            <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>
-              {credits}
-            </span>
-          )}
-        </div>
-      );
-      return { value: m.id, label };
-    });
-    if (defaultModel && !seen.has(defaultModel)) {
-      opts.unshift({ value: defaultModel, label: "WorkMami Model" });
-    }
-    return opts;
-  }, [models, defaultModel]);
 
   const running = Boolean(proxy?.running);
 
@@ -377,32 +316,74 @@ export default function Proxy() {
 
         {/* 字段网格 */}
         <div className="wm-field-grid">
-          {/* 默认模型 —— 占 2 列 */}
-          <div className="wm-field-grid__span-2">
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">默认模型</span>
-              {dirtyDot("defaultModel")}
-            </label>
-            <Space.Compact style={{ width: "100%" }}>
-              <Select
-                showSearch
-                style={{ width: "100%" }}
-                value={defaultModel || undefined}
-                placeholder="选择模型"
-                optionFilterProp="label"
-                loading={modelsLoading}
-                options={modelOptions}
-                onChange={(id) => onModelChange(id)}
-                notFoundContent={modelsLoading ? "加载中…" : modelsError || "点右侧刷新获取模型"}
+          {/* 支持的模型 —— 只读展示，hover 卡片弹用法 tip */}
+        <div className="wm-field-grid__span-3 wm-model-gallery-card">
+          <label className="wm-field-label">
+            <span className="wm-field-label__text">WorkMami 支持的自定义模型</span>
+            <Tooltip title="刷新模型列表">
+              <ReloadOutlined
+                style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
+                onClick={() => loadModels()}
               />
-              <Tooltip title="刷新模型列表">
-                <Button icon={<ReloadOutlined />} loading={modelsLoading} onClick={() => loadModels()} />
-              </Tooltip>
-            </Space.Compact>
-            {modelsError && <div style={{ color: "#ff4d4f", fontSize: 12, marginTop: 2 }}>{modelsError}</div>}
+            </Tooltip>
+          </label>
+          <div className="wm-model-gallery-tip">
+            只读展示当前可用的模型列表。具体使用哪个在 IDE 侧选择（Trae / Cursor / VS Code 等），hover 卡片查看使用方法。
           </div>
 
-          {/* 监听地址 */}
+          {/* 模型 chip 网格 */}
+          {modelsLoading ? (
+            <div className="wm-model-gallery-loading">加载中…</div>
+          ) : models.length === 0 ? (
+            <div className="wm-model-gallery-empty">未获取到模型，请点击右侧刷新重试</div>
+          ) : (
+            <div className="wm-model-gallery">
+              {models.map((m) => {
+                const badges = (m.tags || [])
+                  .filter((t) => t.startsWith("badge:"))
+                  .map((t) => {
+                    const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
+                    return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
+                  });
+                const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
+                return (
+                  <div key={m.id} className="wm-model-chip">
+                    <div className="wm-model-chip__name">{m.name}</div>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      {badges.map((b) => (
+                        <span
+                          key={b.name}
+                          className="wm-model-chip__badge"
+                          style={{ color: b.color, borderColor: b.color }}
+                        >
+                          {b.name}
+                        </span>
+                      ))}
+                      {m.contextWindow > 0 && (
+                        <span className="wm-model-chip__ctx">{(m.contextWindow / 1000).toFixed(0)}K</span>
+                      )}
+                      {credits && <span className="wm-model-chip__credits">{credits}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* hover 用法 tip */}
+          <div className="wm-model-tip">
+            <div className="wm-model-tip__title">使用方法</div>
+            <ol className="wm-model-tip__steps">
+              <li>打开你的 IDE（Trae / Cursor / VS Code 等）</li>
+              <li>进入 WorkMami 自动配置好的自定义模型源</li>
+              <li>在下拉中选择想用的模型</li>
+              <li>开始对话即可，积分自动从账号池消耗</li>
+            </ol>
+          </div>
+          {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
+        </div>
+
+        {/* 监听地址 */}
           <div>
             <label className="wm-field-label">
               <span className="wm-field-label__text">{FIELD_LABELS.host}</span>

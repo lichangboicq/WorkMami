@@ -29,12 +29,6 @@ import type { Account } from "../types";
 import { BillIcon } from "../components/WBIcon";
 import CreditLedgerDrawer from "./CreditLedgerDrawer";
 
-const sourceLabel: Record<string, string> = {
-  oauth: "网页授权",
-  scan: "扫描",
-  manual: "手动",
-};
-
 function fmtTime(s?: string | null): string {
   if (!s) return "—";
   const d = new Date(s);
@@ -408,7 +402,6 @@ function AccountCard({
     .filter((r) => r.remaining > 0)
     .sort((a, b) => (a.expire_at ?? Infinity) - (b.expire_at ?? Infinity));
   const usedUpCount = (q?.resources?.length || 0) - activeResources.length;
-  const uidTail = a.uid.length > 4 ? "…" + a.uid.slice(-4) : a.uid;
 
   return (
     <Card
@@ -417,10 +410,12 @@ function AccountCard({
       title={
         <Space size={8} className="wm-account-title-row">
           <Badge status={a.enabled ? "processing" : "default"} />
-          <span className="wm-account-name">{a.nickname || "未命名"}</span>
           <Tooltip title={`UID: ${a.uid}`}>
-            <Tag className="wm-mono">{uidTail}</Tag>
+            <span className="wm-account-name">{a.nickname || "未命名"}</span>
           </Tooltip>
+          <Tag color={a.account_type === "enterprise" ? "gold" : "blue"}>
+            {a.account_type === "enterprise" ? "企业账号" : "个人账号"}
+          </Tag>
         </Space>
       }
       extra={<Switch size="small" checked={a.enabled} onChange={onToggle} />}
@@ -461,15 +456,6 @@ function AccountCard({
     >
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
         <Space size={4} wrap>
-          <Tag>{sourceLabel[a.source] || a.source}</Tag>
-          <Tag color={a.account_type === "enterprise" ? "gold" : "blue"}>
-            {a.account_type === "enterprise" ? "企业" : "个人"}
-          </Tag>
-          {a.has_local_token ? (
-            <Tag color="green">凭证就绪</Tag>
-          ) : (
-            <Tag color="red">需重新授权</Tag>
-          )}
           {a.today_checked_in && <Tag color="purple">今日已签</Tag>}
           {a.streak_days > 0 && <Tag>连续 {a.streak_days} 天</Tag>}
         </Space>
