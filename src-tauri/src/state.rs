@@ -145,7 +145,7 @@ pub struct AppState {
     /// Tauri AppHandle（lib.rs setup 注入）：代理转发层等非 command 上下文发系统通知用。
     pub app_handle: once_cell::sync::OnceCell<tauri::AppHandle>,
     /// 最近一次「限流已化解」通知时刻（unix ms）：2 分钟节流安全阀。
-    pub last_rate_notice_ms: Mutex<u64>,
+    pub last_rate_notice_ms: Mutex<i64>,
 }
 
 impl AppState {
