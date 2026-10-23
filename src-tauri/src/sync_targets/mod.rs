@@ -50,6 +50,8 @@ pub trait IdeSyncTarget: Send + Sync {
     fn label(&self) -> &'static str;
     fn detect(&self) -> Option<PathBuf>;
     fn sync(&self, settings: &ProxySettings, models: &[Value]) -> R<usize>;
+    /// 磁盘上是否已存在与当前代理配置一致的托管条目（状态查询用，不写盘）
+    fn is_synced(&self, _settings: &ProxySettings) -> bool { false }
     fn manual_guide(&self) -> Option<ManualGuideJson> { None }
 }
 
@@ -106,13 +108,17 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
     }).collect()
 }
 
-pub fn status_only(_state: &Arc<AppState>) -> Vec<SyncResult> {
-    all_targets().into_iter().map(|t| SyncResult {
-        id: t.id().into(),
-        label: t.label().into(),
-        detected: t.detect().is_some(),
-        synced: false,
-        written: 0,
-        error: None,
+pub fn status_only(state: &Arc<AppState>) -> Vec<SyncResult> {
+    let ps = state.settings.read().unwrap().clone().proxy;
+    all_targets().into_iter().map(|t| {
+        let detected = t.detect().is_some();
+        SyncResult {
+            id: t.id().into(),
+            label: t.label().into(),
+            detected,
+            synced: detected && t.is_synced(&ps),
+            written: 0,
+            error: None,
+        }
     }).collect()
 }

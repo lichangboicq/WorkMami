@@ -42,6 +42,7 @@ interface Store {
   saveSettings: (s: AppSettings) => Promise<void>;
   setThemePref: (t: string) => void;
   syncAllIdes: () => Promise<SyncResult[]>;
+  refreshSyncStatus: () => Promise<void>;
 }
 
 export const useStore = create<Store>((set, get) => ({
@@ -92,6 +93,7 @@ export const useStore = create<Store>((set, get) => ({
     await api.saveSettings(s);
     set({ settings: s });
     await get().reloadProxy();
+    await get().refreshSyncStatus();
   },
 
   setThemePref: (t: string) => {
@@ -104,5 +106,13 @@ export const useStore = create<Store>((set, get) => ({
     const r = await api.syncAllIdes();
     set({ syncStatus: r });
     return r;
+  },
+
+  refreshSyncStatus: async () => {
+    try {
+      set({ syncStatus: await api.ideSyncStatus() });
+    } catch {
+      /* IDE 状态拉取失败忽略 */
+    }
   },
 }));

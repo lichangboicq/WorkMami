@@ -63,10 +63,11 @@ pub async fn save_settings(state: State<'_, Arc<AppState>>, settings: AppSetting
     } else {
         proxy::stop(state.inner());
     }
-    // sync_all 内部 fs::read/write/rename → blocking 线程
+    // sync_all 内部 fs::read/write/rename → blocking 线程；等待完成，
+    // 保证保存返回后 IDE 状态已是最新
     {
         let st: Arc<AppState> = state.inner().clone();
-        tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
+        let _ = tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); }).await;
     }
     Ok(())
 }
@@ -174,10 +175,11 @@ pub async fn list_models(state: State<'_, Arc<AppState>>, uid: Option<String>) -
         .collect();
     // 更新缓存：自定义模型对外暴露 /v1/models 时直接用真实列表。
     *state.models_cache.lock().unwrap() = vals.clone();
-    // 自动同步到所有已注册 IDE（WorkBuddy 等）。阻塞 I/O → blocking 线程
+    // 自动同步到所有已注册 IDE（WorkBuddy 等）。等待写盘完成，
+    // 这样前端随后刷新的 IDE 状态即为真实结果。
     {
         let st: Arc<AppState> = state.inner().clone();
-        tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); });
+        let _ = tokio::task::spawn_blocking(move || { sync_targets::sync_all(&st); }).await;
     }
     Ok(vals)
 }

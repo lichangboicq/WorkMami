@@ -121,6 +121,25 @@ impl IdeSyncTarget for WorkBuddyTarget {
         Ok(kept.len() - base)
     }
 
+    fn is_synced(&self, ps: &ProxySettings) -> bool {
+        let path = crate::platform::workbuddy_paths().home.join("models.json");
+        let Some(arr) = std::fs::read(&path)
+            .ok()
+            .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
+            .and_then(|v| v.as_array().cloned())
+        else {
+            return false;
+        };
+        let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
+        let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
+        // 与 sync() 写入的条目逐字段比对：存在同配置的托管条目即视为已配置。
+        arr.iter().any(|e| {
+            e.get("managedBy").and_then(|v| v.as_str()) == Some("WorkMami")
+                && e.get("url").and_then(|v| v.as_str()) == Some(url.as_str())
+                && e.get("apiKey").and_then(|v| v.as_str()) == Some(ps.api_key.as_str())
+        })
+    }
+
     fn manual_guide(&self) -> Option<ManualGuideJson> {
         Some(ManualGuideJson {
             title: "在 WorkBuddy 中手动添加 WorkMami 供应商".into(),

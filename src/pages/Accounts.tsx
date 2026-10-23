@@ -251,7 +251,6 @@ export default function Accounts() {
         showIcon
         style={{ marginBottom: 16 }}
         message="账号通过网页授权添加"
-        description="点击「网页授权添加账号」会打开一个独立浏览器登录窗口（每个账号专属 profile，互不串号），登录后自动抓取凭证入库，并立即记忆该账号的成长计划登录态。授权后即可刷新积分、签到、派猫猫旅行并接入本地自定义模型。"
       />
 
       <div className="wm-toolbar">
