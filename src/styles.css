@@ -323,3 +323,157 @@ body {
 .wm-section-wrap {
   margin-bottom: 16px;
 }
+
+/* ============================================================
+   自定义模型页 —— 模型支持列表（只读展示 + hover 用法 tip）
+   ============================================================ */
+.wm-model-gallery-card {
+  position: relative;
+  cursor: help;
+  transition: border-color 0.2s ease;
+}
+.wm-model-gallery-card:hover {
+  border-color: var(--ant-color-primary, #1677ff);
+}
+
+.wm-model-gallery-tip {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #8c8c8c);
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.wm-model-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+@media (max-width: 1280px) {
+  .wm-model-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .wm-model-gallery { grid-template-columns: 1fr; }
+}
+
+.wm-model-chip {
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: var(--ant-color-bg-container, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+.wm-model-chip__name {
+  font-weight: 500;
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wm-model-chip__badge {
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  line-height: 14px;
+  padding: 0 4px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.wm-model-chip__ctx {
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+  white-space: nowrap;
+}
+.wm-model-chip__credits {
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+  white-space: nowrap;
+}
+
+.wm-model-gallery-loading,
+.wm-model-gallery-empty,
+.wm-model-gallery-error {
+  font-size: 12px;
+  padding: 8px 0;
+  text-align: center;
+}
+.wm-model-gallery-error {
+  color: #ff4d4f;
+}
+
+/* —— hover 用法 tip（卡悬停向下弹出） —— */
+.wm-model-tip {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  z-index: 20;
+  pointer-events: none;
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 10px;
+  background: var(--ant-color-bg-container, #fff);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
+  padding: 14px 16px;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.wm-model-gallery-card:hover .wm-model-tip {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.wm-model-tip::before {
+  content: "";
+  position: absolute;
+  right: 24px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  transform: rotate(45deg);
+  background: var(--ant-color-bg-container, #fff);
+  border-left: 1px solid var(--ant-color-border, #d9d9d9);
+  border-top: 1px solid var(--ant-color-border, #d9d9d9);
+}
+
+.wm-model-tip__title {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+.wm-model-tip__steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: tip-step;
+}
+.wm-model-tip__steps li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ant-color-text-secondary, #595959);
+  counter-increment: tip-step;
+}
+.wm-model-tip__steps li::before {
+  content: counter(tip-step);
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--ant-color-primary, #1677ff);
+  color: #fff;
+  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

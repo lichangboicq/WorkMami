@@ -317,5 +317,4 @@ export interface SyncResult {
   synced: boolean;
   written: number;
   error?: string | null;
-  hasManualGuide: boolean;
 }

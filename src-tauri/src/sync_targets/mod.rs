@@ -26,7 +26,6 @@ pub struct SyncResult {
     pub written: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    pub has_manual_guide: bool,
 }
 
 #[derive(Debug, Serialize, Clone)]
@@ -71,7 +70,6 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
             synced: false,
             written: 0,
             error: Some("模型列表未拉取，跳过自动配置".into()),
-            has_manual_guide: t.manual_guide().is_some(),
         }).collect();
     }
 
@@ -85,7 +83,6 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
                 synced: false,
                 written: 0,
                 error: None,
-                has_manual_guide: t.manual_guide().is_some(),
             };
         }
         match t.sync(&proxy_settings, &models) {
@@ -96,7 +93,6 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
                 synced: true,
                 written: n,
                 error: None,
-                has_manual_guide: t.manual_guide().is_some(),
             },
             Err(e) => SyncResult {
                 id: t.id().into(),
@@ -105,7 +101,6 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
                 synced: false,
                 written: 0,
                 error: Some(e.to_string()),
-                has_manual_guide: t.manual_guide().is_some(),
             },
         }
     }).collect()
@@ -119,6 +114,5 @@ pub fn status_only(_state: &Arc<AppState>) -> Vec<SyncResult> {
         synced: false,
         written: 0,
         error: None,
-        has_manual_guide: t.manual_guide().is_some(),
     }).collect()
 }
