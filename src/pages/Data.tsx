@@ -220,30 +220,37 @@ export default function DataPage() {
         title: "名称",
         dataIndex: "name",
         ellipsis: true,
-        render: (t: string, r: DataItem) => (
-          <Space>
-            <a onClick={() => view(r)}>{t}</a>
-            {r.meta && "model" in (r.meta as object) && (
-              <Tag>{String((r.meta as Record<string, unknown>).model)}</Tag>
-            )}
-          </Space>
-        ),
+        render: (t: string, r: DataItem) => {
+          const hasModel = r.meta && "model" in (r.meta as object);
+          return (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, maxWidth: "100%" }}>
+              <a
+                onClick={() => view(r)}
+                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+              >
+                {t}
+              </a>
+              {hasModel && (
+                <Tag style={{ flexShrink: 0 }}>
+                  {String((r.meta as Record<string, unknown>).model)}
+                </Tag>
+              )}
+            </span>
+          );
+        },
       },
       {
         title: "大小",
         dataIndex: "size",
-        width: 100,
         render: (n: number) => (n ? fmtSize(n) : "—"),
       },
       {
         title: "修改时间",
         dataIndex: "modified",
-        width: 180,
         render: fmtDate,
       },
       {
         title: "操作",
-        width: 180,
         render: (_: unknown, r: DataItem) => (
           <Space>
             <Tooltip title="查看">
@@ -269,8 +276,8 @@ export default function DataPage() {
 
   return (
     <div className="wm-page">
-      <Row gutter={16}>
-        <Col xs={24} md={5}>
+      <Row gutter={16} wrap={false}>
+        <Col xs={24} md={24} flex="none" style={{ minWidth: 160 }}>
           <Card title="类别" size="small">
             <Tree
               selectedKeys={[cat]}
@@ -287,7 +294,7 @@ export default function DataPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} md={19}>
+        <Col flex="auto">
           <Card
             size="small"
             title={

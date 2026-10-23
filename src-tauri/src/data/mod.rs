@@ -130,12 +130,16 @@ fn list_sessions(db: &Path, sessions_dir: &Path, uid: Option<&str>) -> WmResult<
             }
         }
         for (id, title, model, upd) in rows_data {
+            let size = find_session_jsonl(&id)
+                .and_then(|p| std::fs::metadata(&p).ok())
+                .map(|m| m.len())
+                .unwrap_or(0);
             out.push(DataItem {
                 id: id.clone(),
                 category: "sessions".into(),
                 name: if title.is_empty() { id.clone() } else { title },
                 path: format!("db:sessions/{id}"),
-                size: 0,
+                size,
                 modified: upd,
                 meta: Some(serde_json::json!({ "model": model, "fromDb": true })),
             });

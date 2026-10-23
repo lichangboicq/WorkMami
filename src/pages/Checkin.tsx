@@ -9,11 +9,9 @@ import {
   Switch,
   Table,
   Tag,
-  TimePicker,
   message,
 } from "antd";
-import dayjs from "dayjs";
-import { GiftOutlined, ReloadOutlined } from "@ant-design/icons";
+import { GiftOutlined } from "@ant-design/icons";
 import { enable as enableAutoStart, disable as disableAutoStart, isEnabled as isAutoStartEnabled } from "@tauri-apps/plugin-autostart";
 import { api, errText } from "../api";
 import { useStore } from "../store";
@@ -26,11 +24,9 @@ export default function Checkin() {
 
   const [running, setRunning] = useState(false);
   const [results, setResults] = useState<Record<string, CheckinResult>>({});
-  const [auto, setAuto] = useState(settings.checkin);
   const [autostart, setAutostart] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
 
-  useEffect(() => setAuto(settings.checkin), [settings.checkin]);
   useEffect(() => {
     isAutoStartEnabled().then(setAutostart).catch(() => {});
   }, []);
@@ -46,6 +42,22 @@ export default function Checkin() {
       message.error(errText(e) || "设置失败");
     } finally {
       setAutostartLoading(false);
+    }
+  };
+
+  const toggleCheckin = async (v: boolean) => {
+    try {
+      await saveSettings({ ...settings, checkin: { ...settings.checkin, autoEnabled: v } });
+    } catch (e) {
+      message.error(errText(e));
+    }
+  };
+
+  const toggleNotify = async (v: boolean) => {
+    try {
+      await saveSettings({ ...settings, checkin: { ...settings.checkin, notify: v } });
+    } catch (e) {
+      message.error(errText(e));
     }
   };
 
@@ -87,19 +99,10 @@ export default function Checkin() {
     }
   };
 
-  const saveAuto = async () => {
-    try {
-      await saveSettings({ ...settings, checkin: auto });
-      message.success("自动签到设置已保存");
-    } catch (e) {
-      message.error(errText(e));
-    }
-  };
-
   return (
     <div className="wm-page">
-      <Row gutter={16}>
-        <Col xs={24} lg={16}>
+      <Row gutter={16} wrap={false}>
+        <Col flex="auto">
           <Card
             size="small"
             title={
@@ -109,16 +112,6 @@ export default function Checkin() {
                   今日签到：{checkedToday}/{eligible.length}
                 </span>
               </Space>
-            }
-            extra={
-              <Button
-                type="primary"
-                loading={running}
-                onClick={runAll}
-                icon={<GiftOutlined />}
-              >
-                一键全部签到
-              </Button>
             }
           >
             <Alert
@@ -203,31 +196,20 @@ export default function Checkin() {
           </Card>
         </Col>
 
-        <Col xs={24} lg={8}>
-          <Card size="small" title="定时自动签到">
+        <Col flex="none">
+          <Card size="small" title="自动签到">
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
               <Space>
                 <Switch
-                  checked={auto.autoEnabled}
-                  onChange={(v) => setAuto({ ...auto, autoEnabled: v })}
+                  checked={settings.checkin.autoEnabled}
+                  onChange={toggleCheckin}
                 />
                 <span>启用每日自动签到</span>
               </Space>
               <Space>
-                <span>触发时间</span>
-                <TimePicker
-                  format="HH:mm"
-                  value={dayjs(auto.dailyTime, "HH:mm")}
-                  onChange={(v) =>
-                    setAuto({ ...auto, dailyTime: v ? v.format("HH:mm") : "09:00" })
-                  }
-                  allowClear={false}
-                />
-              </Space>
-              <Space>
                 <Switch
-                  checked={auto.notify}
-                  onChange={(v) => setAuto({ ...auto, notify: v })}
+                  checked={settings.checkin.notify}
+                  onChange={toggleNotify}
                 />
                 <span>完成后系统通知</span>
               </Space>
@@ -239,13 +221,13 @@ export default function Checkin() {
                 />
                 <span>开机自动启动</span>
               </Space>
-              <Alert
-                type="warning"
-                showIcon
-                message="定时签到需保持应用运行，建议开启上方「开机自动启动」。错过时间启动后会补跑一次。"
-              />
-              <Button type="primary" onClick={saveAuto} icon={<ReloadOutlined />}>
-                保存设置
+              <Button
+                type="primary"
+                loading={running}
+                onClick={runAll}
+                icon={<GiftOutlined />}
+              >
+                一键全部签到
               </Button>
             </Space>
           </Card>

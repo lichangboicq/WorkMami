@@ -19,7 +19,7 @@ export const defaultSettings: AppSettings = {
     reasoningEffort: "medium",
     defaultModel: "wb-balanced",
   },
-  checkin: { autoEnabled: false, dailyTime: "09:00", notify: true },
+  checkin: { autoEnabled: false, notify: true },
   travel: { autoEnabled: true, locationPolicy: "longest" },
   theme: "light",
   autostart: false,
