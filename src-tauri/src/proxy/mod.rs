@@ -719,7 +719,7 @@ fn parse_retry_text(text: &str, now_ms: i64) -> Option<i64> {
         }
         let min: i64 = text[i1 + c1.len_utf8()..end].parse().ok()?;
         if hour < 24 && min < 60 {
-            use chrono::{Datelike, TimeZone, Timelike};
+            use chrono::{TimeZone, Timelike};
             let now = Local
                 .timestamp_millis_opt(now_ms)
                 .single()?;

@@ -63,14 +63,12 @@ impl Default for ProxySettings {
 #[serde(rename_all = "camelCase", default)]
 pub struct CheckinSettings {
     pub auto_enabled: bool,
-    /// 每日触发时间 "HH:MM"（本地）
-    pub daily_time: String,
     pub notify: bool,
 }
 
 impl Default for CheckinSettings {
     fn default() -> Self {
-        CheckinSettings { auto_enabled: false, daily_time: "09:00".into(), notify: true }
+        CheckinSettings { auto_enabled: false, notify: true }
     }
 }
 
@@ -134,9 +132,9 @@ pub struct AppState {
     pub travel_reminded: Mutex<HashSet<String>>,
     /// 轮换策略游标（uid -> 下次应选地点下标）。
     pub travel_rotate: Mutex<HashMap<String, usize>>,
-    /// 本次运行会话内已执行过自动签到的日期（YYYY-MM-DD），用于"到点后首个 tick 触发一次"兼当日去重，
-    /// 避免错过时刻不补签、以及同日重复触发。
-    pub auto_checkin_done_date: Mutex<String>,
+    /// 本次运行会话内已执行过自动签到的账号与日期（uid → YYYY-MM-DD），用于每个账号各自的
+    /// "到点后首个 tick 触发一次" 兼当日去重，避免错过时刻不补签、以及同日重复触发。
+    pub auto_checkin_done: Mutex<HashMap<String, String>>,
     /// 旅行自动托管"当日熔断"日期（YYYY-MM-DD）：连续多次确认全部账号今日已达派猫上限后，
     /// 置为当天，之后当日 travel_tick 直接早退、不再调用任何官方接口，避免高频轮询触发账号风控。
     pub travel_done_date: Mutex<String>,
@@ -167,7 +165,7 @@ impl AppState {
             travel_seen_traveling: Mutex::new(HashSet::new()),
             travel_reminded: Mutex::new(HashSet::new()),
             travel_rotate: Mutex::new(HashMap::new()),
-            auto_checkin_done_date: Mutex::new(String::new()),
+            auto_checkin_done: Mutex::new(HashMap::new()),
             travel_done_date: Mutex::new(String::new()),
             travel_limit_streak: Mutex::new(0),
             app_handle: once_cell::sync::OnceCell::new(),

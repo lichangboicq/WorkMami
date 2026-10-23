@@ -472,7 +472,6 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 8px;
   padding: 8px 11px;
-  background: rgba(255, 255, 255, 0.65);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -482,8 +481,7 @@ body {
   user-select: none;
 }
 [data-theme="dark"] .wm-model-chip {
-  background: rgba(255, 255, 255, 0.035);
-  border-color: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 .wm-model-chip:hover {
   transform: translateY(-1px);

@@ -109,7 +109,6 @@ export interface ProxySettings {
 
 export interface CheckinSettings {
   autoEnabled: boolean;
-  dailyTime: string; // "HH:MM"
   notify: boolean;
 }
 

@@ -1,5 +1,7 @@
 //! 定时任务：周期性刷新积分 + 每日自动签到 + 猫猫旅行自动托管。同时暴露给命令层手动触发。
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use chrono::{DateTime, Local, Timelike, Utc};
@@ -213,63 +215,85 @@ pub async fn start(app: AppHandle, state: Arc<AppState>) -> WmResult<JobSchedule
         sched.add(job).await?;
     }
 
-    // 自动签到：每分钟 tick 一次；到点（或已过点且今日未跑过）触发一次批量签到。
-    // 改为"到点后首个 tick 触发 + 当日去重"：即使 App 未在设定时刻正好开着，之后打开也会补签当天这次；同日不重复。
+    // 自动签到：每分钟 tick 一次。启用后，每个账号在每天 01:00~06:00 之间被分配一个
+    // 确定性随机时刻（基于 uid + 日期 hash，同日同一账号固定，跨天不同）。到点后首个 tick
+    // 触发该账号签到；即使 App 未在分配时刻正好开着，之后打开也会补签当天这次。
     {
         let st = state.clone();
         let job = Job::new_async("0 * * * * *", move |_uuid, _l| {
             let st = st.clone();
             Box::pin(async move {
-                let (enabled, hour, min) = {
-                    let s = st.settings.read().unwrap();
-                    let (h, m) = parse_hm(&s.checkin.daily_time);
-                    (s.checkin.auto_enabled, h, m)
-                };
-                if !enabled {
+                let auto_enabled = st.settings.read().unwrap().checkin.auto_enabled;
+                if !auto_enabled {
                     return;
                 }
                 let now = Local::now();
-                // 用"当日分钟数"比较：当前时刻 >= 目标时刻才算到点（含已过点的补签）。
-                if now.hour() * 60 + now.minute() < hour * 60 + min {
-                    return;
-                }
                 let today = now.format("%Y-%m-%d").to_string();
+                let now_min = now.hour() * 60 + now.minute(); // 当日分钟数
+                let window_start = 1u32 * 60; // 01:00
+                let window_end = 6u32 * 60;   // 06:00
+                if now_min < window_start {
+                    return; // 还没到最早触发窗口，直接等下个 tick
+                }
+
+                let accounts = st.accounts.enabled_accounts();
+                let mut fired_any = false;
+                let mut fired_results: Vec<_> = Vec::new();
+                // 候选账号：今日未签 & 已到各自时刻
+                let mut to_fire: Vec<String> = Vec::new();
                 {
-                    let mut done = st.auto_checkin_done_date.lock().unwrap();
-                    if *done == today {
-                        return; // 今日已跑过，去重
+                    let done_map = st.auto_checkin_done.lock().unwrap();
+                    for acc in &accounts {
+                        if done_map.get(&acc.uid).map(|d| d.as_str()) == Some(today.as_str()) {
+                            continue;
+                        }
+                        let target_min = random_minute_in_window(&acc.uid, &today, window_start, window_end);
+                        if now_min >= target_min {
+                            to_fire.push(acc.uid.clone());
+                        }
                     }
-                    *done = today.clone();
                 }
-                let results = checkin_all(st.clone()).await;
-                let any = results.iter().any(|r| r.ok && !r.already);
-                if any {
-                    let _ = refresh_quota(st.clone(), None).await;
+                // 锁已释放，可以安全地在下面的 loop 里 .await
+                for uid in &to_fire {
+                    let r = checkin_one(st.clone(), uid).await;
+                    fired_any = fired_any || (r.ok && !r.already);
+                    fired_results.push(r);
                 }
-                // 落一份调度标记，便于真机确认"到点是否触发"及结果概览。
-                let summary: Vec<_> = results
-                    .iter()
-                    .map(|r| {
-                        serde_json::json!({
-                            "uid": r.uid,
-                            "nickname": r.nickname,
-                            "ok": r.ok,
-                            "already": r.already,
-                            "reward": r.reward,
-                            "streak": r.streak,
+                if !to_fire.is_empty() {
+                    let mut done_map = st.auto_checkin_done.lock().unwrap();
+                    for uid in &to_fire {
+                        done_map.insert(uid.clone(), today.clone());
+                    }
+                }
+
+                if !fired_results.is_empty() {
+                    if fired_any {
+                        let _ = refresh_quota(st.clone(), None).await;
+                    }
+                    let summary: Vec<_> = fired_results
+                        .iter()
+                        .map(|r| {
+                            serde_json::json!({
+                                "uid": r.uid,
+                                "nickname": r.nickname,
+                                "ok": r.ok,
+                                "already": r.already,
+                                "reward": r.reward,
+                                "streak": r.streak,
+                            })
                         })
-                    })
-                    .collect();
-                let marker = serde_json::json!({
-                    "fired_at_local": now.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    "target_time": format!("{:02}:{:02}", hour, min),
-                    "checked_in_now": any,
-                    "results": summary,
-                });
-                let _ = std::fs::write(
-                    workmami_paths().root.join("checkin-scheduler-debug.json"),
-                    serde_json::to_vec_pretty(&marker).unwrap_or_default(),
-                );
+                        .collect();
+                    let marker = serde_json::json!({
+                        "fired_at_local": now.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        "window": "01:00-06:00",
+                        "checked_in_now": fired_any,
+                        "results": summary,
+                    });
+                    let _ = std::fs::write(
+                        workmami_paths().root.join("checkin-scheduler-debug.json"),
+                        serde_json::to_vec_pretty(&marker).unwrap_or_default(),
+                    );
+                }
             })
         })?;
         sched.add(job).await?;
@@ -293,11 +317,15 @@ pub async fn start(app: AppHandle, state: Arc<AppState>) -> WmResult<JobSchedule
     Ok(sched)
 }
 
-fn parse_hm(s: &str) -> (u32, u32) {
-    let mut it = s.split(':');
-    let h = it.next().and_then(|v| v.parse().ok()).unwrap_or(9u32);
-    let m = it.next().and_then(|v| v.parse().ok()).unwrap_or(0u32);
-    (h, m)
+/// 根据 uid + 日期生成一个落在 [start_min, end_min) 区间内的确定性分钟数。
+/// 同日同一账号得到的时刻固定，跨天自然不同；用 DefaultHasher 确保无额外依赖。
+fn random_minute_in_window(uid: &str, day: &str, start_min: u32, end_min: u32) -> u32 {
+    let mut h = DefaultHasher::new();
+    uid.hash(&mut h);
+    day.hash(&mut h);
+    let hash = h.finish();
+    let span = (end_min - start_min).max(1);
+    start_min + (hash % span as u64) as u32
 }
 
 /// 猫猫旅行自动托管 tick（每 60 分钟一次）：
