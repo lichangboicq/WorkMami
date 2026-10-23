@@ -107,6 +107,11 @@ export default function App() {
 
   const isDark = themePref === "dark" || (themePref === "system" && sysDark);
 
+  // 同步主题到 html 根节点，让 CSS 选择器 [data-theme="dark"] 命中
+  useEffect(() => {
+    document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  }, [isDark]);
+
   const theme = useMemo<ThemeConfig>(
     () => ({
       token: {

@@ -300,9 +300,6 @@ export default function Dashboard() {
         <Col span={4}>
           <Card size="small">
             <Statistic title="总 Tokens" value={cur?.totalTokens ?? 0} />
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              环比 {delta(cur?.totalTokens, prev?.totalTokens) ?? "—"}
-            </div>
           </Card>
         </Col>
         <Col span={4}>
@@ -317,9 +314,6 @@ export default function Dashboard() {
         <Col span={4}>
           <Card size="small">
             <Statistic title="请求次数" value={cur?.requests ?? 0} />
-            <div style={{ fontSize: 12, opacity: 0.75 }}>
-              成功率 {(cur?.successRate ?? 0).toFixed(1)}%
-            </div>
           </Card>
         </Col>
         <Col span={4}>

@@ -16,7 +16,6 @@ import {
   Table,
   Tag,
   Tooltip,
-  Tree,
 } from "antd";
 import {
   DownloadOutlined,
@@ -219,14 +218,20 @@ export default function DataPage() {
       {
         title: "名称",
         dataIndex: "name",
-        ellipsis: true,
+        onCell: () => ({ style: { width: "100%" } }),
+        onHeaderCell: () => ({ style: { width: "100%" } }),
         render: (t: string, r: DataItem) => {
           const hasModel = r.meta && "model" in (r.meta as object);
           return (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, maxWidth: "100%" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <a
                 onClick={() => view(r)}
-                style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                style={{
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
               >
                 {t}
               </a>
@@ -242,15 +247,21 @@ export default function DataPage() {
       {
         title: "大小",
         dataIndex: "size",
+        onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+        onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: (n: number) => (n ? fmtSize(n) : "—"),
       },
       {
         title: "修改时间",
         dataIndex: "modified",
+        onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+        onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: fmtDate,
       },
       {
         title: "操作",
+        onCell: () => ({ style: { whiteSpace: "nowrap" } }),
+        onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: (_: unknown, r: DataItem) => (
           <Space>
             <Tooltip title="查看">
@@ -277,20 +288,22 @@ export default function DataPage() {
   return (
     <div className="wm-page">
       <Row gutter={16} wrap={false}>
-        <Col xs={24} md={24} flex="none" style={{ minWidth: 160 }}>
+        <Col flex="none">
           <Card title="类别" size="small">
-            <Tree
-              selectedKeys={[cat]}
-              onSelect={(keys) => keys[0] && setCat(String(keys[0]))}
-              treeData={CATS.map((c) => ({
-                key: c.key,
-                title: (
+            <List
+              size="small"
+              dataSource={CATS}
+              renderItem={(c) => (
+                <List.Item
+                  className={c.key === cat ? "wm-cat-item wm-cat-item-active" : "wm-cat-item"}
+                  onClick={() => setCat(c.key)}
+                >
                   <Space size={8}>
                     {c.icon}
                     <span>{c.title}</span>
                   </Space>
-                ),
-              }))}
+                </List.Item>
+              )}
             />
           </Card>
         </Col>
@@ -299,16 +312,15 @@ export default function DataPage() {
             size="small"
             title={
               <Space>
-                <span>账号数据源</span>
                 <Select
                   size="small"
                   style={{ width: 220 }}
-                  placeholder="选择账号"
+                  placeholder="全部"
                   allowClear
                   value={uid || undefined}
                   onChange={(v) => setUid(v || "")}
                   options={[
-                    { value: "", label: "全部 / 全局" },
+                    { value: "", label: "全部" },
                     ...orderedUids.map((u) => ({ value: u, label: uidLabel(u) })),
                   ]}
                 />
@@ -321,7 +333,7 @@ export default function DataPage() {
                   disabled={!items.length}
                   onClick={() => setBackupModal(true)}
                 >
-                  打包备份
+                  备份
                 </Button>
                 <Button
                   icon={<SwapOutlined />}
@@ -329,7 +341,7 @@ export default function DataPage() {
                   onClick={() => setMigrateModal(true)}
                   title="产出文件不属于任何账号（全局共享），无需迁移"
                 >
-                  跨账号迁移
+                  迁移
                 </Button>
                 <Popconfirm
                   title={`确认删除选中的 ${selected.length} 项？`}
@@ -338,7 +350,7 @@ export default function DataPage() {
                   okText="删除"
                 >
                   <Button danger icon={<DeleteOutlined />} disabled={!selected.length}>
-                    删除选中
+                    删除
                   </Button>
                 </Popconfirm>
               </Space>
@@ -350,6 +362,7 @@ export default function DataPage() {
               loading={loading}
               dataSource={items}
               columns={columns}
+              tableLayout="auto"
               rowSelection={{
                 selectedRowKeys: selected.map((s) => s.id + s.path),
                 onChange: (_, rows) => setSelected(rows),
@@ -420,7 +433,7 @@ export default function DataPage() {
           header={
             <Space direction="vertical" style={{ width: "100%" }}>
               <span>
-                从 <Tag>{uid ? uidLabel(uid) : "全局"}</Tag> 迁移到：
+                从 <Tag>{uid ? uidLabel(uid) : "全部"}</Tag> 迁移到：
               </span>
               <Select
                 style={{ width: "100%" }}

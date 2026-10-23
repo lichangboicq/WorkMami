@@ -197,14 +197,14 @@ export default function Checkin() {
         </Col>
 
         <Col flex="none">
-          <Card size="small" title="自动签到">
+          <Card size="small" title="签到设置">
             <Space direction="vertical" style={{ width: "100%" }} size="middle">
               <Space>
                 <Switch
                   checked={settings.checkin.autoEnabled}
                   onChange={toggleCheckin}
                 />
-                <span>启用每日自动签到</span>
+                <span>自动签到</span>
               </Space>
               <Space>
                 <Switch
