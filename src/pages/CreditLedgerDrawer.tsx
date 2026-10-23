@@ -225,7 +225,7 @@ export default function CreditLedgerDrawer({
           columns={usageColumns}
           dataSource={usage}
           loading={loading}
-          pagination={{ pageSize: 15, size: "small", showTotal: (t) => `共 ${t} 条` }}
+          pagination={{ pageSize: 10, size: "small", showTotal: (t) => `共 ${t} 条` }}
           locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="该时间段无消耗记录" /> }}
           summary={() =>
             usage.length > 0 ? (

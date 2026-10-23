@@ -59,6 +59,21 @@ function fmtCredits(v: number): string {
   return v.toFixed(p);
 }
 
+// 大数单位分三级：个位 / K / M（千 / 百万），让看板和表格不被长数字撑爆
+function fmtMetric(v: number): string {
+  if (!v) return "0";
+  const a = Math.abs(v);
+  if (a >= 1_000_000) {
+    const n = v / 1_000_000;
+    return n.toFixed(n >= 100 ? 0 : 1) + "M";
+  }
+  if (a >= 1_000) {
+    const n = v / 1_000;
+    return n.toFixed(n >= 100 ? 0 : 1) + "K";
+  }
+  return String(Math.round(v));
+}
+
 export default function Dashboard() {
   const isDark = useStore((s) => s.settings.theme) !== "light";
   const accounts = useStore((s) => s.accounts);
@@ -136,7 +151,6 @@ export default function Dashboard() {
   const trendOption = useMemo(
     () => ({
       textStyle: { color: chartTextColor },
-      tooltip: { trigger: "axis" },
       legend: { data: ["Tokens", "积分", "请求数"], textStyle: { color: chartTextColor } },
       grid: { left: 50, right: 50, top: 40, bottom: 30 },
       xAxis: {
@@ -145,9 +159,24 @@ export default function Dashboard() {
         axisLabel: { color: chartTextColor },
       },
       yAxis: [
-        { type: "value", name: "Tokens", axisLabel: { color: chartTextColor } },
+        { type: "value", name: "Tokens", axisLabel: { color: chartTextColor, formatter: (v: number) => fmtMetric(v) } },
         { type: "value", name: "积分", axisLabel: { color: chartTextColor } },
       ],
+      tooltip: {
+        trigger: "axis",
+        formatter: (params: any) => {
+          const arr = Array.isArray(params) ? params : [params];
+          const lines = arr.map((it: any) => {
+            const v = Number(it.data);
+            let vv: string;
+            if (it.seriesName === "Tokens" || it.seriesName === "请求数") vv = fmtMetric(v);
+            else if (it.seriesName === "积分") vv = String(Math.round(v));
+            else vv = String(v);
+            return `${it.marker}${it.seriesName}: ${vv}`;
+          });
+          return lines.join("<br/>");
+        },
+      },
       series: [
         {
           name: "Tokens",
@@ -299,7 +328,7 @@ export default function Dashboard() {
       <Row gutter={12} style={{ marginBottom: 16 }}>
         <Col span={4}>
           <Card size="small">
-            <Statistic title="总 Tokens" value={cur?.totalTokens ?? 0} />
+            <Statistic title="总 Tokens" value={fmtMetric(cur?.totalTokens ?? 0)} />
           </Card>
         </Col>
         <Col span={4}>
@@ -313,7 +342,7 @@ export default function Dashboard() {
         </Col>
         <Col span={4}>
           <Card size="small">
-            <Statistic title="请求次数" value={cur?.requests ?? 0} />
+            <Statistic title="请求次数" value={fmtMetric(cur?.requests ?? 0)} />
           </Card>
         </Col>
         <Col span={4}>
@@ -330,8 +359,7 @@ export default function Dashboard() {
           <Card size="small">
             <Statistic
               title="均次 Tokens"
-              value={cur?.avgTokensPerReq ?? 0}
-              precision={0}
+              value={fmtMetric(cur?.avgTokensPerReq ?? 0)}
             />
           </Card>
         </Col>
@@ -474,6 +502,7 @@ export default function Dashboard() {
               title: "Tokens",
               dataIndex: "totalTokens",
               align: "right",
+              render: (v: number) => fmtMetric(v),
             },
             {
               title: "积分(估)",
@@ -521,7 +550,7 @@ function TopTable({ data }: { data: TopItem[] }) {
       locale={{ emptyText: "暂无数据" }}
       columns={[
         { title: "名称", dataIndex: "label", ellipsis: true },
-        { title: "Tokens", dataIndex: "tokens", width: 100 },
+        { title: "Tokens", dataIndex: "tokens", width: 100, render: (v: number) => fmtMetric(v) },
         {
           title: "积分",
           dataIndex: "credits",

@@ -368,9 +368,9 @@ export default function DataPage() {
                 onChange: (_, rows) => setSelected(rows),
               }}
               pagination={{
-                pageSize: 15,
+                pageSize: 10,
                 showSizeChanger: true,
-                pageSizeOptions: [15, 50, 100, 200],
+                pageSizeOptions: [10, 50, 100, 200],
                 showTotal: (t) => `共 ${t} 条`,
               }}
               locale={{ emptyText: <Empty description="该类别暂无数据" /> }}

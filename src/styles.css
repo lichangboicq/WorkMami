@@ -301,7 +301,10 @@ body {
   white-space: nowrap;
   vertical-align: bottom;
 }
+.wm-account-card .ant-card-actions { border-radius: 0 0 16px 16px; overflow: hidden; }
 .wm-account-card .ant-card-actions > li { margin: 2px 0; }
+.wm-account-card .ant-card-actions > li:first-child { border-radius: 0 0 0 16px; }
+.wm-account-card .ant-card-actions > li:last-child  { border-radius: 0 0 16px 0; }
 .wm-account-card .ant-card-actions > li > span { width: 100%; }
 .wm-account-card .ant-card-actions .wm-card-action-wrap {
   display: inline-flex;

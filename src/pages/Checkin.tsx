@@ -118,19 +118,19 @@ export default function Checkin() {
               style={{ marginBottom: 12 }}
               type="info"
               showIcon
-              message="Buddy 加油站活动：每日签到可得约 100 积分。签到后会自动刷新积分余额。"
+              message="Buddy加油站：每日签到可领100积分。"
             />
             <Table
               rowKey="uid"
               size="small"
               pagination={false}
+              tableLayout="auto"
               dataSource={accounts}
               columns={[
                 { title: "昵称", dataIndex: "nickname", render: (t, r) => t || r.uid },
                 {
                   title: "类型",
                   dataIndex: "account_type",
-                  width: 80,
                   render: (t: string) => (
                     <Tag color={t === "enterprise" ? "gold" : "blue"}>
                       {t === "enterprise" ? "企业" : "个人"}
@@ -139,7 +139,6 @@ export default function Checkin() {
                 },
                 {
                   title: "凭证",
-                  width: 90,
                   render: (_, r) =>
                     r.has_local_token ? (
                       <Tag color="green">就绪</Tag>
@@ -149,7 +148,6 @@ export default function Checkin() {
                 },
                 {
                   title: "今日",
-                  width: 90,
                   render: (_, r) => {
                     const res = results[r.uid];
                     const done = res ? res.ok : r.today_checked_in;
@@ -162,7 +160,6 @@ export default function Checkin() {
                 },
                 {
                   title: "连续",
-                  width: 90,
                   render: (_, r) => {
                     const streak = results[r.uid]?.streak ?? r.streak_days;
                     return <span>{streak} 天</span>;
@@ -180,7 +177,6 @@ export default function Checkin() {
                 },
                 {
                   title: "操作",
-                  width: 100,
                   render: (_, r) => (
                     <Button
                       size="small"
