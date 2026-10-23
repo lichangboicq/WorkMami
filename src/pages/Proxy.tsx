@@ -46,10 +46,7 @@ const FIELD_LABELS: Record<string, string> = {
   host: "监听地址",
   port: "端口",
   strategy: "积分调度策略",
-  contextWindow: "上下文窗口(tokens)",
   reasoningEffort: "默认思考强度",
-  stickyTtlMin: "会话粘性窗口(分钟)",
-  maxRetries: "Failover 最大换号数",
   apiKey: "API Key",
 };
 
@@ -398,21 +395,6 @@ export default function Proxy() {
             />
           </div>
 
-          {/* 上下文窗口(tokens) */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.contextWindow}</span>
-              {dirtyDot("contextWindow")}
-            </label>
-            <InputNumber
-              style={{ width: "100%" }}
-              min={1000}
-              step={1000}
-              value={formValues.contextWindow}
-              onChange={(v) => onFieldChange("contextWindow", (v ?? 0) as number)}
-            />
-          </div>
-
           {/* 默认思考强度 */}
           <div>
             <label className="wm-field-label">
@@ -429,35 +411,6 @@ export default function Proxy() {
                 { value: "high", label: "高" },
               ]}
               onChange={(v) => onFieldChange("reasoningEffort", v as string)}
-            />
-          </div>
-
-          {/* 会话粘性窗口(分钟) */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.stickyTtlMin}</span>
-              {dirtyDot("stickyTtlMin")}
-            </label>
-            <InputNumber
-              style={{ width: "100%" }}
-              min={0}
-              value={formValues.stickyTtlMin}
-              onChange={(v) => onFieldChange("stickyTtlMin", (v ?? 0) as number)}
-            />
-          </div>
-
-          {/* Failover 最大换号数 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.maxRetries}</span>
-              {dirtyDot("maxRetries")}
-            </label>
-            <InputNumber
-              style={{ width: "100%" }}
-              min={1}
-              max={10}
-              value={formValues.maxRetries}
-              onChange={(v) => onFieldChange("maxRetries", (v ?? 1) as number)}
             />
           </div>
 

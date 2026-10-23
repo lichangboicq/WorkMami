@@ -248,31 +248,88 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
     apply_reasoning_default(&mut req, &ps);
 
     let is_stream = req.get("stream").and_then(|s| s.as_bool()).unwrap_or(false);
-    let session_hash = session_key(&req, &headers);
 
-    // 候选账号（按策略 + 粘性 + 冷却过滤）
-    let candidates = select_candidates(&state, &session_hash);
+    // 候选账号池（策略排序 + 冷却/零积分过滤）
+    let candidates = select_candidates(&state);
     if candidates.is_empty() {
+        // 全部账号处于频控冷却：把 429 原样抛回客户端，并附预计恢复时刻
+        if let Some(retry_at) = state.earliest_recovery_ms() {
+            return rate_limited_resp(retry_at);
+        }
         return err_resp(
             StatusCode::SERVICE_UNAVAILABLE,
             "没有可用账号：请在“账号管理”导入或授权账号，或检查积分是否耗尽",
         );
     }
 
+    // 全池 failover：按「临期优先」顺序逐个尝试，直到成功或账号池耗尽。
     let mut last_err = String::from("无可用上游");
-    for (idx, acc) in candidates.iter().enumerate() {
-        match forward_once(&state, acc, req.clone(), is_stream, &ua, &session_hash, &requested).await {
+    let mut failures = 0usize;
+    let mut rate_limited_only = true;
+    let mut earliest_retry: Option<i64> = None;
+    for acc in &candidates {
+        match forward_once(&state, acc, req.clone(), is_stream, &ua, &requested).await {
             Ok(resp) => return resp,
             Err(e) => {
-                last_err = e;
-                // 决定是否需要换下一个账号
-                if idx + 1 >= ps.max_retries as usize {
-                    break;
+                failures += 1;
+                if let FwdErr::RateLimited { retry_at } = &e {
+                    earliest_retry = Some(earliest_retry.map_or(*retry_at, |v: i64| v.min(*retry_at)));
+                } else {
+                    rate_limited_only = false;
                 }
+                last_err = e.msg();
             }
         }
     }
+    // 整池都被频控：429 原样抛给客户端，由客户端按自己的节奏退避重试
+    if failures > 0 && rate_limited_only {
+        return rate_limited_resp(earliest_retry.unwrap_or_else(|| Utc::now().timestamp_millis() + 60_000));
+    }
     err_resp(StatusCode::BAD_GATEWAY, &format!("所有账号转发失败：{last_err}"))
+}
+
+// ---------- 转发错误分类 ----------
+enum FwdErr {
+    /// 频控/限流：附服务器通知的预计恢复时间（unix ms）。
+    RateLimited { retry_at: i64 },
+    /// 这一组积分已耗尽（换下一组临期积分接棒）。
+    QuotaOut,
+    Other(String),
+}
+
+impl FwdErr {
+    fn msg(&self) -> String {
+        match self {
+            FwdErr::RateLimited { retry_at } => {
+                format!("访问频率过高，预计 {} 恢复", fmt_hm(*retry_at))
+            }
+            FwdErr::QuotaOut => "账号积分耗尽".into(),
+            FwdErr::Other(m) => m.clone(),
+        }
+    }
+}
+
+fn fmt_hm(ms: i64) -> String {
+    use chrono::TimeZone;
+    Local
+        .timestamp_millis_opt(ms)
+        .single()
+        .map(|d| d.format("%H:%M").to_string())
+        .unwrap_or_default()
+}
+
+/// 账号池全被频控时的 429 响应：语义与上游一致，并带预计恢复时刻。
+fn rate_limited_resp(retry_at_ms: i64) -> Response {
+    let now = Utc::now().timestamp_millis();
+    let mins = (retry_at_ms - now).max(0) / 60_000 + 1;
+    (
+        StatusCode::TOO_MANY_REQUESTS,
+        Json(json!({"error": {
+            "message": format!("访问频率过高，预计 {} 恢复（约 {} 分钟）", fmt_hm(retry_at_ms), mins),
+            "type": "rate_limit_error",
+        }})),
+    )
+        .into_response()
 }
 
 // ---------- 模型验证 ----------
@@ -306,29 +363,25 @@ fn resolve_model_id(state: &Arc<AppState>, requested: &str) -> Option<String> {
 }
 
 // ---------- 调度 ----------
-fn select_candidates(state: &Arc<AppState>, session_hash: &str) -> Vec<Account> {
+/// 选出当前可用账号池：按策略排序；冷却中、零余量积分的账号直接出局。
+/// 池空时由上层区分处理：全频控 → 429 原样抛回；无账号/无积分 → 503。
+fn select_candidates(state: &Arc<AppState>) -> Vec<Account> {
     let ps = state.proxy_settings();
     let mut enabled: Vec<Account> = state
         .accounts
         .enabled_accounts()
         .into_iter()
         .filter(|a| accounts::load_token(&a.uid).is_some())
+        // 这一组积分用完了 → 立刻出局，由下一组临期积分接棒（不等任何窗口超时）
+        .filter(|a| a.quota.as_ref().map_or(true, |q| q.remaining > 0.0))
         .collect();
     if enabled.is_empty() {
         return Vec::new();
     }
+    // 频控冷却中的账号不放行：全在冷却 → 空池 → 上层把 429 原样抛回客户端
     enabled.retain(|a| !state.is_cooling(&a.uid));
     if enabled.is_empty() {
-        // 全在冷却则放行全部，给一次机会
-        enabled = state.accounts.enabled_accounts();
-    }
-
-    // 会话粘性优先
-    if let Some(uid) = state.sticky_account(session_hash, ps.sticky_ttl_min) {
-        if let Some(pos) = enabled.iter().position(|a| a.uid == uid) {
-            let acc = enabled.remove(pos);
-            enabled.insert(0, acc);
-        }
+        return Vec::new();
     }
 
     match ps.strategy {
@@ -347,7 +400,7 @@ fn select_candidates(state: &Arc<AppState>, session_hash: &str) -> Vec<Account> 
             enabled
         }
         Strategy::Smart => {
-            // 余额多的优先，粘性账号已置顶
+            // 余额多的优先
             enabled.sort_by(|a, b| remaining(b).partial_cmp(&remaining(a)).unwrap_or(std::cmp::Ordering::Equal));
             enabled
         }
@@ -380,26 +433,6 @@ fn soonest_expire(a: &Account) -> Option<i64> {
     a.quota.as_ref().and_then(|q| q.soonest_expire_at)
 }
 
-fn session_key(req: &Value, headers: &HeaderMap) -> String {
-    use sha2::{Digest, Sha256};
-    let mut h = Sha256::new();
-    if let Some(sid) = headers.get("x-session-id").and_then(|v| v.to_str().ok()) {
-        h.update(sid.as_bytes());
-    } else if let Some(msgs) = req.get("messages").and_then(|m| m.as_array()) {
-        // 首条 user 内容
-        for m in msgs {
-            if m.get("role").and_then(|r| r.as_str()) == Some("user") {
-                if let Some(c) = m.get("content") {
-                    h.update(c.to_string().as_bytes());
-                }
-                break;
-            }
-        }
-    }
-    let digest = h.finalize();
-    hex::encode(&digest[..12])
-}
-
 fn apply_reasoning_default(req: &mut Value, ps: &crate::state::ProxySettings) {
     if req.get("reasoning_effort").is_some() || req.get("thinking").is_some() {
         return; // 客户端已指定
@@ -411,6 +444,52 @@ fn apply_reasoning_default(req: &mut Value, ps: &crate::state::ProxySettings) {
     }
 }
 
+// ---------- SSE 错误事件截获（无感换号的基础） ----------
+/// 顶层 error 事件的错误消息：HTTP 200 下的限流/频率类错误以 SSE error 事件下发。
+fn error_msg(v: &Value) -> Option<String> {
+    let err = v.get("error")?;
+    if err.is_null() {
+        return None;
+    }
+    Some(
+        err.get("message")
+            .and_then(|m| m.as_str())
+            .or_else(|| err.as_str())
+            .unwrap_or("上游返回错误事件")
+            .to_string(),
+    )
+}
+
+/// 单行 data: 载荷命中 error 事件时返回消息。
+fn sse_line_error(line: &str) -> Option<String> {
+    let payload = line.strip_prefix("data:")?.trim();
+    if payload.is_empty() || payload == "[DONE]" {
+        return None;
+    }
+    error_msg(&serde_json::from_str::<Value>(payload).ok()?)
+}
+
+/// 整体解析缓冲字节后命中 error 事件（跨 chunk 拆行安全）。
+fn sse_error_in(chunks: &[Bytes]) -> Option<String> {
+    let text: String = chunks.iter().map(|c| String::from_utf8_lossy(c)).collect();
+    text.lines().find_map(sse_line_error)
+}
+
+/// 缓冲中是否已出现首个 choices 载荷（预读的放行信号）。
+fn sse_has_choices(chunks: &[Bytes]) -> bool {
+    let text: String = chunks.iter().map(|c| String::from_utf8_lossy(c)).collect();
+    text.lines().any(|line| {
+        let Some(p) = line.strip_prefix("data:") else { return false };
+        let p = p.trim();
+        if p.is_empty() || p == "[DONE]" {
+            return false;
+        }
+        serde_json::from_str::<Value>(p)
+            .map(|v| v.get("choices").is_some_and(|c| !c.is_null()))
+            .unwrap_or(false)
+    })
+}
+
 // ---------- 转发 ----------
 async fn forward_once(
     state: &Arc<AppState>,
@@ -418,10 +497,10 @@ async fn forward_once(
     req: Value,
     is_stream: bool,
     ua: &str,
-    session_hash: &str,
     model: &str,
-) -> Result<Response, String> {
-    let mut tokens = accounts::load_token(&acc.uid).ok_or_else(|| "缺少 token".to_string())?;
+) -> Result<Response, FwdErr> {
+    let mut tokens =
+        accounts::load_token(&acc.uid).ok_or_else(|| FwdErr::Other("缺少 token".into()))?;
 
     // 过期则刷新
     if should_refresh(&tokens) && !tokens.refresh_token.is_empty() {
@@ -451,42 +530,201 @@ async fn forward_once(
     let resp = http
         .post_chat_async(&url, &tokens, &upstream_req)
         .await
-        .map_err(|e| format!("网络错误: {e}"))?;
+        .map_err(|e| FwdErr::Other(format!("网络错误: {e}")))?;
 
     let status = resp.status();
     let code = status.as_u16();
+    let headers = resp.headers().clone();
 
     // 401：刷新一次重试；429/积分耗尽：冷却并换号
     if code == 401 {
         state.cool_down(&acc.uid, 15_000);
-        return Err(format!("账号 {} 鉴权失效(401)", acc.uid));
+        return Err(FwdErr::Other(format!("账号 {} 鉴权失效(401)", acc.uid)));
     }
-    if code == 429 || is_quota_exhausted(status, &resp).await {
-        state.cool_down(&acc.uid, 60_000);
-        return Err(format!("账号 {} 限流/积分不足({code})", acc.uid));
+    if code == 429 {
+        // 记录服务器通知的预计恢复时间，该账号冷却至该时刻；本请求立即换下一个账号
+        let text = resp.text().await.unwrap_or_default();
+        dump_chat_debug(&upstream_req, 429, &text);
+        let retry_at = parse_retry_at(&headers, &text, started);
+        state.cool_down_until(&acc.uid, retry_at);
+        return Err(FwdErr::RateLimited { retry_at });
     }
     if !status.is_success() {
         let txt = resp.text().await.unwrap_or_default();
         dump_chat_debug(&upstream_req, code, &txt);
+        // 这一组积分用完了：立刻换下一组临期积分，同时异步刷新本地积分把该账号摘出可用池
+        if is_quota_exhausted(&txt) {
+            state.cool_down(&acc.uid, 60_000);
+            spawn_quota_refresh(state.clone(), acc.uid.clone());
+            return Err(FwdErr::QuotaOut);
+        }
         let head: String = txt.chars().take(200).collect();
-        return Err(format!("上游 {code}: {head}"));
+        return Err(FwdErr::Other(format!("上游 {code}: {head}")));
     }
 
     state.clear_cooling(&acc.uid);
     let _ = state.accounts.touch_used(&acc.uid);
-    state.set_sticky(session_hash, &acc.uid, state.proxy_settings().sticky_ttl_min);
 
     if is_stream {
-        stream_response(state, acc, model, started, resp, upstream_req.clone()).await
-    } else {
-        // 上游强制流式，这里收集 SSE 并组装为完整 JSON 返回给非流式客户端
-        sse_to_json_response(state, acc, model, started, resp, ua, upstream_req.clone()).await
+        // 预读到首个内容决策点：限流类错误（HTTP 200 + SSE error 事件）几乎总在首个内容
+        // 之前到达，此时返回 Err 直接换号重试，客户端收不到任何错误字节（会话完全无感）。
+        let mut bytes_stream = resp.bytes_stream();
+        let mut pending: Vec<Bytes> = Vec::new();
+        loop {
+            let Some(chunk) = bytes_stream.next().await else { break };
+            let chunk = chunk.map_err(|e| FwdErr::Other(format!("流读取错误: {e}")))?;
+            pending.push(chunk);
+            if let Some(msg) = sse_error_in(&pending) {
+                dump_chat_debug(&upstream_req, 200, &format!("SSE error event: {msg}"));
+                return Err(classify_sse_error(state, &acc.uid, &msg, started));
+            }
+            if sse_has_choices(&pending) {
+                break;
+            }
+        }
+        return stream_response(
+            state,
+            acc,
+            model,
+            started,
+            bytes_stream,
+            pending,
+            upstream_req.clone(),
+        )
+        .await;
     }
+    // 上游强制流式，这里收集 SSE 并组装为完整 JSON 返回给非流式客户端
+    sse_to_json_response(state, acc, model, started, resp, ua, upstream_req.clone()).await
 }
 
-// 由于 reqwest 不能既判断 body 又透传，这里对 429 之外的错误码用状态判断即可。
-async fn is_quota_exhausted(_status: StatusCode, _resp: &reqwest::Response) -> bool {
-    false
+// ---------- 频控恢复时间解析 ----------
+/// 从 429 响应解析预计恢复时间：优先 Retry-After（秒或 HTTP-date），再尝试正文，
+/// 正文无明确时间则回落 60 秒。
+fn parse_retry_at(headers: &HeaderMap, body: &str, now_ms: i64) -> i64 {
+    if let Some(v) = headers.get("retry-after").and_then(|v| v.to_str().ok()) {
+        let v = v.trim();
+        if let Ok(secs) = v.parse::<i64>() {
+            return now_ms + secs.max(0) * 1000;
+        }
+        if let Ok(dt) = chrono::DateTime::parse_from_rfc2822(v) {
+            return dt.timestamp_millis();
+        }
+    }
+    parse_retry_text(body, now_ms).unwrap_or(now_ms + 60_000)
+}
+
+/// 从错误文本中尽力提取恢复时刻：「HH:MM」→ 下一个该时点；「N分钟后」→ 相对时刻。
+fn parse_retry_text(text: &str, now_ms: i64) -> Option<i64> {
+    // 「N 分钟后」/「N分钟」
+    for (i, _) in text.match_indices('分') {
+        let start = text[..i].char_indices().rev().find(|(_, c)| !c.is_ascii_digit());
+        let ds = match start {
+            None => 0,
+            Some((b, c)) => b + c.len_utf8(),
+        };
+        let digits = text[ds..i].trim();
+        if let Ok(mins) = digits.parse::<i64>() {
+            if mins > 0 && mins < 24 * 60 {
+                return Some(now_ms + mins * 60_000);
+            }
+        }
+    }
+    // 「HH:MM」（跳过日期前缀，如 2026-10-23 20:30 也能命中尾部时间）
+    let cs: Vec<(usize, char)> = text.char_indices().collect();
+    for w in cs.windows(3) {
+        let (i0, c0) = w[0];
+        let (i1, c1) = w[1];
+        let (i2, c2) = w[2];
+        if c1 != ':' || !c0.is_ascii_digit() || !c2.is_ascii_digit() {
+            continue;
+        }
+        // 取冒号前连续数字（支持两位/一位小时）
+        let mut hs = i0;
+        while hs > 0 {
+            let prev = text[..hs].chars().last().unwrap();
+            if prev.is_ascii_digit() {
+                hs -= prev.len_utf8();
+            } else {
+                break;
+            }
+        }
+        let hour: i64 = text[hs..i0 + c0.len_utf8()].parse().ok()?;
+        // 取冒号后两位数字
+        let mut end = i2 + c2.len_utf8();
+        if end < text.len() {
+            let next = text[end..].chars().next().unwrap();
+            if next.is_ascii_digit() {
+                end += next.len_utf8();
+            }
+        }
+        let min: i64 = text[i1 + c1.len_utf8()..end].parse().ok()?;
+        if hour < 24 && min < 60 {
+            use chrono::{Datelike, TimeZone, Timelike};
+            let now = Local
+                .timestamp_millis_opt(now_ms)
+                .single()?;
+            let mut cand = now
+                .with_hour(hour as u32)
+                .and_then(|d| d.with_minute(min as u32))
+                .and_then(|d| d.with_second(0))
+                .and_then(|d| d.with_nanosecond(0))?;
+            if cand.timestamp_millis() <= now_ms {
+                cand = cand + chrono::Duration::days(1);
+            }
+            return Some(cand.timestamp_millis());
+        }
+    }
+    None
+}
+
+/// SSE error 事件分类：积分耗尽 → 摘池+刷新；频控类 → 冷却至预计恢复时间；其余按普通错误换号。
+fn classify_sse_error(state: &Arc<AppState>, uid: &str, msg: &str, now_ms: i64) -> FwdErr {
+    if is_quota_exhausted(msg) {
+        state.cool_down(uid, 60_000);
+        spawn_quota_refresh(state.clone(), uid.to_string());
+        return FwdErr::QuotaOut;
+    }
+    let lower = msg.to_lowercase();
+    let rate = msg.contains("频率")
+        || msg.contains("限流")
+        || msg.contains("稍后重试")
+        || lower.contains("rate limit")
+        || lower.contains("too many")
+        || lower.contains("429");
+    if rate {
+        let retry_at = parse_retry_text(msg, now_ms).unwrap_or(now_ms + 60_000);
+        state.cool_down_until(uid, retry_at);
+        return FwdErr::RateLimited { retry_at };
+    }
+    FwdErr::Other(format!("上游限流/错误(自动换号): {msg}"))
+}
+
+/// 上游报积分耗尽后，异步刷新该账号积分：remaining=0 后它会立刻从可用池出局，
+/// 调度自然切到下一组有效期最短的积分。
+fn spawn_quota_refresh(state: Arc<AppState>, uid: String) {
+    tokio::spawn(async move {
+        let _ = crate::scheduler::refresh_quota(state, Some(vec![uid])).await;
+    });
+}
+
+/// 上游错误文本是否为「积分耗尽」（关键词命中）。
+fn is_quota_exhausted(txt: &str) -> bool {
+    let lower = txt.to_lowercase();
+    [
+        "积分不足",
+        "积分已用完",
+        "积分用完",
+        "余额不足",
+        "额度不足",
+        "配额不足",
+        "insufficient",
+        "exhausted",
+        "quota exceeded",
+        "out of credit",
+        "out of quota",
+    ]
+    .iter()
+    .any(|k| lower.contains(k))
 }
 
 /// 上游强制流式，收集 SSE chunks 后组装为 OpenAI 非流式 JSON 响应。
@@ -498,7 +736,7 @@ async fn sse_to_json_response(
     resp: reqwest::Response,
     ua: &str,
     req: Value,
-) -> Result<Response, String> {
+) -> Result<Response, FwdErr> {
     let mut bytes_stream = resp.bytes_stream();
     let mut content_buf = String::new();
     let mut reasoning_buf = String::new();
@@ -508,7 +746,7 @@ async fn sse_to_json_response(
     let mut finish_reason = String::new();
 
     while let Some(chunk) = bytes_stream.next().await {
-        let chunk = chunk.map_err(|e| format!("流读取错误: {e}"))?;
+        let chunk = chunk.map_err(|e| FwdErr::Other(format!("流读取错误: {e}")))?;
         if let Ok(text) = std::str::from_utf8(&chunk) {
             for line in text.lines() {
                 let payload = match line.strip_prefix("data:") {
@@ -519,6 +757,12 @@ async fn sse_to_json_response(
                     continue;
                 }
                 if let Ok(v) = serde_json::from_str::<Value>(payload) {
+                    // HTTP 200 下的顶层 error 事件（如“访问频率过高”）：非流式组装期客户端
+                    // 尚未收到任何字节，返回 Err 让上层换号重试，错误不透传给客户端。
+                    if let Some(msg) = error_msg(&v) {
+                        dump_chat_debug(&req, 200, &format!("SSE error event: {msg}"));
+                        return Err(classify_sse_error(state, &acc.uid, &msg, started));
+                    }
                     if completion_id.is_empty() {
                         completion_id = v.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
                         created = v.get("created").and_then(|x| x.as_i64()).unwrap_or(0);
@@ -581,9 +825,10 @@ async fn stream_response(
     acc: &Account,
     model: &str,
     started: i64,
-    resp: reqwest::Response,
+    bytes_stream: impl futures_util::Stream<Item = Result<Bytes, reqwest::Error>> + Unpin + Send + 'static,
+    pending: Vec<Bytes>,
     req: Value,
-) -> Result<Response, String> {
+) -> Result<Response, FwdErr> {
     use tokio::sync::mpsc;
     use tokio_stream::wrappers::ReceiverStream;
 
@@ -592,9 +837,13 @@ async fn stream_response(
     let acc_uid = acc.uid.clone();
     let model2 = model.to_string();
 
-    // 后台任务：逐 chunk 透传 + 收集 usage
+    // 后台任务：预读缓冲 + 行级透传 + 收集 usage。
+    // 行级解析的意义：错误事件可能出现在任意位置（甚至与内容同 chunk），
+    // 只有按行截获才能在“已发内容后”吞掉错误、注入干净收尾，客户端会话不中断。
     tokio::spawn(async move {
-        let mut bytes_stream = resp.bytes_stream();
+        let pending_stream =
+            futures_util::stream::iter(pending.into_iter().map(Ok::<Bytes, reqwest::Error>));
+        let mut source = pending_stream.chain(bytes_stream);
         let mut usage = json!({});
         let mut ttft: i64 = 0;
         let mut first = true;
@@ -603,8 +852,13 @@ async fn stream_response(
         // 诊断用：累积原始 SSE 文本（上限 200KB），命中拒绝/错误关键字时落盘。
         let mut raw: Vec<u8> = Vec::new();
         let cap = 200_000usize;
+        // 跨 chunk 行缓冲：按完整行解析，拆行的事件等下一段拼齐再判。
+        let mut linebuf: Vec<u8> = Vec::new();
+        let mut completion_id = String::new();
+        // 已触发优雅收尾：吞掉错误字节并注入 finish+[DONE]，客户端看到的是正常结束的流。
+        let mut graceful_stop = false;
 
-        while let Some(chunk) = bytes_stream.next().await {
+        while let Some(chunk) = source.next().await {
             match chunk {
                 Ok(c) => {
                     if first && !c.is_empty() {
@@ -616,17 +870,68 @@ async fn stream_response(
                         let take = (cap - raw.len()).min(c.len());
                         raw.extend_from_slice(&c[..take]);
                     }
-                    if tx.send(Ok(c)).await.is_err() {
+                    if graceful_stop {
+                        continue;
+                    }
+
+                    linebuf.extend_from_slice(&c);
+                    let mut out: Vec<u8> = Vec::new();
+                    while let Some(pos) = linebuf.iter().position(|&b| b == b'\n') {
+                        let line: Vec<u8> = linebuf.drain(..=pos).collect();
+                        let text = String::from_utf8_lossy(&line);
+                        if completion_id.is_empty() {
+                            if let Some(id) = text
+                                .strip_prefix("data:")
+                                .and_then(|p| serde_json::from_str::<Value>(p.trim()).ok())
+                                .and_then(|v| {
+                                    v.get("id").and_then(|i| i.as_str()).map(String::from)
+                                })
+                            {
+                                completion_id = id;
+                            }
+                        }
+                        if let Some(msg) = sse_line_error(&text) {
+                            // 错误事件透传会让客户端会话直接断掉 → 吞掉并优雅收尾
+                            tracing::warn!("上游 SSE 错误事件，已吞掉并优雅收尾: {msg}");
+                            upstream_err = true;
+                            graceful_stop = true;
+                            linebuf.clear();
+                            break;
+                        }
+                        out.extend_from_slice(&line);
+                    }
+                    if !out.is_empty() && tx.send(Ok(out.into())).await.is_err() {
                         break; // 客户端已断开（正常，不算失败）
                     }
                 }
                 Err(e) => {
+                    // 上游中断：不再把错误砸给客户端（会话会直接断掉），改为优雅收尾。
+                    tracing::warn!("上游流中断，已优雅收尾: {e}");
                     upstream_err = true;
-                    let _ = tx.send(Err(std::io::Error::other(e.to_string()))).await;
+                    graceful_stop = true;
                     break;
                 }
             }
         }
+
+        // 正常结束：把未换行的尾部透传，避免丢字节（已优雅收尾则丢弃残余）。
+        if !graceful_stop && !linebuf.is_empty() {
+            let tail: Vec<u8> = std::mem::take(&mut linebuf);
+            let _ = tx.send(Ok(tail.into())).await;
+        }
+        if graceful_stop {
+            let id = if completion_id.is_empty() {
+                format!("cmpl-{}", Utc::now().timestamp_millis())
+            } else {
+                completion_id.clone()
+            };
+            let tail = format!(
+                "data: {{\"id\":\"{id}\",\"object\":\"chat.completion.chunk\",\"created\":{},\"model\":\"{model2}\",\"choices\":[{{\"index\":0,\"delta\":{{}},\"finish_reason\":\"stop\"}}]}}\n\ndata: [DONE]\n\n",
+                Utc::now().timestamp()
+            );
+            let _ = tx.send(Ok(tail.into())).await;
+        }
+
         let latency = Utc::now().timestamp_millis() - started;
         let (status, ok): (i64, bool) = if upstream_err { (500, false) } else { (200, true) };
         // 命中安全拦截/错误关键字时落盘（REFUSAL 等），便于真机定位自定义模型与内置的差异。

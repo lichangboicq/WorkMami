@@ -183,7 +183,7 @@ export default function Dashboard() {
     return {
       textStyle: { color: chartTextColor },
       tooltip: { position: "top" },
-      grid: { left: 50, right: 20, top: 20, bottom: 40 },
+      grid: { left: 50, right: 20, top: 20, bottom: 70, containLabel: true },
       xAxis: { type: "category", data: hours, splitArea: { show: true } },
       yAxis: { type: "category", data: days, splitArea: { show: true } },
       visualMap: {
@@ -391,7 +391,7 @@ export default function Dashboard() {
         </Col>
         <Col xs={24} lg={12}>
           <Card size="small" title="时段热力图 (近30日)">
-            <ReactECharts option={heatOption} style={{ height: 260 }} notMerge />
+            <ReactECharts option={heatOption} style={{ height: 300 }} notMerge />
           </Card>
         </Col>
       </Row>

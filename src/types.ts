@@ -103,11 +103,8 @@ export interface ProxySettings {
   port: number;
   apiKey: string;
   strategy: Strategy;
-  contextWindow: number;
   reasoningEffort: string; // low/medium/high/none
   defaultModel: string;
-  stickyTtlMin: number;
-  maxRetries: number;
 }
 
 export interface CheckinSettings {

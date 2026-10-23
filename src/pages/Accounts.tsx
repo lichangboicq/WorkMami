@@ -250,7 +250,7 @@ export default function Accounts() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="账号通过网页授权添加"
+        message="多绑多赚：每个账号每天都能签到领积分"
       />
 
       <div className="wm-toolbar">
