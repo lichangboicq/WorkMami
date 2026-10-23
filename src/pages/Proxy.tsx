@@ -7,7 +7,6 @@ import {
   Select,
   Space,
   Switch,
-  Tag,
   Tooltip,
   message,
 } from "antd";
@@ -40,6 +39,9 @@ function isDifferent(a: unknown, b: unknown): boolean {
 
 type SaveStatus = "idle" | "saving" | "error";
 
+// IDE 演示 GIF 登记表：图片产出后放入 public/ 再按 ide.id 登记，hover 时以 tooltip 展示；未登记的回退为状态文字
+const IDE_DEMO_GIFS: Record<string, string> = {};
+
 const FIELD_LABELS: Record<string, string> = {
   host: "监听地址",
   port: "端口",
@@ -56,6 +58,7 @@ export default function Proxy() {
   const proxy = useStore((s) => s.proxy);
   const saveSettings = useStore((s) => s.saveSettings);
   const syncStatus = useStore((s) => s.syncStatus);
+  const refreshSyncStatus = useStore((s) => s.refreshSyncStatus);
 
   // form 内部状态：受控的 PS 值 + 额外 saveStatus
   const [formValues, setFormValues] = useState<PS>(settings.proxy);
@@ -198,6 +201,8 @@ export default function Proxy() {
       setModelsError(errText(e) || "获取模型列表失败");
     } finally {
       setModelsLoading(false);
+      // list_models 返回前已等待 IDE 同步写盘完成，这里刷新即拿到真实状态
+      void refreshSyncStatus();
     }
   };
   useEffect(() => {
@@ -210,42 +215,35 @@ export default function Proxy() {
 
   const running = Boolean(proxy?.running);
 
-  // —— SaveStatus 指示组件（跟随状态自动换色） ——
+  // —— SaveStatus 指示（点为主，仅错误态带文字） ——
   const saveStatusBadge = useMemo(() => {
     if (saveStatus === "error") {
       return (
         <Tooltip title={saveErrorMsg || "保存失败"}>
-          <span
-            className="wm-save-status is-error"
-            style={{ color: "#ff4d4f", cursor: "pointer" }}
-            onClick={retrySave}
-          >
+          <span className="wm-save-status is-error" onClick={retrySave}>
             <span className="wm-save-status__dot" />
-            ⚠ 保存失败 · 重试
+            重试
           </span>
         </Tooltip>
       );
     }
     if (saveStatus === "saving") {
       return (
-        <span className="wm-save-status is-saving" style={{ color: "#1677ff" }}>
+        <span className="wm-save-status is-saving">
           <span className="wm-save-status__dot" />
-          保存中…
         </span>
       );
     }
     if (hasUnsaved) {
       return (
-        <span className="wm-save-status is-dirty" style={{ color: "#fa8c16" }}>
+        <span className="wm-save-status is-dirty" title="有未保存的改动">
           <span className="wm-save-status__dot" />
-          ● 有未保存的改动
         </span>
       );
     }
     return (
-      <span className="wm-save-status is-idle" style={{ color: "#52c41a" }}>
+      <span className="wm-save-status is-idle" title="已自动保存">
         <span className="wm-save-status__dot" />
-        已自动保存
       </span>
     );
   }, [saveStatus, saveErrorMsg, hasUnsaved]);
@@ -254,14 +252,7 @@ export default function Proxy() {
   const dirtyDot = (field: keyof PS) =>
     dirty.has(field) ? <span title="已修改，等待保存" className="wm-dirty-dot" /> : null;
 
-  // —— SyncResult 状态徽标 ——
-  const ideStatusBadge = (synced: boolean, error?: string | null) => {
-    if (error) return <Tag color="red">✗</Tag>;
-    if (synced) return <Tag color="green">✓</Tag>;
-    return <Tag color="orange">●</Tag>;
-  };
-
-  // —— 可见的 IDE 卡：detected=false 的不渲染 ——
+  // —— 检测到的 IDE：自动配置，仅标题行轻量示状态 ——
   const ideCards = syncStatus.filter((s) => s.detected);
 
   return (
@@ -272,118 +263,94 @@ export default function Proxy() {
       {/* ============ 设置卡 ============ */}
       <Card
         size="small"
-        style={{ marginBottom: 16 }}
+        className="wm-proxy-card"
         title={
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>自定义模型</span>
+          <div className="wm-card-title">
+            {/* IDE 自动配置状态：已自动完成，仅轻量示状态 */}
+            <div className="wm-ide-row">
+              {ideCards.map((ide) => {
+                const statusText = ide.error || (ide.synced ? "已自动配置" : "待配置");
+                const demoGif = IDE_DEMO_GIFS[ide.id];
+                return (
+                  <Tooltip
+                    key={ide.id}
+                    title={
+                      demoGif ? (
+                        <img
+                          className="wm-ide-demo-gif"
+                          src={demoGif}
+                          alt={`${ide.label} 自动配置演示`}
+                        />
+                      ) : (
+                        statusText
+                      )
+                    }
+                    classNames={demoGif ? { root: "wm-ide-gif-tooltip" } : undefined}
+                  >
+                    <span
+                      className={`wm-ide-chip${
+                        ide.error ? " is-error" : ide.synced ? " is-ok" : " is-pending"
+                      }`}
+                    >
+                      <span className="wm-ide-chip__dot" />
+                      {ide.label}
+                    </span>
+                  </Tooltip>
+                );
+              })}
+            </div>
             {saveStatusBadge}
           </div>
         }
       >
-        {/* IDE 自动配置状态（仅展示，无操作按钮） */}
-        {ideCards.length > 0 && (
-          <>
-            <div className="wm-ide-grid" style={{ marginBottom: 16 }}>
-              {ideCards.map((ide) => (
-                <Card
-                  key={ide.id}
-                  size="small"
-                  title={ide.label}
-                  style={{ borderRadius: 6 }}
-                  extra={ideStatusBadge(ide.synced, ide.error)}
-                />
-              ))}
-            </div>
-            <hr className="wm-divider-dashed" />
-          </>
-        )}
         {/* Switch 行 */}
         <div className="wm-switch-row">
           <Switch
             checked={enabled}
-            checkedChildren="已开启"
-            unCheckedChildren="已关闭"
+            checkedChildren="开"
+            unCheckedChildren="关"
             onChange={onToggleEnabled}
           />
           {dirtyDot("enabled")}
-          <Tag color={running ? "green" : enabled ? "orange" : "default"}>
-            {running ? "服务运行中" : enabled ? "待启动" : "未启用"}
-          </Tag>
+          {(running || enabled) && (
+            <span className={`wm-run-state${running ? " is-live" : ""}`}>
+              {running ? "运行中" : "待启动"}
+            </span>
+          )}
         </div>
-
-        {/* 虚线分隔 */}
-        <hr className="wm-divider-dashed" />
 
         {/* 字段网格 */}
         <div className="wm-field-grid">
-          {/* 支持的模型 —— 只读展示，hover 卡片弹用法 tip */}
-        <div className="wm-field-grid__span-3 wm-model-gallery-card">
-          <label className="wm-field-label">
-            <span className="wm-field-label__text">WorkMami 支持的自定义模型</span>
-            <Tooltip title="刷新模型列表">
-              <ReloadOutlined
-                style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
-                onClick={() => loadModels()}
+          {/* API Key —— 通栏置首 */}
+          <div className="wm-field-grid__full">
+            <label className="wm-field-label">
+              <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
+              {dirtyDot("apiKey")}
+            </label>
+            <Space.Compact style={{ width: "100%" }}>
+              <Input.Password
+                value={apiKey}
+                className="wm-mono"
+                onChange={(e) => onFieldChange("apiKey", e.target.value)}
               />
-            </Tooltip>
-          </label>
-          <div className="wm-model-gallery-tip">
-            只读展示当前可用的模型列表。具体使用哪个在 IDE 侧选择（Trae / Cursor / VS Code 等），hover 卡片查看使用方法。
+              <Tooltip title="复制">
+                <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
+              </Tooltip>
+              <Tooltip title="重生成新密钥">
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => {
+                    const nk = genApiKey();
+                    setFormValues((prev) => ({ ...prev, apiKey: nk }));
+                    onFieldChange("apiKey", nk);
+                    message.success("已生成新密钥，正在自动保存");
+                  }}
+                />
+              </Tooltip>
+            </Space.Compact>
           </div>
 
-          {/* 模型 chip 网格 */}
-          {modelsLoading ? (
-            <div className="wm-model-gallery-loading">加载中…</div>
-          ) : models.length === 0 ? (
-            <div className="wm-model-gallery-empty">未获取到模型，请点击右侧刷新重试</div>
-          ) : (
-            <div className="wm-model-gallery">
-              {models.map((m) => {
-                const badges = (m.tags || [])
-                  .filter((t) => t.startsWith("badge:"))
-                  .map((t) => {
-                    const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
-                    return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
-                  });
-                const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
-                return (
-                  <div key={m.id} className="wm-model-chip">
-                    <div className="wm-model-chip__name">{m.name}</div>
-                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                      {badges.map((b) => (
-                        <span
-                          key={b.name}
-                          className="wm-model-chip__badge"
-                          style={{ color: b.color, borderColor: b.color }}
-                        >
-                          {b.name}
-                        </span>
-                      ))}
-                      {m.contextWindow > 0 && (
-                        <span className="wm-model-chip__ctx">{(m.contextWindow / 1000).toFixed(0)}K</span>
-                      )}
-                      {credits && <span className="wm-model-chip__credits">{credits}</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* hover 用法 tip */}
-          <div className="wm-model-tip">
-            <div className="wm-model-tip__title">使用方法</div>
-            <ol className="wm-model-tip__steps">
-              <li>打开你的 IDE（Trae / Cursor / VS Code 等）</li>
-              <li>进入 WorkMami 自动配置好的自定义模型源</li>
-              <li>在下拉中选择想用的模型</li>
-              <li>开始对话即可，积分自动从账号池消耗</li>
-            </ol>
-          </div>
-          {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
-        </div>
-
-        {/* 监听地址 */}
+          {/* 监听地址 */}
           <div>
             <label className="wm-field-label">
               <span className="wm-field-label__text">{FIELD_LABELS.host}</span>
@@ -410,35 +377,6 @@ export default function Proxy() {
               value={formValues.port}
               onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
             />
-          </div>
-
-          {/* API Key —— 跨 3 列 */}
-          <div className="wm-field-grid__span-3">
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
-              {dirtyDot("apiKey")}
-            </label>
-            <Space.Compact style={{ width: "100%" }}>
-              <Input.Password
-                value={apiKey}
-                className="wm-mono"
-                onChange={(e) => onFieldChange("apiKey", e.target.value)}
-              />
-              <Tooltip title="复制">
-                <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
-              </Tooltip>
-              <Tooltip title="重生成新密钥">
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    const nk = genApiKey();
-                    setFormValues((prev) => ({ ...prev, apiKey: nk }));
-                    onFieldChange("apiKey", nk);
-                    message.success("已生成新密钥，正在自动保存");
-                  }}
-                />
-              </Tooltip>
-            </Space.Compact>
           </div>
 
           {/* 积分调度策略 */}
@@ -522,6 +460,58 @@ export default function Proxy() {
               onChange={(v) => onFieldChange("maxRetries", (v ?? 1) as number)}
             />
           </div>
+
+        </div>
+
+        {/* 支持的模型 */}
+        <div className="wm-model-gallery-card">
+          <label className="wm-field-label">
+            <span className="wm-field-label__text">支持的模型</span>
+            <Tooltip title="刷新">
+              <ReloadOutlined
+                style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
+                onClick={() => loadModels()}
+              />
+            </Tooltip>
+          </label>
+
+          {/* 模型 chip 网格 */}
+          {modelsLoading ? (
+            <div className="wm-model-gallery-loading">加载中…</div>
+          ) : models.length === 0 ? (
+            <div className="wm-model-gallery-empty">无模型，点刷新重试</div>
+          ) : (
+            <div className="wm-model-gallery">
+              {models.map((m) => {
+                const badges = (m.tags || [])
+                  .filter((t) => t.startsWith("badge:"))
+                  .map((t) => {
+                    const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
+                    return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
+                  });
+                const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
+                return (
+                  <div key={m.id} className="wm-model-chip">
+                    <div className="wm-model-chip__name">{m.name}</div>
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      {badges.map((b) => (
+                        <span
+                          key={b.name}
+                          className="wm-model-chip__badge"
+                          style={{ color: b.color, borderColor: b.color }}
+                        >
+                          {b.name}
+                        </span>
+                      ))}
+                      {credits && <span className="wm-model-chip__credits">{credits}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
         </div>
       </Card>
     </div>

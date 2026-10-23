@@ -446,6 +446,7 @@ export default function Dashboard() {
         <Table<RequestRow>
           rowKey={(r) => `${r.ts}-${r.uid}-${r.model}`}
           size="small"
+          tableLayout="auto"
           loading={loading}
           dataSource={requests}
           pagination={{
@@ -458,7 +459,6 @@ export default function Dashboard() {
             {
               title: "时间",
               dataIndex: "ts",
-              width: 150,
               render: (v: number) => dayjs(v).format("MM-DD HH:mm:ss"),
             },
             {
@@ -469,7 +469,6 @@ export default function Dashboard() {
             {
               title: "来源",
               dataIndex: "source",
-              width: 70,
               render: (v: string) => (
                 <Tag color={v === "proxy" ? "blue" : "default"}>
                   {v === "proxy" ? "自定义模型" : "App"}
@@ -480,27 +479,23 @@ export default function Dashboard() {
             {
               title: "Tokens",
               dataIndex: "totalTokens",
-              width: 90,
               align: "right",
             },
             {
               title: "积分(估)",
               dataIndex: "credits",
-              width: 90,
               align: "right",
               render: (v: number) => fmtCredits(v),
             },
             {
               title: "耗时",
               dataIndex: "latencyMs",
-              width: 80,
               align: "right",
               render: (v: number) => `${v}ms`,
             },
             {
               title: "状态",
               dataIndex: "ok",
-              width: 70,
               render: (v: boolean, r) => (
                 <Tag color={v ? "green" : "red"}>{r.status}</Tag>
               ),

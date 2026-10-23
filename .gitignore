@@ -19,6 +19,7 @@ src-tauri/gen/schemas/
 # workbuddy artifacts
 .workbuddy/
 .superpowers/
+.trae/
 docs/
 
 # temp extraction artifacts

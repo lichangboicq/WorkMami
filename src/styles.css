@@ -172,62 +172,107 @@ body {
 .wm-save-status.is-dirty .wm-save-status__dot  { background: #fa8c16; animation: wm-dot-blink 1.2s ease-in-out infinite; }
 .wm-save-status.is-error .wm-save-status__dot  { background: #ff4d4f; }
 
+.wm-save-status.is-idle    { color: #52c41a; }
+.wm-save-status.is-saving  { color: #1677ff; }
+.wm-save-status.is-dirty   { color: #fa8c16; }
+.wm-save-status.is-error   { color: #ff4d4f; cursor: pointer; }
+
 @keyframes wm-dot-blink {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.35; }
 }
 
 /* ============================================================
-   自定义模型页 —— 虚线分隔 + Switch 行
+   自定义模型页 —— Switch 行
    ============================================================ */
-.wm-divider-dashed {
-  border: none;
-  border-top: 1px dashed var(--ant-color-border, #d9d9d9);
-  margin: 16px 0;
-}
-
 .wm-switch-row {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+.wm-run-state {
+  font-size: 12px;
+  opacity: 0.65;
+}
+.wm-run-state.is-live {
+  color: #52c41a;
+  opacity: 1;
+}
+
 /* ============================================================
-   自定义模型页 —— 字段网格（3 列自适应）
+   自定义模型页 —— 字段网格（auto-fill 自适应列数，单列 180-260px）
    ============================================================ */
 .wm-field-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 260px));
+  gap: 16px;
+  margin-top: 16px;
 }
 
-.wm-field-grid__span-2 { grid-column: span 2; }
-.wm-field-grid__span-3 { grid-column: span 3; }
-
-/* 屏幕较窄时收缩成 2 列；再窄变 1 列 */
-@media (max-width: 1280px) {
-  .wm-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .wm-field-grid__span-3 { grid-column: span 2; }
-}
-@media (max-width: 860px) {
-  .wm-field-grid { grid-template-columns: 1fr; }
-  .wm-field-grid__span-2,
-  .wm-field-grid__span-3 { grid-column: span 1; }
+.wm-field-grid__full {
+  grid-column: 1 / -1;
+  max-width: 640px;
 }
 
 /* ============================================================
-   自定义模型页 —— IDE 自动配置网格
+   自定义模型页 —— 主卡（16px 圆角 + 轻阴影分层）
    ============================================================ */
-.wm-ide-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+.wm-proxy-card.ant-card {
+  border-radius: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+.wm-proxy-card .ant-card-head {
+  border-radius: 16px 16px 0 0;
+}
+
+.wm-card-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
-@media (max-width: 1280px) {
-  .wm-ide-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* —— IDE 自动配置状态：标题行轻量圆点 —— */
+.wm-ide-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  min-width: 0;
 }
-@media (max-width: 720px) {
-  .wm-ide-grid { grid-template-columns: 1fr; }
+
+.wm-ide-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.wm-ide-chip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ant-color-text-tertiary, #8c8c8c);
+  flex-shrink: 0;
+}
+.wm-ide-chip.is-ok .wm-ide-chip__dot      { background: #52c41a; }
+.wm-ide-chip.is-pending .wm-ide-chip__dot { background: #fa8c16; }
+.wm-ide-chip.is-error .wm-ide-chip__dot   { background: #ff4d4f; }
+.wm-ide-chip.is-error                     { color: #ff4d4f; opacity: 1; }
+
+/* IDE 演示 GIF tooltip：覆盖 antd 默认 250px max-width，图片直出 */
+.wm-ide-gif-tooltip {
+  max-width: none;
+  padding: 4px;
+}
+.wm-ide-demo-gif {
+  display: block;
+  max-width: min(480px, 60vw);
+  max-height: 320px;
 }
 
 .wm-section-title {
@@ -325,41 +370,34 @@ body {
 }
 
 /* ============================================================
-   自定义模型页 —— 模型支持列表（只读展示 + hover 用法 tip）
+   自定义模型页 —— 模型支持列表（只读展示）
    ============================================================ */
 .wm-model-gallery-card {
   position: relative;
-  cursor: help;
   transition: border-color 0.2s ease;
+  width: fit-content;
+  min-width: min(360px, 100%);
+  max-width: 100%;
+  margin-top: 20px;
+  padding: 12px 14px;
+  border: 1px solid transparent;
+  border-radius: 12px;
 }
 .wm-model-gallery-card:hover {
   border-color: var(--ant-color-primary, #1677ff);
 }
 
-.wm-model-gallery-tip {
-  font-size: 12px;
-  color: var(--ant-color-text-secondary, #8c8c8c);
-  margin-bottom: 10px;
-  line-height: 1.6;
-}
-
 .wm-model-gallery {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-}
-@media (max-width: 1280px) {
-  .wm-model-gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 860px) {
-  .wm-model-gallery { grid-template-columns: 1fr; }
 }
 
 .wm-model-chip {
   border: 1px solid var(--ant-color-border, #d9d9d9);
   border-radius: 6px;
   padding: 8px 10px;
-  background: var(--ant-color-bg-container, #fff);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -381,12 +419,6 @@ body {
   border: 1px solid;
   white-space: nowrap;
 }
-.wm-model-chip__ctx {
-  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
-  color: var(--ant-color-text-tertiary, #8c8c8c);
-  white-space: nowrap;
-}
 .wm-model-chip__credits {
   font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
   font-size: 10px;
@@ -403,77 +435,4 @@ body {
 }
 .wm-model-gallery-error {
   color: #ff4d4f;
-}
-
-/* —— hover 用法 tip（卡悬停向下弹出） —— */
-.wm-model-tip {
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: 320px;
-  z-index: 20;
-  pointer-events: none;
-  border: 1px solid var(--ant-color-border, #d9d9d9);
-  border-radius: 10px;
-  background: var(--ant-color-bg-container, #fff);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.24);
-  padding: 14px 16px;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-.wm-model-gallery-card:hover .wm-model-tip {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.wm-model-tip::before {
-  content: "";
-  position: absolute;
-  right: 24px;
-  top: -6px;
-  width: 10px;
-  height: 10px;
-  transform: rotate(45deg);
-  background: var(--ant-color-bg-container, #fff);
-  border-left: 1px solid var(--ant-color-border, #d9d9d9);
-  border-top: 1px solid var(--ant-color-border, #d9d9d9);
-}
-
-.wm-model-tip__title {
-  font-weight: 600;
-  font-size: 13px;
-  margin-bottom: 10px;
-}
-.wm-model-tip__steps {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  counter-reset: tip-step;
-}
-.wm-model-tip__steps li {
-  position: relative;
-  padding-left: 22px;
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--ant-color-text-secondary, #595959);
-  counter-increment: tip-step;
-}
-.wm-model-tip__steps li::before {
-  content: counter(tip-step);
-  position: absolute;
-  left: 0;
-  top: 2px;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--ant-color-primary, #1677ff);
-  color: #fff;
-  font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
-  font-size: 10px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
 }
