@@ -355,6 +355,7 @@ fn rate_notice_copy(new_nick: &str, old_nick: &str, raw: &str) -> (String, Strin
 /// 频控被拦、换号化解成功后弹一条系统通知（跨平台统一：Windows 托盘区 toast / macOS 右上横幅）。
 /// 全局 2 分钟节流仅为异常循环安全阀：正常频率（约 1 次/小时）每次必弹，不排队、不补发。
 pub(crate) fn notify_rate_limit_switch(state: &Arc<AppState>, old_uid: &str, new_acc: &Account, raw: &str) {
+    let Some(app) = state.app_handle.get().cloned() else { return }; // AppHandle 未注入（纯防御）
     {
         let mut last = state.last_rate_notice_ms.lock().unwrap();
         let now = Utc::now().timestamp_millis();
@@ -363,7 +364,6 @@ pub(crate) fn notify_rate_limit_switch(state: &Arc<AppState>, old_uid: &str, new
         }
         *last = now; // 先占位再发送，防并发双弹
     }
-    let Some(app) = state.app_handle.get().cloned() else { return }; // AppHandle 未注入（纯防御）
     let (title, body) = rate_notice_copy(
         &account_label(state, &new_acc.uid),
         &account_label(state, old_uid),
