@@ -314,7 +314,7 @@ export default function DataPage() {
               <Space>
                 <Select
                   size="small"
-                  style={{ width: 220 }}
+                  style={{ width: 280 }}
                   placeholder="全部"
                   allowClear
                   value={uid || undefined}

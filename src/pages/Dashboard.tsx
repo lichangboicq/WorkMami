@@ -74,6 +74,17 @@ function fmtMetric(v: number): string {
   return String(Math.round(v));
 }
 
+// 耗时智能切单位：< 1s 显示 ms，≥ 1s 显示 s（≥ 10s 取整，否则 1 位小数）
+function fmtMs(v: number): { value: number; suffix: string } {
+  if (!v || v < 0) return { value: 0, suffix: "ms" };
+  if (v < 1000) return { value: Math.round(v), suffix: "ms" };
+  const s = v / 1000;
+  return {
+    value: s >= 10 ? Math.round(s) : Math.round(s * 10) / 10,
+    suffix: "s",
+  };
+}
+
 export default function Dashboard() {
   const isDark = useStore((s) => s.settings.theme) !== "light";
   const accounts = useStore((s) => s.accounts);
@@ -367,9 +378,9 @@ export default function Dashboard() {
           <Card size="small">
             <Statistic
               title="平均耗时"
-              value={cur?.avgLatencyMs ?? 0}
+              value={fmtMs(cur?.avgLatencyMs ?? 0).value}
               precision={0}
-              suffix="ms"
+              suffix={fmtMs(cur?.avgLatencyMs ?? 0).suffix}
             />
           </Card>
         </Col>
@@ -514,7 +525,10 @@ export default function Dashboard() {
               title: "耗时",
               dataIndex: "latencyMs",
               align: "right",
-              render: (v: number) => `${v}ms`,
+              render: (v: number) => {
+                const { value, suffix } = fmtMs(v);
+                return `${value}${suffix}`;
+              },
             },
             {
               title: "状态",
