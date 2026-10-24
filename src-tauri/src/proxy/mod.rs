@@ -268,23 +268,17 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
     let mut failures = 0usize;
     let mut rate_limited_only = true;
     let mut earliest_retry: Option<i64> = None;
-    // 本次请求首个频控事件（旧uid + 报文原文）：换号成功后弹托盘通知用
-    let mut pending_notice: Option<(String, String)> = None;
-    for acc in &candidates {
+    let total = candidates.len();
+    for (i, acc) in candidates.iter().enumerate() {
         match forward_once(&state, acc, req.clone(), is_stream, &ua, &requested).await {
-            Ok(resp) => {
-                // 先频控、后成功 → 价值汇报（旁路，失败静默，绝不阻塞转发）
-                if let Some((old_uid, raw)) = pending_notice.take() {
-                    notify_rate_limit_switch(&state, &old_uid, acc, &raw);
-                }
-                return resp;
-            }
+            Ok(resp) => return resp,
             Err(e) => {
                 failures += 1;
                 if let FwdErr::RateLimited { retry_at, raw } = &e {
                     earliest_retry = Some(earliest_retry.map_or(*retry_at, |v: i64| v.min(*retry_at)));
-                    if pending_notice.is_none() {
-                        pending_notice = Some((acc.uid.clone(), raw.clone()));
+                    // 后面还有候选账号 → 立即发换号通知；最后一个不发（账号池空了）
+                    if i < total - 1 {
+                        notify_rate_limit_switch(&state, &acc.uid, &candidates[i + 1], raw);
                     }
                 } else {
                     rate_limited_only = false;
@@ -352,18 +346,10 @@ fn rate_notice_copy(new_nick: &str, old_nick: &str, raw: &str) -> (String, Strin
     (format!("已切换账号至{new_nick}"), format!("账号{old_nick}遇到错误：{raw}"))
 }
 
-/// 频控被拦、换号化解成功后弹一条系统通知（跨平台统一：Windows 托盘区 toast / macOS 右上横幅）。
-/// 全局 2 分钟节流仅为异常循环安全阀：正常频率（约 1 次/小时）每次必弹，不排队、不补发。
+/// 频控被拦、换号化解时立即弹一条系统通知（跨平台统一：Windows 托盘区 toast / macOS 右上横幅）。
+/// 无全局节流：同一请求周期内每个 old_uid 只会被线性遍历一次，天然去重。
 pub(crate) fn notify_rate_limit_switch(state: &Arc<AppState>, old_uid: &str, new_acc: &Account, raw: &str) {
     let Some(app) = state.app_handle.get().cloned() else { return }; // AppHandle 未注入（纯防御）
-    {
-        let mut last = state.last_rate_notice_ms.lock().unwrap();
-        let now = Utc::now().timestamp_millis();
-        if now.saturating_sub(*last) < 120_000 {
-            return;
-        }
-        *last = now; // 先占位再发送，防并发双弹
-    }
     let (title, body) = rate_notice_copy(
         &account_label(state, &new_acc.uid),
         &account_label(state, old_uid),

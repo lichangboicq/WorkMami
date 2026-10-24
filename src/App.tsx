@@ -70,10 +70,10 @@ function SiderFooter({ isDark }: { isDark: boolean }) {
           padding: 4,
         }}
       />
-      <div style={{ fontSize: 12, color: sub, marginBottom: 8 }}>
+      <div style={{ fontSize: 13, color: sub, marginBottom: 8 }}>
         扫一扫关注老马公众号
       </div>
-      <div style={{ fontSize: 12, color: sub, lineHeight: 1.7 }}>
+      <div style={{ fontSize: 13, color: sub, lineHeight: 1.7 }}>
         <div>个人博客：www.majiabin.com</div>
       </div>
       <div
@@ -81,7 +81,7 @@ function SiderFooter({ isDark }: { isDark: boolean }) {
           marginTop: 10,
           paddingTop: 10,
           borderTop: `1px solid ${divider}`,
-          fontSize: 11,
+          fontSize: 12,
           color: faint,
           lineHeight: 1.6,
         }}
@@ -207,7 +207,7 @@ export default function App() {
               </div>
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: subText,
                   marginTop: 2,
                   letterSpacing: 0.3,

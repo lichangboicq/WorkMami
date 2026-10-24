@@ -499,7 +499,7 @@ function AccountCard({
               <div style={{ marginTop: 4 }}>
                 {activeResources.length > 0 && (
                   <a
-                    style={{ fontSize: 12 }}
+                    style={{ fontSize: 13 }}
                     onClick={() => setOpen((v) => !v)}
                   >
                     {open ? "收起" : "展开"}可用积分明细（{activeResources.length}）
@@ -531,7 +531,7 @@ function AccountCard({
                               justifyContent: "space-between",
                               alignItems: "center",
                               padding: "4px 8px",
-                              fontSize: 12,
+                              fontSize: 13,
                               gap: 8,
                             }}
                           >

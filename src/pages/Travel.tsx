@@ -101,32 +101,32 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
         )}
       </Text>
       {shown.length === 0 ? (
-        <Text type="secondary" style={{ display: "block", marginTop: 4, fontSize: 12 }}>
+        <Text type="secondary" style={{ display: "block", marginTop: 4, fontSize: 13 }}>
           还没有任何旅行记录。
         </Text>
       ) : (
         <div style={{ marginTop: 6 }}>
           {shown.map((r) => (
             <div key={r.recordId} style={{ padding: "2px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                <Text style={{ fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                <Text style={{ fontSize: 13 }}>
                   {r.travelDate !== today ? `${r.travelDate} · ` : ""}
                   {r.locationName}
                 </Text>
                 <span>
-                  <Text strong style={{ fontSize: 12 }}>+{r.rewardCredit} 分</Text>
+                  <Text strong style={{ fontSize: 13 }}>+{r.rewardCredit} 分</Text>
                   {r.claimedAt ? (
-                    <Tag color="success" style={{ marginLeft: 6, fontSize: 11, lineHeight: "18px", padding: "0 4px" }}>
+                    <Tag color="success" style={{ marginLeft: 6, fontSize: 12, lineHeight: "18px", padding: "0 4px" }}>
                       已到账
                     </Tag>
                   ) : (
-                    <Tag color="warning" style={{ marginLeft: 6, fontSize: 11, lineHeight: "18px", padding: "0 4px" }}>
+                    <Tag color="warning" style={{ marginLeft: 6, fontSize: 12, lineHeight: "18px", padding: "0 4px" }}>
                       待领取
                     </Tag>
                   )}
                 </span>
               </div>
-              <div style={{ fontSize: 11, opacity: 0.8 }}>
+              <div style={{ fontSize: 12, opacity: 0.85 }}>
                 派出于 {fmtClock(r.departAt)} ·{" "}
                 {r.claimedAt ? `奖励领于 ${fmtClock(r.claimedAt)}` : "奖励尚未领取"}
               </div>
