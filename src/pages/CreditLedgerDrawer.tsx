@@ -39,7 +39,7 @@ const usageColumns: ColumnsType<CreditUsageRow> = [
     dataIndex: "time",
     width: 180,
     render: (t: string) => (
-      <span style={{ fontSize: 12 }}>{t.replace("T", " ").slice(0, 19)}</span>
+      <span style={{ fontSize: 13 }}>{t.replace("T", " ").slice(0, 19)}</span>
     ),
   },
   {
@@ -48,7 +48,7 @@ const usageColumns: ColumnsType<CreditUsageRow> = [
     ellipsis: true,
     render: (v: string) => (
       <Tooltip title={v}>
-        <span style={{ fontSize: 12, fontFamily: "monospace" }}>
+        <span style={{ fontSize: 13, fontFamily: "monospace" }}>
           {v ? v.slice(0, 12) : "—"}
         </span>
       </Tooltip>
@@ -170,7 +170,7 @@ export default function CreditLedgerDrawer({
                       <span style={{ fontWeight: 600 }}>
                         {fmtNum(r.used)}/{fmtNum(r.total)}积分
                       </span>
-                      <span style={{ opacity: 0.7, fontSize: 12 }}>
+                      <span style={{ opacity: 0.7, fontSize: 13 }}>
                         {" "}
                         （已用/总量）
                       </span>
@@ -178,11 +178,11 @@ export default function CreditLedgerDrawer({
                         {r.status}
                       </Tag>
                     </span>
-                    <span style={{ opacity: 0.8, fontSize: 12 }}>
+                    <span style={{ opacity: 0.8, fontSize: 13 }}>
                       到期时间：{fmtExpire(r.expireAt)}
                     </span>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 12, opacity: 0.75 }}>
+                  <div style={{ marginTop: 4, fontSize: 13, opacity: 0.78 }}>
                     {r.name}
                     {r.reason ? ` · 下发原因：${r.reason}` : ""}
                   </div>

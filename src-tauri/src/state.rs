@@ -142,8 +142,6 @@ pub struct AppState {
     pub travel_limit_streak: Mutex<i32>,
     /// Tauri AppHandle（lib.rs setup 注入）：代理转发层等非 command 上下文发系统通知用。
     pub app_handle: once_cell::sync::OnceCell<tauri::AppHandle>,
-    /// 最近一次「限流已化解」通知时刻（unix ms）：2 分钟节流安全阀。
-    pub last_rate_notice_ms: Mutex<i64>,
 }
 
 impl AppState {
@@ -169,7 +167,6 @@ impl AppState {
             travel_done_date: Mutex::new(String::new()),
             travel_limit_streak: Mutex::new(0),
             app_handle: once_cell::sync::OnceCell::new(),
-            last_rate_notice_ms: Mutex::new(0),
         })
     }
 

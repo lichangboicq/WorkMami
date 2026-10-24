@@ -39,7 +39,7 @@ body {
 /* 等宽字体 */
 .wm-mono {
   font-family: var(--wm-mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.15px;
   font-weight: 500;
 }
@@ -47,7 +47,7 @@ body {
 /* 指标值（Dashboard 大数字） */
 .wm-metric-value {
   font-family: var(--wm-mono);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   line-height: 1.15;
   letter-spacing: -0.5px;
@@ -59,8 +59,8 @@ body {
 }
 
 .wm-metric-label {
-  font-size: 12px;
-  opacity: 0.7;
+  font-size: 13px;
+  opacity: 0.75;
   margin-top: 5px;
   letter-spacing: 0.3px;
 }
@@ -69,7 +69,7 @@ body {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--wm-mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.65;
   letter-spacing: 0.1px;
   max-height: 60vh;
@@ -104,7 +104,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.4;
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -128,7 +128,7 @@ body {
 
 /* 保存状态徽章（Card title 内） */
 .wm-save-status {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: 0.3px;
   display: inline-flex;
@@ -173,7 +173,7 @@ body {
   gap: 12px;
 }
 .wm-run-state {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.2px;
   opacity: 0.6;
@@ -265,7 +265,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   opacity: 0.75;
   white-space: nowrap;
@@ -321,9 +321,9 @@ body {
   margin: 0;
   border-radius: 0;
 }
-.wm-account-total         { font-family: var(--wm-mono); font-size: 13px; font-weight: 600; opacity: 0.9; letter-spacing: 0.2px; }
-.wm-account-subtext       { font-size: 12px; font-weight: 500; opacity: 0.75; }
-.wm-account-faint         { font-size: 11px; opacity: 0.6; margin-top: 4px; letter-spacing: 0.2px; }
+.wm-account-total         { font-family: var(--wm-mono); font-size: 14px; font-weight: 600; opacity: 0.9; letter-spacing: 0.2px; }
+.wm-account-subtext       { font-size: 13px; font-weight: 500; opacity: 0.78; }
+.wm-account-faint         { font-size: 12px; opacity: 0.65; margin-top: 4px; letter-spacing: 0.2px; }
 .wm-account-resource-name { opacity: 0.85; }
 
 /* 支持的模型 —— gallery + chip */
@@ -341,7 +341,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 13.5px;
   transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   user-select: none;
 }
@@ -357,8 +357,8 @@ body {
 }
 .wm-model-chip__name {
   font-weight: 600;
-  font-size: 12.5px;
-  line-height: 16px;
+  font-size: 13.5px;
+  line-height: 17px;
   letter-spacing: 0.2px;
   white-space: nowrap;
   overflow: hidden;
@@ -366,7 +366,7 @@ body {
 }
 .wm-model-chip__badge {
   font-family: var(--wm-mono);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 14px;
   padding: 0 5px;
   border-radius: 3px;
@@ -377,8 +377,8 @@ body {
 }
 .wm-model-chip__credits {
   font-family: var(--wm-mono);
-  font-size: 12.5px;
-  line-height: 16px;
+  font-size: 13.5px;
+  line-height: 17px;
   font-weight: 600;
   color: var(--ant-color-text-tertiary, #8c8c8c);
   white-space: nowrap;
@@ -387,7 +387,7 @@ body {
 .wm-model-gallery-loading,
 .wm-model-gallery-empty,
 .wm-model-gallery-error {
-  font-size: 12px;
+  font-size: 13px;
   padding: 8px 0;
   text-align: center;
   letter-spacing: 0.2px;

@@ -431,7 +431,7 @@ export default function Proxy() {
           <span className="wm-field-label__text">支持的模型</span>
           <Tooltip title="刷新">
             <ReloadOutlined
-              style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 12 }}
+              style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 13 }}
               onClick={() => loadModels()}
             />
           </Tooltip>
