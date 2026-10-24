@@ -133,10 +133,7 @@ export default function CreditLedgerDrawer({
         </div>
 
         {rewards.length === 0 ? (
-          <Empty
-            description={loading ? "加载中…" : "暂无奖励/购买积分记录"}
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-          />
+          <Empty description={loading ? "加载中…" : "暂无数据"} />
         ) : (
           <>
             <div
@@ -220,13 +217,12 @@ export default function CreditLedgerDrawer({
         </div>
 
         <Table<CreditUsageRow>
-          size="small"
           rowKey={(r) => `${r.ts}-${r.requestId}`}
           columns={usageColumns}
           dataSource={usage}
           loading={loading}
           pagination={{ pageSize: 10, size: "small", showTotal: (t) => `共 ${t} 条` }}
-          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="该时间段无消耗记录" /> }}
+          locale={{ emptyText: <Empty description="暂无数据" /> }}
           summary={() =>
             usage.length > 0 ? (
               <Table.Summary.Row>

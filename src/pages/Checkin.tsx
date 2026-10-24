@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Col,
+  Empty,
   Row,
   Space,
   Switch,
@@ -122,10 +123,10 @@ export default function Checkin() {
             />
             <Table
               rowKey="uid"
-              size="small"
               pagination={false}
               tableLayout="auto"
               dataSource={accounts}
+              locale={{ emptyText: <Empty description="暂无数据" /> }}
               columns={[
                 { title: "昵称", dataIndex: "nickname", render: (t, r) => t || r.uid },
                 {

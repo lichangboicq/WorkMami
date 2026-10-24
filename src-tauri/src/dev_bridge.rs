@@ -123,6 +123,93 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
                 .map_err(|e| e.to_string())
                 .and_then(|v| Ok(json!(v)))
         }
+        "credit_ledger" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            let days = args.get("days").and_then(|v| v.as_i64());
+            crate::commands::credit_ledger(s, uid, days)
+                .await
+                .map_err(|e| e.to_string())
+        }
+
+        // ----- OAuth 网页授权 -----
+        "oauth_begin" => crate::commands::oauth_begin(s)
+            .await
+            .map_err(|e| e.to_string())
+            .and_then(|v| Ok(json!(v))),
+        "oauth_poll" => {
+            let sid = args["sessionId"].as_str().ok_or("缺少 sessionId")?.to_string();
+            crate::commands::oauth_poll(s, sid)
+                .await
+                .map_err(|e| e.to_string())
+        }
+
+        // ----- 签到 -----
+        "checkin_status" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            crate::commands::checkin_status(s, uid)
+                .await
+                .map_err(|e| e.to_string())
+        }
+        "checkin_all" => {
+            let handle = state
+                .app_handle
+                .get()
+                .ok_or("AppHandle 未注入")?
+                .clone();
+            crate::commands::checkin_all(handle, s)
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|v| Ok(json!(v)))
+        }
+        "checkin_one" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            let handle = state
+                .app_handle
+                .get()
+                .ok_or("AppHandle 未注入")?
+                .clone();
+            crate::commands::checkin_one(handle, s, uid)
+                .await
+                .map_err(|e| e.to_string())
+                .and_then(|v| Ok(json!(v)))
+        }
+
+        // ----- 猫猫旅行 -----
+        "travel_overview" => crate::commands::travel_overview(s)
+            .await
+            .map_err(|e| e.to_string()),
+        "travel_depart" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            let loc = args["locationId"].as_i64().ok_or("缺少 locationId")?;
+            crate::commands::travel_depart(s, uid, loc)
+                .await
+                .map_err(|e| e.to_string())
+        }
+        "travel_claim" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            crate::commands::travel_claim(s, uid)
+                .await
+                .map_err(|e| e.to_string())
+        }
+
+        // ----- 成长中心 -----
+        "open_growth_center" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            crate::commands::open_growth_center(s, uid)
+                .map_err(|e| e.to_string())
+        }
+        "bind_growth_center" => {
+            let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
+            crate::commands::bind_growth_center(s, uid)
+                .map_err(|e| e.to_string())
+        }
+        "growth_bound_all" => crate::commands::growth_bound_all(s)
+            .map_err(|e| e.to_string()),
+
+        // ----- IDE 自动配置 -----
+        "sync_all_ides" => crate::commands::sync_all_ides(s)
+            .map_err(|e| e.to_string())
+            .and_then(|v| Ok(json!(v))),
 
         // ----- 数据管理 -----
         "data_uids" => crate::commands::data_uids(s)
@@ -164,6 +251,14 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             let cats: Vec<String> =
                 serde_json::from_value(args["categories"].clone()).map_err(|e| e.to_string())?;
             crate::commands::data_migrate(from, to, cats)
+                .map_err(|e| e.to_string())
+                .and_then(|v| Ok(json!(v)))
+        }
+        "data_export" => {
+            let item: crate::data::DataItem =
+                serde_json::from_value(args["item"].clone()).map_err(|e| e.to_string())?;
+            let dest = args["destDir"].as_str().ok_or("缺少 destDir")?.to_string();
+            crate::commands::data_export(item, dest)
                 .map_err(|e| e.to_string())
                 .and_then(|v| Ok(json!(v)))
         }

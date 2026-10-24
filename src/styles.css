@@ -24,7 +24,8 @@ body {
 .wm-page {
   padding: 24px 20px 24px;
   overflow-y: auto;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   box-sizing: border-box;
 }
 
@@ -384,15 +385,12 @@ body {
   white-space: nowrap;
   letter-spacing: -0.2px;
 }
-.wm-model-gallery-loading,
-.wm-model-gallery-empty,
-.wm-model-gallery-error {
+.wm-model-gallery-loading {
   font-size: 13px;
   padding: 8px 0;
   text-align: center;
   letter-spacing: 0.2px;
 }
-.wm-model-gallery-error { color: #ff4d4f; }
 
 /* antd 表单控件全局微调 —— 统一圆角 / 字号 / 品牌色 focus / switch */
 .wm-page .ant-input,
@@ -417,6 +415,12 @@ body {
   box-shadow: 0 0 0 3px rgba(var(--wm-brand-rgb), 0.18) !important;
 }
 .wm-page .ant-switch-checked { background: var(--wm-brand) !important; }
+/* Space.Compact 中相邻按钮 margin-left:-1px 会盖住输入框右边框，hover/聚焦时抬高输入框层级让四边边框可见 */
+.wm-page .ant-input-compact-first-item:hover,
+.wm-page .ant-input-compact-first-item:focus-within {
+  position: relative;
+  z-index: 1;
+}
 /* Select allowClear 时，X 按钮是绝对定位，需给已选中的 item 预留右侧空间，避免文字被遮住 */
 .wm-page .ant-select-selection-item { padding-right: 22px; }
 
@@ -433,4 +437,18 @@ body {
   color: var(--wm-brand);
   background: rgba(var(--wm-brand-rgb), 0.12);
   font-weight: 600;
+}
+
+/* 表格统一视觉：单元格文字统一 14px，表头加粗，空状态 SVG 小一号与文字协调 */
+.wm-page .ant-table-thead > tr > th.ant-table-cell {
+  font-weight: 600;
+}
+.wm-page .ant-table-tbody > tr > td.ant-table-cell {
+  font-size: 14px;
+}
+.wm-page .ant-table-cell .ant-tag {
+  font-size: 13px;
+}
+.wm-page .ant-empty .ant-empty-image {
+  height: 96px;
 }

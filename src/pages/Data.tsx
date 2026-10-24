@@ -358,7 +358,6 @@ export default function DataPage() {
           >
             <Table
               rowKey={(r) => r.id + r.path}
-              size="small"
               loading={loading}
               dataSource={items}
               columns={columns}
@@ -373,7 +372,7 @@ export default function DataPage() {
                 pageSizeOptions: [10, 50, 100, 200],
                 showTotal: (t) => `共 ${t} 条`,
               }}
-              locale={{ emptyText: <Empty description="该类别暂无数据" /> }}
+              locale={{ emptyText: <Empty description="暂无数据" /> }}
             />
           </Card>
         </Col>

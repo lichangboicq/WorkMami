@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
+  Empty,
   Input,
   InputNumber,
   Select,
@@ -65,7 +66,6 @@ export default function Proxy() {
 
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
-  const [modelsError, setModelsError] = useState("");
 
   // 防抖队列 + 写入中集合
   const writeQueueRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -185,17 +185,16 @@ export default function Proxy() {
   // —— 模型列表 ——
   const loadModels = async (silent = false) => {
     setModelsLoading(true);
-    setModelsError("");
     try {
       const list = await api.listModels();
       setModels(list);
       if (list.length === 0) {
-        setModelsError("未获取到模型，可能当前账号无权限");
+        if (!silent) message.warning("未获取到模型，可能当前账号无权限");
       } else if (!silent) {
         message.success(`已获取 ${list.length} 个 WorkBuddy 模型`);
       }
     } catch (e) {
-      setModelsError(errText(e) || "获取模型列表失败");
+      message.warning(errText(e) || "获取模型列表失败");
     } finally {
       setModelsLoading(false);
       // list_models 返回前已等待 IDE 同步写盘完成，这里刷新即拿到真实状态
@@ -441,7 +440,7 @@ export default function Proxy() {
         {modelsLoading ? (
           <div className="wm-model-gallery-loading">加载中…</div>
         ) : models.length === 0 ? (
-          <div className="wm-model-gallery-empty">无模型，点刷新重试</div>
+          <Empty description="暂无数据" />
         ) : (
           <div className="wm-model-gallery">
             {models.map((m) => {
@@ -472,8 +471,6 @@ export default function Proxy() {
             })}
           </div>
         )}
-
-        {modelsError && <div className="wm-model-gallery-error">{modelsError}</div>}
       </Card>
     </div>
   );
