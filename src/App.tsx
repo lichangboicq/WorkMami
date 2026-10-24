@@ -158,14 +158,15 @@ export default function App() {
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
       <Layout style={{ height: "100vh" }}>
-        <Sider width={240} theme={isDark ? "dark" : "light"}>
+        <Sider width={240} theme={isDark ? "dark" : "light"} style={{ height: "100vh" }}>
           <div
             style={{
               display: "flex",
               flexDirection: "column",
-              height: "100vh",
+              height: "100%",
               background: siderBg,
               borderRight: `1px solid ${siderBorder}`,
+              overflow: "hidden",
             }}
           >
           <div
@@ -228,7 +229,7 @@ export default function App() {
           <SiderFooter isDark={isDark} />
           </div>
         </Sider>
-        <Layout>
+        <Layout style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
           <Header
             style={{
               background: headerBg,
@@ -237,6 +238,7 @@ export default function App() {
               alignItems: "center",
               justifyContent: "space-between",
               height: 56,
+              flexShrink: 0,
               lineHeight: "56px",
               borderBottom: `1px solid ${divider}`,
             }}
@@ -254,7 +256,16 @@ export default function App() {
               ]}
             />
           </Header>
-          <Content style={{ background: contentBg }}>
+          <Content
+            style={{
+              background: contentBg,
+              flex: 1,
+              minHeight: 0,
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
             {active === "accounts" && <Accounts />}
             {active === "proxy" && <ProxySettings />}
             {active === "data" && <DataPage />}

@@ -4,6 +4,7 @@ import {
   Card,
   Col,
   DatePicker,
+  Empty,
   Radio,
   Row,
   Segmented,
@@ -222,8 +223,12 @@ export default function Dashboard() {
     const max = Math.max(1, ...heat.map((c) => c.tokens));
     return {
       textStyle: { color: chartTextColor },
-      tooltip: { position: "top" },
-      grid: { left: 50, right: 20, top: 20, bottom: 70, containLabel: true },
+      tooltip: {
+        position: "top",
+        formatter: (p: any) => `Tokens: ${fmtMetric(Number(p.value?.[2] ?? 0))}`,
+      },
+      // left 固定 50 会与 containLabel 叠加导致纵轴左侧留白过大，交给 containLabel 自适应
+      grid: { left: 8, right: 16, top: 16, bottom: 70, containLabel: true },
       xAxis: { type: "category", data: hours, splitArea: { show: true } },
       yAxis: { type: "category", data: days, splitArea: { show: true } },
       visualMap: {
@@ -233,6 +238,9 @@ export default function Dashboard() {
         orient: "horizontal",
         left: "center",
         bottom: 0,
+        text: ["Tokens", ""],
+        textStyle: { color: chartTextColor },
+        formatter: (v: number) => fmtMetric(v),
         inRange: { color: isDark ? ["#102339", "#1677ff", "#69b1ff"] : ["#e6f4ff", "#1677ff", "#0958d9"] },
       },
       series: [
@@ -441,11 +449,10 @@ export default function Dashboard() {
       >
         <Table<AccountBillingItem>
           rowKey="uid"
-          size="small"
           pagination={false}
           loading={loading}
           dataSource={billing?.items ?? []}
-          locale={{ emptyText: "暂无账单数据（需账号凭证有效）" }}
+          locale={{ emptyText: <Empty description="暂无数据" /> }}
           columns={[
             {
               title: "账号",
@@ -478,7 +485,6 @@ export default function Dashboard() {
       >
         <Table<RequestRow>
           rowKey={(r) => `${r.ts}-${r.uid}-${r.model}`}
-          size="small"
           tableLayout="auto"
           loading={loading}
           dataSource={requests}
@@ -487,7 +493,7 @@ export default function Dashboard() {
             size: "small",
             showTotal: (t) => `共 ${t} 条`,
           }}
-          locale={{ emptyText: "该时间段暂无请求记录" }}
+          locale={{ emptyText: <Empty description="暂无数据" /> }}
           columns={[
             {
               title: "时间",
@@ -545,9 +551,7 @@ export default function Dashboard() {
         {balances.length ? (
           <ReactECharts option={balanceOption} style={{ height: 260 }} notMerge />
         ) : (
-          <div style={{ opacity: 0.7, textAlign: "center", padding: 40 }}>
-            暂无余额快照，刷新积分后会自动记录。
-          </div>
+          <Empty description="暂无数据" />
         )}
       </Card>
     </div>
@@ -558,10 +562,9 @@ function TopTable({ data }: { data: TopItem[] }) {
   return (
     <Table
       rowKey="key"
-      size="small"
       pagination={false}
       dataSource={data}
-      locale={{ emptyText: "暂无数据" }}
+      locale={{ emptyText: <Empty description="暂无数据" /> }}
       columns={[
         { title: "名称", dataIndex: "label", ellipsis: true },
         { title: "Tokens", dataIndex: "tokens", width: 100, render: (v: number) => fmtMetric(v) },

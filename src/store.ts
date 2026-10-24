@@ -15,7 +15,7 @@ export const defaultSettings: AppSettings = {
     host: "127.0.0.1",
     port: 8765,
     apiKey: "",
-    strategy: "smart",
+    strategy: "expiring-first",
     reasoningEffort: "medium",
     defaultModel: "wb-balanced",
   },

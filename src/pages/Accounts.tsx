@@ -36,6 +36,22 @@ function fmtTime(s?: string | null): string {
   return d.toLocaleString("zh-CN", { hour12: false });
 }
 
+function timeAgo(s?: string | null): string {
+  if (!s) return "";
+  const t = new Date(s).getTime();
+  if (isNaN(t)) return "";
+  const diff = Math.max(0, Date.now() - t);
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "刚刚";
+  if (min < 60) return `${min}分钟前`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}小时前`;
+  const day = Math.floor(hr / 24);
+  if (day < 2) return "昨天";
+  if (day < 3) return "前天";
+  return `${day}天前`;
+}
+
 function fmtNum(n: number): string {
   return Math.round(n).toLocaleString("zh-CN");
 }
@@ -258,10 +274,10 @@ export default function Accounts() {
           网页授权添加账号
         </Button>
         <Button icon={<ReloadOutlined />} loading={refreshing} onClick={refreshAll}>
-          刷新全部积分
+          更新全部积分
         </Button>
         <span style={{ marginLeft: "auto", opacity: 0.8 }}>
-          共 {accounts.length} 个账号 · 剩余积分合计 {Math.round(totalRemaining)}
+          {accounts.length} 个账号 · 剩余 {Math.round(totalRemaining)} 分
         </span>
       </div>
 
@@ -485,76 +501,84 @@ function AccountCard({
                 </span>{" "}
                 <span className="wm-account-total">/ {fmtNum(q.total)}</span>
               </span>
-              {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
+              <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                {q.updated_at && (
+                  <span className="wm-account-faint" style={{ fontSize: 12 }}>
+                    更新于{timeAgo(q.updated_at)}
+                  </span>
+                )}
+                {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
+              </span>
             </div>
             <Progress
               percent={pct}
               status={pct < 15 ? "exception" : "normal"}
               showInfo={false}
             />
-            <div className="wm-account-subtext">
-              已用 {fmtNum(q.used)} · 更新于 {fmtTime(q.updated_at)}
-            </div>
-            {(activeResources.length > 0 || usedUpCount > 0) && (
+            {activeResources.length > 0 && (
               <div style={{ marginTop: 4 }}>
-                {activeResources.length > 0 && (
-                  <a
-                    style={{ fontSize: 13 }}
-                    onClick={() => setOpen((v) => !v)}
-                  >
-                    {open ? "收起" : "展开"}可用积分明细（{activeResources.length}）
-                  </a>
-                )}
-                {open && activeResources.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: 6,
-                      border: `1px solid ${token.colorBorderSecondary}`,
-                      background: token.colorFillQuaternary,
-                      borderRadius: 6,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                      {activeResources.map((r, i) => {
-                        const e = fmtExpire(r.expire_at);
-                        const color = r.expired
-                          ? token.colorError
-                          : r.expiring_soon
-                            ? token.colorWarning
-                            : undefined;
-                        return (
-                          <div
-                            key={r.package_code + r.name + (r.expire_at ?? "") + i}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              padding: "4px 8px",
-                              fontSize: 13,
-                              gap: 8,
-                            }}
-                          >
-                            <span className="wm-account-resource-name">{r.name}</span>
-                            <span style={{ display: "flex", gap: 10 }}>
-                              <b style={{ color }}>{fmtNum(r.remaining)}</b>
-                              <span
-                                style={{ color: color ?? token.colorTextTertiary }}
-                              >
-                                {e.text}
-                              </span>
+                <div
+                  style={{
+                    border: `1px solid ${token.colorBorderSecondary}`,
+                    background: token.colorFillQuaternary,
+                    borderRadius: 6,
+                    overflow: "hidden",
+                  }}
+                >
+                  {activeResources.length > 1 && (
+                    <a
+                      style={{
+                        display: "block",
+                        padding: "4px 8px",
+                        fontSize: 12,
+                        color: token.colorTextTertiary,
+                        cursor: "pointer",
+                        textAlign: "center",
+                        borderBottom: `1px dashed ${token.colorBorderSecondary}`,
+                      }}
+                      onClick={() => setOpen((v) => !v)}
+                    >
+                      {open ? "收起" : `展开更多可用积分（${activeResources.length - 1}）`}
+                    </a>
+                  )}
+                  {(open ? activeResources : activeResources.slice(0, 1)).map(
+                    (r, i) => {
+                      const e = fmtExpire(r.expire_at);
+                      const color = r.expired
+                        ? token.colorError
+                        : r.expiring_soon
+                          ? token.colorWarning
+                          : undefined;
+                      return (
+                        <div
+                          key={r.package_code + r.name + (r.expire_at ?? "") + i}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "4px 8px",
+                            fontSize: 13,
+                            gap: 8,
+                          }}
+                        >
+                          <span className="wm-account-resource-name">
+                            {r.name}
+                          </span>
+                          <span style={{ display: "flex", gap: 10 }}>
+                            <b style={{ color }}>{fmtNum(r.remaining)}</b>
+                            <span
+                              style={{
+                                color: color ?? token.colorTextTertiary,
+                              }}
+                            >
+                              {e.text}
                             </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-                {usedUpCount > 0 && (
-                  <div className="wm-account-faint">
-                    另有 {usedUpCount} 笔已用完 · 完整记录见「积分清单」
-                  </div>
-                )}
+                          </span>
+                        </div>
+                      );
+                    },
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -562,9 +586,6 @@ function AccountCard({
           <div className="wm-account-subtext">积分未同步，点击刷新</div>
         )}
 
-        <div className="wm-account-subtext">
-          最近使用：{fmtTime(a.last_used_at)}
-        </div>
       </Space>
     </Card>
   );
