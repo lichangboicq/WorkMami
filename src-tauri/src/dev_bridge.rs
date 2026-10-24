@@ -62,12 +62,10 @@ async fn invoke_handler(
 /// Tauri 2 的 State 是 #[repr(transparent)] newtype 包 &T，所以 transmute 是合法的。
 /// 把 Arc 存到静态 STASH 里保证引用生命周期。
 fn make_tauri_state(state: &Arc<AppState>) -> tauri::State<'static, Arc<AppState>> {
-    static mut STASH: Option<Arc<AppState>> = None;
-    unsafe {
-        STASH = Some(state.clone());
-        let r: &'static Arc<AppState> = STASH.as_ref().unwrap();
-        std::mem::transmute::<&Arc<AppState>, tauri::State<'static, Arc<AppState>>>(r)
-    }
+    // 每次覆盖写入，所以不适合 OnceLock；用 Box::leak 拿到 'static 引用
+    // 避免 edition 2024 对 static mut 共享引用的 UB 警告。
+    let r: &'static Arc<AppState> = Box::leak(Box::new(state.clone()));
+    unsafe { std::mem::transmute::<&Arc<AppState>, tauri::State<'static, Arc<AppState>>>(r) }
 }
 
 async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value, String> {
