@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - nightly
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Determine version and channel
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            # tag push: stable or beta
+            VERSION="${GITHUB_REF_NAME#v}"
+            TAG_NAME="${GITHUB_REF_NAME}"
+            if [[ "${VERSION}" == *"-beta."* ]]; then
+              CHANNEL="beta"
+              PRERELEASE=true
+            else
+              CHANNEL="stable"
+              PRERELEASE=false
+            fi
+          else
+            # nightly branch push
+            DATE=$(date +%Y%m%d)
+            BASE=$(node -p "require('./package.json').version")
+            VERSION="${BASE}-nightly.${DATE}"
+            TAG_NAME="nightly"
+            CHANNEL="nightly"
+            PRERELEASE=true
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+          echo "channel=${CHANNEL}" >> $GITHUB_OUTPUT
+          echo "prerelease=${PRERELEASE}" >> $GITHUB_OUTPUT
+          echo "Channel: ${CHANNEL}, Version: ${VERSION}, Prerelease: ${PRERELEASE}"
+
+      - name: Update version in package.json
+        run: npm version "${{ steps.ver.outputs.version }}" --no-git-tag-version
+
+      - name: Update version in tauri.conf.json
+        run: |
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = '${{ steps.ver.outputs.version }}';
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+
+      - name: Build and publish
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ steps.ver.outputs.tag_name }}
+          releaseName: 'WorkMami ${{ steps.ver.outputs.version }}'
+          releaseBody: |
+            **Channel**: ${{ steps.ver.outputs.channel }}
+            **Version**: ${{ steps.ver.outputs.version }}
+
+            Download the installer for your platform below.
+          releaseDraft: false
+          prerelease: ${{ steps.ver.outputs.prerelease }}
+          args: --target ${{ matrix.target }}
