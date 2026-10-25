@@ -109,6 +109,7 @@ export const api = {
 
   // 数据管理
   dataUids: () => invoke<string[]>("data_uids"),
+  dataCurrentUid: () => invoke<string | null>("data_current_uid"),
   dataList: (category: string, uid?: string) =>
     invoke<DataItem[]>("data_list", { category, uid: uid ?? null }),
   dataRead: (item: DataItem) => invoke<string>("data_read", { item }),

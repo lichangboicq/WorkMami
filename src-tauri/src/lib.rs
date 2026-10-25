@@ -47,7 +47,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            Some(vec![]),
+            // 开机自启动时携带 --hidden：仅进托盘，不展示主界面；
+            // 桌面快捷方式手动启动不带此参数，正常展示主界面。
+            Some(vec!["--hidden"]),
         ));
 
     // 主窗口点 X 不退出：隐藏至托盘（托盘菜单“退出”才是真正退出）。
@@ -151,6 +153,17 @@ pub fn run() {
                 .build(app)?;
         }
 
+        // 窗口在 tauri.conf.json 中默认 visible:false：
+        // - 开机自启动（携带 --hidden）：保持隐藏，仅托盘常驻
+        // - 手动启动（桌面快捷方式等）：正常展示主界面
+        let autostart_launch = std::env::args().any(|a| a == "--hidden");
+        if !autostart_launch {
+            if let Some(w) = app.get_webview_window("main") {
+                let _ = w.show();
+                let _ = w.set_focus();
+            }
+        }
+
         Ok(())
     });
 
@@ -187,6 +200,7 @@ pub fn run() {
         commands::data_export,
         commands::data_backup,
         commands::data_migrate,
+        commands::data_current_uid,
         commands::data_uids,
         commands::dashboard_summary,
         commands::dashboard_trend,

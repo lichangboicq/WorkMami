@@ -414,6 +414,12 @@ pub fn data_migrate(from_uid: String, to_uid: String, categories: Vec<String>) -
     data::migrate(&from_uid, &to_uid, &cats)
 }
 
+/// 探测 WorkBuddy 客户端当前登录账号（数据目录活动最新的 uid）。
+#[tauri::command]
+pub fn data_current_uid() -> R<Option<String>> {
+    Ok(data::current_uid())
+}
+
 /// 扫描本机存在数据账号的 uid 列表（供数据管理页选择）。
 #[tauri::command]
 pub fn data_uids(state: State<'_, Arc<AppState>>) -> R<Vec<String>> {

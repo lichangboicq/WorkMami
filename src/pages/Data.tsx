@@ -30,6 +30,7 @@ import {
   FolderOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { validateMigrate } from "../lib/migrateValidate";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useStore } from "../store";
 import type { DataItem } from "../types";
@@ -56,6 +57,7 @@ export default function DataPage() {
   const info = useStore((s) => s.info);
   const accounts = useStore((s) => s.accounts);
   const [uids, setUids] = useState<string[]>([]);
+  const [currentUid, setCurrentUid] = useState("");
   const [uid, setUid] = useState<string>("");
   const [cat, setCat] = useState("sessions");
   const [items, setItems] = useState<DataItem[]>([]);
@@ -69,6 +71,7 @@ export default function DataPage() {
   const [backupLabel, setBackupLabel] = useState("backup");
   const [backupDest, setBackupDest] = useState("");
   const [migrateModal, setMigrateModal] = useState(false);
+  const [migrateFrom, setMigrateFrom] = useState("");
   const [migrateTo, setMigrateTo] = useState("");
   const [migrateCats, setMigrateCats] = useState<string[]>(["memory", "skills"]);
 
@@ -85,6 +88,10 @@ export default function DataPage() {
       .dataUids()
       .then((u) => setUids(u))
       .catch((e) => message.error(errText(e)));
+    api
+      .dataCurrentUid()
+      .then((u) => setCurrentUid(u || ""))
+      .catch(() => setCurrentUid(""));
   }, []);
 
   // 排序：已知账号（按 accounts 顺序）优先，其后是仅本机发现的其它 uid。
@@ -93,12 +100,6 @@ export default function DataPage() {
     const rest = uids.filter((u) => !known.includes(u));
     return [...known, ...rest];
   }, [accounts, uids]);
-
-  // 首次拿到列表时默认选中第一个已知账号（数据最全的那个），避免落在空账号上被误判为仍坏。
-  useEffect(() => {
-    if (!uid && orderedUids.length) setUid(orderedUids[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orderedUids]);
 
   const load = async () => {
     setLoading(true);
@@ -175,7 +176,7 @@ export default function DataPage() {
   };
 
   const runMigrate = async () => {
-    const n = await api.dataMigrate(uid, migrateTo, migrateCats);
+    const n = await api.dataMigrate(migrateFrom, migrateTo, migrateCats);
     message.success(`已迁移 ${n} 个条目`);
     await load();
   };
@@ -190,8 +191,9 @@ export default function DataPage() {
     });
 
   const doMigrate = async () => {
-    if (!uid || !migrateTo) {
-      message.warning("请选择目标账号");
+    const err = validateMigrate(migrateFrom, migrateTo);
+    if (err) {
+      message.warning(err);
       return Promise.reject();
     }
     if (migrateCats.includes("sessions")) {
@@ -338,7 +340,13 @@ export default function DataPage() {
                 <Button
                   icon={<SwapOutlined />}
                   disabled={cat === "artifacts"}
-                  onClick={() => setMigrateModal(true)}
+                  onClick={() => {
+                    // 带入页面顶部已选账号作为迁出方（“全部”即迁所有其它账号）；
+                    // 目标默认为 WorkBuddy 客户端当前登录账号，免得重复选择
+                    setMigrateFrom(uid);
+                    setMigrateTo(currentUid && currentUid !== uid ? currentUid : "");
+                    setMigrateModal(true);
+                  }}
                   title="产出文件不属于任何账号（全局共享），无需迁移"
                 >
                   迁移
@@ -432,14 +440,29 @@ export default function DataPage() {
           header={
             <Space direction="vertical" style={{ width: "100%" }}>
               <span>
-                从 <Tag>{uid ? uidLabel(uid) : "全部"}</Tag> 迁移到：
+                从 <Tag color={migrateFrom ? undefined : "blue"}>
+                  {migrateFrom ? uidLabel(migrateFrom) : "全部（其它所有账号）"}
+                </Tag> 迁移到：
               </span>
+              <Select
+                style={{ width: "100%" }}
+                placeholder="源账号（可留空表示全部）"
+                value={migrateFrom}
+                onChange={setMigrateFrom}
+                options={[
+                  { value: "", label: "全部（其它所有账号）" },
+                  ...uids.map((u) => ({ value: u, label: uidLabel(u) })),
+                ]}
+              />
+              <span>迁移到（默认为客户端当前登录账号）：</span>
               <Select
                 style={{ width: "100%" }}
                 placeholder="目标账号"
                 value={migrateTo || undefined}
                 onChange={setMigrateTo}
-                options={uids.filter((u) => u !== uid).map((u) => ({ value: u, label: uidLabel(u) }))}
+                options={uids
+                  .filter((u) => u !== migrateFrom)
+                  .map((u) => ({ value: u, label: uidLabel(u) }))}
               />
               <span>选择迁移类别：</span>
               <Select
@@ -467,7 +490,9 @@ export default function DataPage() {
           />
         )}
         <p style={{ marginTop: 12 }}>
-          冲突文件将自动重命名保留双方。记忆/Agent 设定为复制迁移（保留源），会话为改归属迁移（源账号不再展示）。
+          源为“全部”时，其它所有账号的数据会一次性迁入目标账号。记忆为<b>合并迁入</b>
+          （追加到目标账号记忆末尾并标注来源，迁入后当前账号即可“想起”这些内容；重复迁移自动跳过，追加前自动备份）。
+          Agent 设定为复制迁移（保留源），会话为改归属迁移（源账号不再展示），冲突文件自动重命名保留双方。
         </p>
       </Modal>
     </div>

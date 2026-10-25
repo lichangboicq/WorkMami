@@ -564,25 +564,62 @@ fn add_file_to_zip<W: std::io::Write + std::io::Seek>(
 
 /// 跨账号迁移：把 from_uid 的 memory/agent 设定/技能复制到 to_uid 对应目录。
 /// 冲突时重命名保留双方。返回迁移条目数。
+/// from_uid 为空串表示“全部”：把除 to_uid 外所有账号的数据迁入 to_uid。
 pub fn migrate(from_uid: &str, to_uid: &str, categories: &[Category]) -> WmResult<usize> {
     let p = workbuddy_paths();
     let mut n = 0;
     for cat in categories {
         match cat {
             Category::Memory => {
-                let src = p.memory_dir.join(format!("{from_uid}_memory.md"));
-                if src.exists() {
-                    let dst = p.memory_dir.join(format!("{to_uid}_memory.md"));
-                    copy_preserve(&src, &dst)?;
-                    n += 1;
+                if from_uid.is_empty() {
+                    // 全部：遍历 memory_dir 下所有账号的记忆文件，逐账号迁入 to_uid
+                    if let Ok(rd) = std::fs::read_dir(&p.memory_dir) {
+                        for e in rd.flatten() {
+                            let name = e.file_name().to_string_lossy().to_string();
+                            let Some(u) = name.strip_suffix("_memory.md") else {
+                                continue;
+                            };
+                            if u.is_empty() || u == to_uid {
+                                continue;
+                            }
+                            n += migrate(u, to_uid, &[Category::Memory])?;
+                        }
+                    }
+                } else {
+                    let src = p.memory_dir.join(format!("{from_uid}_memory.md"));
+                    if src.exists() {
+                        let dst = p.memory_dir.join(format!("{to_uid}_memory.md"));
+                        if merge_memory_file(&src, &dst, from_uid)? {
+                            n += 1;
+                        }
+                    }
                 }
             }
             Category::AgentConfig => {
-                let src = p.home.join(format!("user-{from_uid}-personal"));
-                if src.exists() {
-                    let dst = p.home.join(format!("user-{to_uid}-personal"));
-                    copy_tree_preserve(&src, &dst)?;
-                    n += 1;
+                if from_uid.is_empty() {
+                    // 全部：遍历 home 下所有 user-*-personal 目录，逐账号迁入
+                    if let Ok(rd) = std::fs::read_dir(&p.home) {
+                        for e in rd.flatten() {
+                            let name = e.file_name().to_string_lossy().to_string();
+                            let Some(u) = name
+                                .strip_prefix("user-")
+                                .and_then(|s| s.strip_suffix("-personal"))
+                            else {
+                                continue;
+                            };
+                            if u.is_empty() || u == to_uid {
+                                continue;
+                            }
+                            n += migrate(u, to_uid, &[Category::AgentConfig])?;
+                        }
+                    }
+                } else {
+                    let src = p.home.join(format!("user-{from_uid}-personal"));
+                    if src.exists() {
+                        let dst = p.home.join(format!("user-{to_uid}-personal"));
+                        copy_tree_preserve(&src, &dst)?;
+                        n += 1;
+                    }
                 }
             }
             Category::Skills => {
@@ -599,6 +636,7 @@ pub fn migrate(from_uid: &str, to_uid: &str, categories: &[Category]) -> WmResul
 }
 
 /// 迁移会话：把 from_uid 的全部会话行的 user_id 改到 to_uid。
+/// from_uid 为空串表示“全部”：把除 to_uid 外所有账号的会话都改到 to_uid。
 /// 写入前先整库备份（含 -wal/-shm）；设置 busy_timeout，若被 WorkBuddy 占用则报错提示退出后重试。
 /// 会话正文 jsonl 按项目全局存储、不带 uid，预览/导出按 sid 全局查找，故无需搬移正文。
 fn migrate_sessions(db: &Path, from_uid: &str, to_uid: &str) -> WmResult<usize> {
@@ -610,13 +648,20 @@ fn migrate_sessions(db: &Path, from_uid: &str, to_uid: &str) -> WmResult<usize> 
     // 2) 读写连接 + 忙等待超时（被其它进程写锁占用时最多等 3s 再报错）
     let mut conn = Connection::open(db)?;
     let _ = conn.busy_timeout(std::time::Duration::from_secs(3));
-    // 3) 统计待迁移条数
-    let count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM sessions WHERE user_id = ?1",
-            rusqlite::params![from_uid],
-            |r| r.get(0),
+    // 3) 统计待迁移条数（from 为空 = 除目标外的所有账号）
+    let (count_sql, update_sql): (&str, &str) = if from_uid.is_empty() {
+        (
+            "SELECT COUNT(*) FROM sessions WHERE user_id != ?1 AND user_id != ''",
+            "UPDATE sessions SET user_id = ?1 WHERE user_id != ?1 AND user_id != ''",
         )
+    } else {
+        (
+            "SELECT COUNT(*) FROM sessions WHERE user_id = ?1",
+            "UPDATE sessions SET user_id = ?1 WHERE user_id = ?2",
+        )
+    };
+    let count: i64 = conn
+        .query_row(count_sql, rusqlite::params![to_uid], |r| r.get(0))
         .unwrap_or(0);
     if count == 0 {
         return Ok(0);
@@ -625,16 +670,60 @@ fn migrate_sessions(db: &Path, from_uid: &str, to_uid: &str) -> WmResult<usize> 
     let tx = conn.transaction().map_err(|e| {
         WmError::Config(format!("迁移会话失败（若 WorkBuddy 正在运行，请退出后重试）: {e}"))
     })?;
-    tx.execute(
-        "UPDATE sessions SET user_id = ?1 WHERE user_id = ?2",
-        rusqlite::params![to_uid, from_uid],
-    )
+    if from_uid.is_empty() {
+        tx.execute(update_sql, rusqlite::params![to_uid])
+    } else {
+        tx.execute(update_sql, rusqlite::params![to_uid, from_uid])
+    }
     .map_err(|e| {
         WmError::Config(format!("迁移会话失败（若 WorkBuddy 正在运行，请退出后重试）: {e}"))
     })?;
     tx.commit()
         .map_err(|e| WmError::Config(format!("提交会话迁移失败: {e}")))?;
     Ok(count as usize)
+}
+
+/// 猜测 WorkBuddy 客户端当前登录账号：~/.workbuddy 下按 uid 命名的目录中
+/// 最近有写入活动的那个。客户端运行时会持续写当前账号的数据目录。
+/// 目录本身的 mtime 只在直接子项变化时更新，因此对每个候选目录
+/// 额外扫描一层子目录取最大 mtime。找不到返回 None。
+pub fn current_uid() -> Option<String> {
+    let p = workbuddy_paths();
+    let latest = |dir: &Path| -> std::time::SystemTime {
+        let mut m = std::time::UNIX_EPOCH;
+        if let Ok(meta) = dir.metadata() {
+            if let Ok(t) = meta.modified() {
+                m = t;
+            }
+        }
+        if let Ok(rd) = std::fs::read_dir(dir) {
+            for e in rd.flatten() {
+                if let Ok(t) = e.metadata().and_then(|m2| m2.modified()) {
+                    if t > m {
+                        m = t;
+                    }
+                }
+            }
+        }
+        m
+    };
+    let mut best: Option<(std::time::SystemTime, String)> = None;
+    if let Ok(rd) = std::fs::read_dir(&p.home) {
+        for e in rd.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            let is_uid = name.len() == 36
+                && name.matches('-').count() == 4
+                && name.chars().all(|c| c == '-' || c.is_ascii_hexdigit());
+            if !is_uid || !e.path().is_dir() {
+                continue;
+            }
+            let t = latest(&e.path());
+            if best.as_ref().map_or(true, |(bt, _)| t > *bt) {
+                best = Some((t, name));
+            }
+        }
+    }
+    best.map(|(_, u)| u)
 }
 
 /// 把 workbuddy.db（及 -wal/-shm）整库复制到 WorkMami 备份目录，带时间戳，便于回滚。
@@ -750,9 +839,142 @@ fn copy_tree(src: &Path, dst: &Path) -> WmResult<()> {
     Ok(())
 }
 
+/// 从记忆文件文本中提取 RAW_JSON 存储块（非规范格式返回 None）。
+fn extract_raw_json(text: &str) -> Option<serde_json::Value> {
+    let start = text.find("RAW_JSON_START")?;
+    let rest = &text[start..];
+    let inner_start = rest.find('{')?;
+    let inner_end = rest.find("RAW_JSON_END")?;
+    if inner_end <= inner_start {
+        return None;
+    }
+    serde_json::from_str(rest[inner_start..inner_end].trim()).ok()
+}
+
+/// 提取记忆正文：规范格式取 `## Memory Block` 区段内容（到 RAW_JSON 前）；
+/// 非规范格式取去掉 RAW_JSON 后的全部文本。
+fn extract_memory_body(text: &str) -> String {
+    let up = match text.find("<!-- RAW_JSON_START") {
+        Some(i) => &text[..i],
+        None => text,
+    };
+    let body = match up.find("## Memory Block") {
+        Some(i) => {
+            let after = &up[i + "## Memory Block".len()..];
+            after.strip_prefix('\n').unwrap_or(after)
+        }
+        None => up,
+    };
+    body.trim().to_string()
+}
+
+/// 按规范格式重建记忆文件：头 + Memory Block（含迁入内容）+ 更新后的 RAW_JSON。
+fn rebuild_spec_file(
+    target_text: &str,
+    new_block: &str,
+    mut json: serde_json::Value,
+) -> WmResult<String> {
+    let mem_marker = "## Memory Block";
+    let line_end = target_text
+        .find(mem_marker)
+        .map(|i| {
+            target_text[i..]
+                .find('\n')
+                .map(|j| i + j + 1)
+                .unwrap_or(target_text.len())
+        })
+        .ok_or_else(|| WmError::Config("记忆文件缺少 Memory Block 标题".into()))?;
+    let header = &target_text[..line_end];
+    if let Some(obj) = json.as_object_mut() {
+        obj.insert("memoryBlock".into(), serde_json::json!(new_block));
+        obj.insert("updatedAt".into(), serde_json::json!(Utc::now().to_rfc3339()));
+        // version 保留，由 WorkBuddy 自己的保存流程递增
+    }
+    let pretty = serde_json::to_string_pretty(&json)?;
+    Ok(format!(
+        "{header}\n{new_block}\n\n---\n\n<!-- RAW_JSON_START\n{pretty}\nRAW_JSON_END -->\n"
+    ))
+}
+
+/// 记忆迁移合并：目标不存在 → 改名复制；目标已有记忆 → 把源内容以
+/// 带来源标记（`wm-migrated-from:{from_uid}`）的段落并入目标的 Memory Block，
+/// 并同步更新 RAW_JSON 的 memoryBlock 字段（客户端真正读取的数据源），
+/// 保证迁入内容对 WorkBuddy 可见且不会被其下次保存覆盖。
+/// 修改前先把目标文件备份到 WorkMami 备份目录；同一来源重复迁移幂等跳过。
+/// 返回是否发生了实际迁入动作。
+fn merge_memory_file(src: &Path, dst: &Path, from_uid: &str) -> WmResult<bool> {
+    if !dst.exists() {
+        copy_preserve(src, dst)?;
+        return Ok(true);
+    }
+    let marker = format!("wm-migrated-from:{from_uid}");
+    let target_text = std::fs::read_to_string(dst).unwrap_or_default();
+    if target_text.contains(&marker) {
+        // 该来源的记忆此前已迁入，幂等跳过
+        return Ok(false);
+    }
+    let json = extract_raw_json(&target_text);
+    // 规范格式：正文以 JSON.memoryBlock 为准（它与 Markdown 区段互为镜像）
+    let current_block = match &json {
+        Some(j) => j
+            .get("memoryBlock")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| extract_memory_body(&target_text)),
+        None => extract_memory_body(&target_text),
+    };
+    if current_block.contains(&marker) {
+        return Ok(false);
+    }
+    let src_text = std::fs::read_to_string(src).unwrap_or_default();
+    let src_body = extract_memory_body(&src_text);
+    if src_body.trim().is_empty() {
+        return Ok(false);
+    }
+    // 修改前备份目标记忆文件，便于回滚
+    let backups = workmami_paths().backups_dir.clone();
+    std::fs::create_dir_all(&backups)?;
+    let stamp = Utc::now().format("%Y%m%d-%H%M%S");
+    let file_name = dst
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("memory.md");
+    let _ = std::fs::copy(dst, backups.join(format!("{file_name}.pre-merge-{stamp}")));
+    let date = Utc::now().format("%Y-%m-%d");
+    // 并入段不带 `---` 分隔线，避免与 Memory Block 区段的结束分隔符混淆
+    let appended = format!(
+        "\n\n<!-- {marker} -->\n### 来自账号 {from_uid} 的记忆（{date} 迁入）\n\n{src_body}"
+    );
+    let new_text = match json {
+        Some(j) => rebuild_spec_file(&target_text, &format!("{current_block}{appended}"), j)?,
+        // 非规范文件兜底：直接在末尾追加
+        None => format!(
+            "{target_text}\n\n---\n\n<!-- {marker} -->\n### 来自账号 {from_uid} 的记忆（{date} 迁入）\n\n{src_body}\n"
+        ),
+    };
+    std::fs::write(dst, new_text)?;
+    Ok(true)
+}
+
+/// 生成不冲突的冲突副本路径：带 migrated.{时间戳} 后缀；同秒多次迁移时追加 .N 去重。
+fn stamped_free(target: &Path, suffix: &str) -> PathBuf {
+    let base = target.with_extension(format!("migrated.{suffix}"));
+    let mut p = base.clone();
+    let mut i = 1;
+    while p.exists() {
+        p = target.with_extension(format!("migrated.{suffix}.{i}"));
+        i += 1;
+    }
+    if i == 1 {
+        base
+    } else {
+        p
+    }
+}
+
 fn copy_preserve(src: &Path, dst: &Path) -> WmResult<()> {
     if dst.exists() {
-        let stamped = dst.with_extension(format!("migrated.{}.md", Utc::now().timestamp()));
+        let stamped = stamped_free(dst, &format!("{}.md", Utc::now().timestamp()));
         std::fs::copy(src, stamped)?;
         Ok(())
     } else {
@@ -776,7 +998,7 @@ fn copy_tree_preserve(src: &Path, dst: &Path) -> WmResult<()> {
             std::fs::create_dir_all(p)?;
         }
         if target.exists() {
-            let stamped = target.with_extension(format!("migrated.{}", Utc::now().timestamp()));
+            let stamped = stamped_free(&target, &Utc::now().timestamp().to_string());
             std::fs::copy(&f, stamped)?;
         } else {
             std::fs::copy(&f, &target)?;
@@ -801,5 +1023,139 @@ fn value_to_json(v: rusqlite::types::Value) -> serde_json::Value {
         RV::Real(f) => serde_json::json!(f),
         RV::Text(s) => serde_json::Value::String(s),
         RV::Blob(b) => serde_json::Value::String(format!("<blob {} bytes>", b.len())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_dir(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!(
+            "wm-migrate-test-{}-{tag}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn merge_memory_into_missing_target_copies_content() {
+        let d = temp_dir("missing");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        std::fs::write(&src, "账号A的记忆内容").unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), "账号A的记忆内容");
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn merge_memory_into_existing_target_appends_marked_block() {
+        let d = temp_dir("append");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        std::fs::write(&src, "账号A的偏好").unwrap();
+        std::fs::write(&dst, "账号B原有记忆").unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        let merged = std::fs::read_to_string(&dst).unwrap();
+        // 原内容在前、源内容在后、带来源标记
+        assert!(merged.starts_with("账号B原有记忆"));
+        assert!(merged.contains("账号A的偏好"));
+        assert!(merged.contains("wm-migrated-from:uid-a"));
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn merge_memory_is_idempotent_per_source() {
+        let d = temp_dir("idempotent");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        std::fs::write(&src, "账号A的偏好").unwrap();
+        std::fs::write(&dst, "账号B原有记忆").unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        let once = std::fs::read_to_string(&dst).unwrap();
+        // 重复迁移同一来源：跳过，不再追加
+        assert!(!merge_memory_file(&src, &dst, "uid-a").unwrap());
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), once);
+        // 不同来源：正常追加
+        let src2 = d.join("c_memory.md");
+        std::fs::write(&src2, "账号C的偏好").unwrap();
+        assert!(merge_memory_file(&src2, &dst, "uid-c").unwrap());
+        let twice = std::fs::read_to_string(&dst).unwrap();
+        assert!(twice.contains("wm-migrated-from:uid-a"));
+        assert!(twice.contains("wm-migrated-from:uid-c"));
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    /// 构造符合 WorkBuddy 规范的记忆文件（头 + Memory Block + RAW_JSON 存储）。
+    fn spec_file(uid: &str, block: &str) -> String {
+        let j = serde_json::json!({
+            "uid": uid,
+            "memoryBlock": block,
+            "version": 327,
+            "updatedAt": "2026-01-01T00:00:00Z",
+        });
+        let pretty = serde_json::to_string_pretty(&j).unwrap();
+        format!(
+            "# User Memory Profile\n> Last updated: 2026-01-01T00:00:00Z\n> Version: 327\n\n## Memory Block\n\n{block}\n\n---\n\n<!-- RAW_JSON_START\n{pretty}\nRAW_JSON_END -->\n"
+        )
+    }
+
+    #[test]
+    fn merge_memory_updates_spec_format_file() {
+        let d = temp_dir("spec");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        std::fs::write(&src, "账号A的偏好").unwrap();
+        std::fs::write(&dst, spec_file("uid-b", "账号B原有记忆")).unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        let merged = std::fs::read_to_string(&dst).unwrap();
+        assert!(merged.contains("账号B原有记忆"));
+        assert!(merged.contains("账号A的偏好"));
+        assert!(merged.contains("wm-migrated-from:uid-a"));
+        // 结构保持：RAW_JSON 只有一处，且迁入内容必须在其之前（Memory Block 区段内）
+        assert_eq!(merged.matches("RAW_JSON_START").count(), 1);
+        let a_pos = merged.find("账号A的偏好").unwrap();
+        let json_pos = merged.find("RAW_JSON_START").unwrap();
+        assert!(a_pos < json_pos, "迁入内容应位于 RAW_JSON 之前");
+        // JSON.memoryBlock 同步更新（客户端真正读取的字段），version 保留
+        let jtext = &merged[json_pos..merged.find("RAW_JSON_END").unwrap()];
+        let inner = &jtext[jtext.find('{').unwrap()..=jtext.rfind('}').unwrap()];
+        let j: serde_json::Value = serde_json::from_str(inner).unwrap();
+        assert!(j["memoryBlock"].as_str().unwrap().contains("账号A的偏好"));
+        assert!(j["memoryBlock"].as_str().unwrap().contains("账号B原有记忆"));
+        assert_eq!(j["version"].as_u64(), Some(327));
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn merge_memory_from_spec_source_takes_block_only() {
+        let d = temp_dir("spec-src");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        // 源也是规范格式：只应并入其 Memory Block 正文，不能把源的 RAW_JSON 带进来
+        std::fs::write(&src, spec_file("uid-a", "账号A真实记忆")).unwrap();
+        std::fs::write(&dst, spec_file("uid-b", "账号B原有记忆")).unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        let merged = std::fs::read_to_string(&dst).unwrap();
+        assert!(merged.contains("账号A真实记忆"));
+        assert_eq!(merged.matches("RAW_JSON_START").count(), 1);
+        std::fs::remove_dir_all(&d).unwrap();
+    }
+
+    #[test]
+    fn merge_memory_spec_idempotent() {
+        let d = temp_dir("spec-idem");
+        let src = d.join("a_memory.md");
+        let dst = d.join("b_memory.md");
+        std::fs::write(&src, "账号A的偏好").unwrap();
+        std::fs::write(&dst, spec_file("uid-b", "账号B原有记忆")).unwrap();
+        assert!(merge_memory_file(&src, &dst, "uid-a").unwrap());
+        let once = std::fs::read_to_string(&dst).unwrap();
+        assert!(!merge_memory_file(&src, &dst, "uid-a").unwrap());
+        assert_eq!(std::fs::read_to_string(&dst).unwrap(), once);
+        std::fs::remove_dir_all(&d).unwrap();
     }
 }
