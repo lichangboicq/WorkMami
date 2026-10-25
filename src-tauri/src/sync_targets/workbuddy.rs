@@ -32,7 +32,7 @@ impl IdeSyncTarget for WorkBuddyTarget {
         let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
 
         let display_map = crate::model_display::real_to_display(models);
-        let ours: Vec<Value> = models
+        let mut ours: Vec<Value> = models
             .iter()
             .filter_map(|m| {
                 let id = m.get("id").and_then(|v| v.as_str())?;
@@ -74,6 +74,10 @@ impl IdeSyncTarget for WorkBuddyTarget {
                 }))
             })
             .collect();
+
+        // 模型池虚拟条目：与真实模型一并列出（严格白名单字段 + managedBy:"WorkMami"），
+        // 客户端选择池后由代理在出站时重写为真实模型 id（池名不出本机）。
+        ours.extend(crate::proxy::pools::pool_entries(ps, &url, &ps.api_key));
 
         if ours.is_empty() {
             return Ok(0);

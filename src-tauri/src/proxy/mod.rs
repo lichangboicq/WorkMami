@@ -22,10 +22,12 @@ use tokio::sync::Notify;
 
 use crate::accounts::{self, Account};
 use crate::api::{api_base, should_refresh};
-use crate::state::{AppState, Strategy};
+use crate::state::{AppState, ModelPool, Strategy};
 use crate::sync_targets;
 use crate::usage::RequestLog;
 use tauri_plugin_notification::NotificationExt;
+
+pub mod pools;
 
 pub struct ProxyHandle;
 
@@ -163,6 +165,13 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
 }
 
 async fn list_models(State(state): State<Arc<AppState>>) -> Json<Value> {
+    let ps = state.proxy_settings();
+    // 池虚拟条目（白名单字段）：模型池与真实模型一并列出，客户端可按池名选择。
+    let pool_models = {
+        let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
+        let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
+        pools::pool_entries(&ps, &url, &ps.api_key)
+    };
     // 优先返回已从 WorkBuddy 实时拉取并缓存的内置模型列表；
     // 尚未拉取时回落到本地配置的默认模型 + 别名映射，保证端点始终可用。
     let cached: Vec<Value> = state
@@ -180,11 +189,13 @@ async fn list_models(State(state): State<Arc<AppState>>) -> Json<Value> {
         }))
         .collect();
     if !cached.is_empty() {
-        return Json(json!({"object": "list", "data": cached}));
+        let mut data = cached;
+        data.extend(pool_models);
+        return Json(json!({"object": "list", "data": data}));
     }
     // 尚未拉取模型列表时，至少回落到默认模型，保证端点始终可用。
-    let ps = state.proxy_settings();
-    let data = vec![json!({"id": ps.default_model, "object": "model", "owned_by": "workbuddy"})];
+    let mut data = vec![json!({"id": ps.default_model, "object": "model", "owned_by": "workbuddy"})];
+    data.extend(pool_models);
     Json(json!({"object": "list", "data": data}))
 }
 
@@ -224,17 +235,30 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
 
     let ps = state.proxy_settings();
     // 模型解析：客户端传什么就用什么，未传则用默认模型。
-    // 若请求的模型不在已知列表中（例如用户误填 API Key 作为模型名），自动回落到默认模型。
+    // 解析顺序：先看是否命中模型池 id（虚拟池名）→ 按池内优先级选出真实模型；
+    // 否则走原有真实/展示 id 还原；请求的模型不在已知列表中（例如用户误填 API Key 作为
+    // 模型名）时自动回落到默认模型。
     let requested_raw = req
         .get("model")
         .and_then(|m| m.as_str())
         .filter(|s| !s.trim().is_empty())
         .unwrap_or("")
         .to_string();
-    let requested = if requested_raw.is_empty() {
-        ps.default_model.clone()
-    } else {
-        resolve_model_id(&state, &requested_raw).unwrap_or_else(|| {
+    // 池命中检查：请求名为空时默认模型也可能是池 id（用户把池设为默认模型）
+    let pool: Option<&ModelPool> = pools::resolve_pool(
+        &ps,
+        if requested_raw.is_empty() { ps.default_model.as_str() } else { &requested_raw },
+    );
+    let requested = match pool {
+        Some(p) => match pools::pick_pool_member(&state, ps.strategy, p) {
+            Some(real) => real,
+            None => {
+                tracing::warn!("模型池 {:?} 无可用成员，回落默认模型 {:?}", p.id, ps.default_model);
+                ps.default_model.clone()
+            }
+        },
+        None if requested_raw.is_empty() => ps.default_model.clone(),
+        None => resolve_model_id(&state, &requested_raw).unwrap_or_else(|| {
             tracing::warn!(
                 "请求模型 {:?} 不在已知列表中，回落到默认模型 {:?}",
                 requested_raw,
@@ -246,7 +270,14 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
     if let Some(obj) = req.as_object_mut() {
         obj.insert("model".into(), json!(requested));
     }
-    apply_reasoning_default(&mut req, &ps);
+    // 思考档位：命中池时池档位优先（覆盖客户端自带 effort/thinking，按真实模型原生规范注入）；
+    // 未命中池维持既有默认行为。池档位为空视为未配置，走默认行为。
+    match pool {
+        Some(p) if !p.thinking.trim().is_empty() => {
+            pools::apply_pool_reasoning(&mut req, &requested, &p.thinking)
+        }
+        _ => apply_reasoning_default(&mut req, &ps),
+    }
 
     let is_stream = req.get("stream").and_then(|s| s.as_bool()).unwrap_or(false);
 

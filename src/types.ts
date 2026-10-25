@@ -97,6 +97,22 @@ export interface CheckinResult {
 
 export type Strategy = "round-robin" | "smart" | "drain" | "expiring-first";
 
+// —— 模型池（虚拟模型，WorkBuddy 侧只见池名）——
+
+// 池内成员：真实模型 id + 展示名（name 为空时前端回退用本机真实模型名）
+export interface PoolMember {
+  id: string;
+  name: string;
+}
+
+export interface ModelPool {
+  id: string; // 稳定 ASCII slug（如 "wm-pool-wenyuan"），用于路由与 models.json 的 id
+  name: string; // 展示名（中性中文，如 "文员"）
+  rate: number; // 倍率，如 0.00 / 0.05 / 0.85
+  thinking: string; // 思考档位三选一：fast（快闪）/ medium（斟酌）/ deep（精算）
+  models: PoolMember[]; // 池内成员，自上而下 = 调度优先级
+}
+
 export interface ProxySettings {
   enabled: boolean;
   host: string;
@@ -105,6 +121,7 @@ export interface ProxySettings {
   strategy: Strategy;
   reasoningEffort: string; // low/medium/high/none
   defaultModel: string;
+  pools?: ModelPool[]; // 后端 serde default 注入，旧配置可能缺省
 }
 
 export interface CheckinSettings {

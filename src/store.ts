@@ -18,6 +18,7 @@ export const defaultSettings: AppSettings = {
     strategy: "expiring-first",
     reasoningEffort: "medium",
     defaultModel: "wb-balanced",
+    pools: [],
   },
   checkin: { autoEnabled: false, notify: true },
   travel: { autoEnabled: true, locationPolicy: "longest" },

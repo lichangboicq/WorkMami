@@ -30,6 +30,32 @@ impl Default for Strategy {
     }
 }
 
+/// 虚拟模型池：客户端只见池名，真实模型调度与思考档位由 WorkMami 本机完成。
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ModelPool {
+    /// 稳定 id（ASCII slug，如 "wm-pool-wenyuan"），用于 models.json 的 id 与路由识别
+    pub id: String,
+    /// 展示名（中性中文，如 "文员"），用于 models.json 的 name 与前端显示
+    pub name: String,
+    /// 倍率，如 0.00 / 0.05 / 0.85（写入 models.json credits 时格式化为 "x0.05"）
+    pub rate: f64,
+    /// 池级思考档位（三选一）：fast=快闪 / medium=斟酌 / deep=精算
+    pub thinking: String,
+    /// 池内成员，自上而下 = 调度优先级
+    pub models: Vec<PoolMember>,
+}
+
+/// 池成员：指向一个真实模型 id。
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PoolMember {
+    /// 真实模型 id（与本机内置模型 id 一致，如 "hy3"）
+    pub id: String,
+    /// 展示名（可选，缺省用真实模型展示名）
+    pub name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct ProxySettings {
@@ -43,6 +69,8 @@ pub struct ProxySettings {
     pub reasoning_effort: String,
     /// 默认模型（客户端未指定时）
     pub default_model: String,
+    /// 虚拟模型池；默认空，首次加载由迁移逻辑注入默认三档池（非空时绝不注入，保证幂等）
+    pub pools: Vec<ModelPool>,
 }
 
 impl Default for ProxySettings {
@@ -55,6 +83,7 @@ impl Default for ProxySettings {
             strategy: Strategy::default(),
             reasoning_effort: "medium".into(),
             default_model: "wb-balanced".into(),
+            pools: Vec::new(),
         }
     }
 }
@@ -116,6 +145,8 @@ pub struct AppState {
     pub cooldown: Mutex<HashMap<String, i64>>,
     /// 轮询游标
     pub rr_cursor: Mutex<usize>,
+    /// 模型池 RoundRobin 轮转游标（pool.id -> 下次应选成员下标）
+    pub pool_rr: Mutex<HashMap<String, usize>>,
     /// 自定义模型运行控制
     pub proxy_shutdown: Mutex<Option<Arc<Notify>>>,
     pub proxy_running: Mutex<bool>,
@@ -155,6 +186,7 @@ impl AppState {
             settings: RwLock::new(settings),
             cooldown: Mutex::new(HashMap::new()),
             rr_cursor: Mutex::new(0),
+            pool_rr: Mutex::new(HashMap::new()),
             proxy_shutdown: Mutex::new(None),
             proxy_running: Mutex::new(false),
             proxy_gen: Mutex::new(0),
@@ -180,6 +212,8 @@ impl AppState {
         if s.theme.is_empty() {
             s.theme = "light".into();
         }
+        // 模型池迁移：pools 为空（全新或旧配置）时注入默认三档池；非空时绝不注入（幂等）。
+        crate::proxy::pools::ensure_default_pools(&mut s.proxy);
         s
     }
 

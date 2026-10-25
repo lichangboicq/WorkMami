@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
-  Empty,
   Input,
   InputNumber,
   Select,
@@ -14,7 +13,8 @@ import {
 import { CopyOutlined, ReloadOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
-import type { ModelInfo, ProxySettings as PS } from "../types";
+import ModelPoolBoard from "../components/ModelPoolBoard";
+import type { ModelInfo, ModelPool, ProxySettings as PS } from "../types";
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
 function genApiKey(): string {
@@ -104,7 +104,16 @@ export default function Proxy() {
     return set;
   }, [formValues, settings.proxy]);
 
-  const hasUnsaved = dirty.size > 0;
+  // pools 脏检查：pools 不在 backend 基础对象键里（旧配置缺省），单独比较
+  const poolsDirty = useMemo(
+    () => JSON.stringify(formValues.pools ?? []) !== JSON.stringify(settings.proxy.pools ?? []),
+    [formValues.pools, settings.proxy.pools],
+  );
+
+  const hasUnsaved = dirty.size > 0 || poolsDirty;
+
+  // pools 本地视图（自 formValues 派生，所有变更走 savePools 即时落盘）
+  const pools = formValues.pools ?? [];
 
   // —— 实时保存：触发顶部进度条动画 ——
   const triggerProgressBar = () => {
@@ -133,6 +142,8 @@ export default function Proxy() {
   // 使用 ref 跟踪最新 formValues，避免 setTimeout 闭包捕获旧值覆盖用户最新输入。
   const formValuesRef = useRef(formValues);
   formValuesRef.current = formValues;
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
 
   const onFieldChange = <K extends keyof PS>(name: K, next: PS[K]) => {
     // 更新本地表单值
@@ -180,6 +191,15 @@ export default function Proxy() {
     // 把当前 formValues 全量落盘
     const merged: typeof settings = { ...settings, proxy: formValues };
     await persistSettings(merged);
+  };
+
+  // —— 模型池：即时保存（更新本地 pools → 既有 save_settings 自动持久化 + 重启代理 + 同步）——
+  const savePools = async (next: ModelPool[]) => {
+    const nextProxy: PS = { ...formValuesRef.current, pools: next };
+    formValuesRef.current = nextProxy;
+    setFormValues(nextProxy);
+    triggerProgressBar();
+    await persistSettings({ ...settingsRef.current, proxy: nextProxy });
   };
 
   // —— 模型列表 ——
@@ -425,51 +445,22 @@ export default function Proxy() {
           </div>
         }
       >
-        {/* 支持的大模型 */}
+        {/* 支持的模型 —— 模型池看板 */}
         <div className="wm-field-label">
           <span className="wm-field-label__text">支持的模型</span>
-          <Tooltip title="刷新">
-            <ReloadOutlined
-              style={{ color: "#8a8a8a", cursor: "pointer", fontSize: 13 }}
-              onClick={() => loadModels()}
-            />
-          </Tooltip>
+          <span className="wm-pool-hint">
+            拖动排序 · 铅笔更名 · 悬停删除（可撤销） · 思考档位三选一（hover 看本意） · 实时同步
+            <Tooltip title="刷新">
+              <ReloadOutlined className="wm-pool-refresh" onClick={() => loadModels()} />
+            </Tooltip>
+          </span>
         </div>
 
-        {/* 模型 chip 网格 */}
+        {/* 模型池看板（池卡片横向排序 + 池内模型行纵向 = 优先级） */}
         {modelsLoading ? (
           <div className="wm-model-gallery-loading">加载中…</div>
-        ) : models.length === 0 ? (
-          <Empty description="暂无数据" />
         ) : (
-          <div className="wm-model-gallery">
-            {models.map((m) => {
-              const badges = (m.tags || [])
-                .filter((t) => t.startsWith("badge:"))
-                .map((t) => {
-                  const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
-                  return mm ? { name: mm[1], color: mm[2] || "#8a8f98" } : { name: t.slice(6), color: "#8a8f98" };
-                });
-              const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
-              return (
-                <div key={m.id} className="wm-model-chip">
-                  <div className="wm-model-chip__name">{m.name}</div>
-                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                    {badges.map((b) => (
-                      <span
-                        key={b.name}
-                        className="wm-model-chip__badge"
-                        style={{ color: b.color, borderColor: b.color }}
-                      >
-                        {b.name}
-                      </span>
-                    ))}
-                    {credits && <span className="wm-model-chip__credits">{credits}</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ModelPoolBoard pools={pools} models={models} onChange={savePools} />
         )}
       </Card>
     </div>

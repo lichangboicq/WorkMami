@@ -327,69 +327,230 @@ body {
 .wm-account-faint         { font-size: 12px; opacity: 0.65; margin-top: 4px; letter-spacing: 0.2px; }
 .wm-account-resource-name { opacity: 0.85; }
 
-/* 支持的模型 —— gallery + chip */
-.wm-model-gallery {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-.wm-model-chip {
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 999px;
-  padding: 8px 11px;
-  display: flex;
+/* ============ 模型池看板（Card 2「支持的模型」原位替换 wm-model-gallery） ============ */
+.wm-pool-hint {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  font-size: 13.5px;
-  transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.2px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
   user-select: none;
 }
-[data-theme="dark"] .wm-model-chip,
-.ant-card [data-theme="dark"] .wm-model-chip {
-  border-color: rgba(255, 255, 255, 0.35);
+.wm-pool-refresh {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+  transition: color 0.15s ease;
 }
-.wm-model-chip:hover {
-  transform: translateY(-1px);
-  border-color: rgba(var(--wm-brand-rgb), 0.35);
-  background: rgba(var(--wm-brand-rgb), 0.06);
-  box-shadow: 0 4px 12px rgba(var(--wm-brand-rgb), 0.12);
+.wm-pool-refresh:hover { color: var(--wm-brand); }
+
+/* 亮色 token（设计稿 2:380）：页面浅色沿用全局，池卡浅灰、chip 更浅、边框浅灰 */
+.wm-pool-board {
+  --pool-card-bg: #f7f5f9;
+  --pool-chip-bg: #efecf2;
+  --pool-border: #e5e1ea;
+  --pool-text: #26212e;
+  --pool-text-secondary: #6b6472; /* 倍率/图标统一中灰（亮） */
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  margin-top: 10px;
 }
-.wm-model-chip__name {
+/* 暗色 token（设计稿 2:637） */
+[data-theme="dark"] .wm-pool-board {
+  --pool-card-bg: #26222e;
+  --pool-chip-bg: #322e3a;
+  --pool-border: #3a3440;
+  --pool-text: #f2eef5;
+  --pool-text-secondary: #8b8594; /* 倍率/图标统一中灰（暗） */
+}
+
+/* 池卡片（等宽，随 960px Card 自适应约 264px） */
+.wm-pool-card {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--pool-card-bg);
+  border: 1px solid var(--pool-border);
+  border-radius: 12px;
+  padding: 10px 12px 12px;
+  transition: box-shadow 0.15s ease;
+}
+.wm-pool-card.is-dragging,
+.wm-pool-row.is-dragging {
+  box-shadow: 0 8px 24px rgba(18, 12, 28, 0.16);
+  opacity: 0.92;
+}
+[data-theme="dark"] .wm-pool-card.is-dragging,
+[data-theme="dark"] .wm-pool-row.is-dragging {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+/* 头部：拖拽柄 | 池名/铅笔 | 倍率 | 思考档位 | 悬停垃圾桶 */
+.wm-pool-card__head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.wm-pool-card__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
   font-weight: 600;
-  font-size: 13.5px;
-  line-height: 17px;
   letter-spacing: 0.2px;
+  color: var(--pool-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.wm-pool-name-input { flex: 1; min-width: 0; }
+
+.wm-pool-rate {
+  font-family: var(--wm-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pool-text-secondary);
+  background: var(--pool-chip-bg);
+  border-radius: 6px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.wm-pool-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  color: var(--pool-text-secondary);
+  opacity: 0.55;
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+}
+.wm-pool-drag-handle:active { cursor: grabbing; }
+
+/* 悬停显现的操作图标（铅笔/垃圾桶） */
+.wm-pool-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  color: var(--pool-text-secondary);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.wm-pool-card:hover .wm-pool-icon-btn,
+.wm-pool-row:hover .wm-pool-icon-btn { opacity: 1; }
+.wm-pool-icon-btn:hover { color: #ff4d4f; }
+.wm-pool-icon-btn--edit:hover { color: var(--pool-text); }
+
+/* 思考档位 chip 式下拉：只显示当前词 + ▾，无文字标签 */
+.wm-thinking-select { min-width: 64px; flex-shrink: 0; }
+.wm-thinking-select .ant-select-selector {
+  background: var(--pool-chip-bg) !important;
+  border: none !important;
+  padding: 0 8px !important;
+}
+.wm-thinking-select .ant-select-selection-item {
+  padding-right: 16px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--pool-text);
+}
+.wm-thinking-select .ant-select-arrow { color: var(--pool-text-secondary); }
+
+/* 思考档位 tooltip（深色浮层内容） */
+.wm-thinking-tip { font-size: 12.5px; line-height: 1.7; letter-spacing: 0.2px; }
+.wm-thinking-tip__title { font-weight: 600; margin-bottom: 2px; }
+
+/* 池内模型行：纵向全宽，自上而下 = 优先级 */
+.wm-pool-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 8px;
+}
+.wm-pool-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: var(--pool-chip-bg);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--pool-text);
+}
+.wm-pool-row__name {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.wm-model-chip__badge {
+.wm-pool-row__credits {
   font-family: var(--wm-mono);
-  font-size: 13.5px;
-  line-height: 17px;
-  padding: 1px 6px;
-  border-radius: 4px;
-  border: 1px solid;
-  font-weight: 500;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-}
-.wm-model-chip__credits {
-  font-family: var(--wm-mono);
-  font-size: 13.5px;
-  line-height: 17px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--ant-color-text-tertiary, #8c8c8c);
+  color: var(--pool-text-secondary);
   white-space: nowrap;
-  letter-spacing: -0.2px;
 }
+
+/* 池末「+ 添加模型」行 */
+.wm-pool-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--pool-text-secondary);
+  background: transparent;
+  border: 1px dashed var(--pool-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.wm-pool-add-row:hover {
+  color: var(--wm-brand);
+  border-color: rgba(var(--wm-brand-rgb), 0.45);
+}
+
+/* 最右竖列「+ 新建模型池」 */
+.wm-pool-new-col {
+  flex: 0 0 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--pool-border);
+  border-radius: 12px;
+}
+.wm-pool-new-btn {
+  height: auto;
+  padding: 10px 12px;
+  white-space: normal;
+  color: var(--pool-text-secondary);
+}
+.wm-pool-new-btn:hover { color: var(--wm-brand) !important; }
+
 .wm-model-gallery-loading {
   font-size: 13px;
   padding: 8px 0;
   text-align: center;
   letter-spacing: 0.2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wm-pool-card,
+  .wm-pool-row,
+  .wm-pool-icon-btn,
+  .wm-pool-add-row,
+  .wm-pool-refresh { transition: none; }
 }
 
 /* antd 表单控件全局微调 —— 统一圆角 / 字号 / 品牌色 focus / switch */
