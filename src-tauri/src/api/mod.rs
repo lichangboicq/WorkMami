@@ -21,7 +21,7 @@ use crate::wbauth::AuthTokens;
 pub const PLUGIN_API: &str = "https://www.codebuddy.cn";
 /// 自定义模型上游 chat 域名。
 pub const UPSTREAM_CHAT: &str = "https://copilot.tencent.com";
-/// 加油站/成长中心网页：扫码登录 cookie 落在 codebuddy.cn，成长空间必须同域打开才能带登录态
+/// 加油站/成长计划网页：扫码登录 cookie 落在 codebuddy.cn，成长空间必须同域打开才能带登录态
 /// （workbuddy.cn 与 codebuddy.cn 是不同可注册域，cookie 不互通）。
 pub const GROWTH_CENTER_URL: &str = "https://www.codebuddy.cn/profile/growth-space";
 
@@ -304,7 +304,7 @@ impl ApiClient {
         Ok(out)
     }
 
-    // ---------- 猫猫旅行（成长中心）----------
+    // ---------- 猫猫旅行（成长计划）----------
     /// GET 活动接口：先试原路径，404 再回落 `/v2` 前缀版本（网关两种前缀都收）。
     /// 连接层瞬时失败（WmError::Http 且 reqwest is_request/is_connect/is_timeout）自动重试，
     /// 最多 3 次、间隔 1.2s；业务错误（401/403 等）不重试，避免掩盖真问题。

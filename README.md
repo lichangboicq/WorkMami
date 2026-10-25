@@ -6,13 +6,13 @@
 
 **WorkBuddy 的妈咪，稳稳接住你 🐾**
 
-多账号管理 · 本地自定义模型 · 批量签到 · 猫猫旅行托管 · Token 看板
+多账号管理 · 本地自定义模型 · 批量签到 · 猫猫旅行 · Token 看板
 
 macOS（Apple 芯片 / Intel）&nbsp;·&nbsp; Windows
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-pink.svg)](./LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows-lightgrey)
-![Version](https://img.shields.io/badge/version-v0.1.0-ec4899)
+![Version](https://img.shields.io/badge/version-v0.6.0-ec4899)
 
 </div>
 
@@ -28,12 +28,12 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 
 | 模块 | 说明 |
 | --- | --- |
-| **账号管理** | 通过 OAuth 网页授权添加多个 WorkBuddy 账号，凭证本机加密存储，按昵称区分、一键切换 |
-| **自定义模型** | 把 WorkBuddy 模型以 OpenAI 兼容接口在本机复现出来，供任意支持自定义模型的客户端接入；真流式透传、智能选号、粘性会话、模型回落，长任务稳定不断流 |
-| **签到中心** | 一键批量签到，自动检测当日是否已签、防重复；可开启后台定时自动签到 |
-| **猫猫旅行托管** | 每天自动派猫猫出行、到站领奖，展示"派出于 / 奖励领于"时刻；后台每 60 分钟巡检，连续确认全部账号达当日上限后自动熔断，降低调用频率防风控 |
-| **Token 看板** | 各账号余额折线图、自定义模型调用流水与用量统计、积分清单双口径归因 |
-| **数据管理** | 会话跨账号迁移、整库备份与导出，数据全程留在本地 |
+| **账号管理** | 所有 WorkBuddy 号集中管，密码只存在你自己电脑上，想切哪个号点一下就行，不用反复登录退出。每个号各记各的登录状态不会串号，从账号卡片就能直接进成长计划做任务领积分 |
+| **自定义模型** | 把 WorkBuddy 里的模型接到你平时用的 AI 工具里接着用。聊到一半一个号被限流或用光了，自动换号继续聊，不会突然报错中断；有快过期积分的账号会优先用来接你的请求，免得积分白白清零；换号时会弹一条系统通知告诉你切到了哪个号 |
+| **数据管理** | 聊天记录能在账号之间搬家，整个数据库一键备份导出。所有数据只留在你自己电脑上，不往任何地方传，不怕丢也不怕别人看 |
+| **签到中心** | 每天不用自己惦记着签到。它会在凌晨错峰帮你把所有号签好；就算 App 当时没开，之后当天打开也会补上。想手动签也支持，一键全签完 |
+| **猫猫旅行** | 猫猫出行、到站领奖全自动，不用你天天记着点。每个号当天领完就自动停，不频繁调用，不容易被盯上 |
+| **Token 看板** | 每个号还剩多少积分、都花在哪了、什么时候到期，打开就是一整面看板：消耗趋势折线、Top 消耗榜、近 30 日时段热力图、官方账单明细，一眼扫完。快过期的号会标橙牌提醒，别让积分白白浪费 |
 
 ## 下载
 
@@ -41,9 +41,9 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 
 | 文件 | 平台 | 系统要求 |
 | --- | --- | --- |
-| `WorkMami_0.1.0_aarch64.dmg` | macOS · Apple 芯片（M1/M2/M3/M4） | macOS 12+ |
-| `WorkMami_0.1.0_x64.dmg` | macOS · Intel 芯片 | macOS 12+ |
-| `WorkMami_0.1.0_win_x64.exe` | Windows · 绿色免安装单文件 | Windows 10 / 11（64 位） |
+| `WorkMami_0.6.0_aarch64.dmg` | macOS · Apple 芯片（M1/M2/M3/M4） | macOS 12+ |
+| `WorkMami_0.6.0_x64.dmg` | macOS · Intel 芯片 | macOS 12+ |
+| `WorkMami_0.6.0_win_x64.exe` | Windows · 绿色免安装单文件 | Windows 10 / 11（64 位） |
 
 > 不确定 Mac 芯片？点左上角  → "关于本机"：显示 **M 开头**选 Apple 芯片版，显示 **Intel** 选 Intel 版。
 
@@ -65,7 +65,7 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 1. 绿色单文件，**双击即可运行**，无需安装、不写注册表。
 2. 未做代码签名，首次运行可能被 SmartScreen 拦截，点 **"更多信息" → "仍要运行"**；也可用 PowerShell 解除：
    ```powershell
-   Unblock-File -Path .\WorkMami_0.1.0_win_x64.exe
+   Unblock-File -Path .\WorkMami_0.6.0_win_x64.exe
    ```
 3. 需要 **WebView2 运行库**（Win10/11 一般自带）；若打开后白屏，请安装 Microsoft Edge WebView2 Evergreen Runtime。
 

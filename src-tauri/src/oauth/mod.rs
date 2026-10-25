@@ -62,7 +62,7 @@ pub enum PollOutcome {
 /// 以前靠「整库清除 + sleep 赌异步清理完成」规避，竞态脆弱（清晚会抹掉本次登录会话）。
 /// 现在每次登录分配独立临时 profile（browser-profiles/pending-<session>），在真实浏览器里
 /// 扫码，登录态天然落在该 profile 内；拿到 uid 后立即把目录别名到该账号
-/// （browser::bind_profile），一次扫码同时完成 token 入库 + 成长中心登录态记忆。
+/// （browser::bind_profile），一次扫码同时完成 token 入库 + 成长计划登录态记忆。
 pub async fn begin(api: Arc<ApiClient>) -> WmResult<String> {
     let (state_token, auth_url) = api.oauth_state().await?;
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -167,7 +167,7 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
         };
         if !temp_name.is_empty() && !uid.is_empty() {
             crate::browser::bind_profile(&uid, &temp_name);
-            // 衔接体验：同一 profile 里打开成长中心（浏览器若仍开着则新开标签页）
+            // 衔接体验：同一 profile 里打开成长计划（浏览器若仍开着则新开标签页）
             let _ = crate::browser::open_growth_in(&crate::browser::profile_dir(&uid));
         }
         let tokens = AuthTokens {

@@ -92,7 +92,7 @@ export const api = {
     invoke<unknown>("travel_depart", { uid, locationId }),
   travelClaim: (uid: string) => invoke<unknown>("travel_claim", { uid }),
 
-  // 成长中心：按钮 disabled 已在 UI 层保证只在已记忆时调用
+  // 成长计划：按钮 disabled 已在 UI 层保证只在已记忆时调用
   openGrowthCenter: (uid: string) =>
     invoke<{
       browser?: string;

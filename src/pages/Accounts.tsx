@@ -157,7 +157,7 @@ export default function Accounts() {
   const [tagUid, setTagUid] = useState("");
   const [tagValue, setTagValue] = useState<string>("");
 
-  // 各账号是否已在独立窗口记忆成长中心网页登录态：{uid: boolean}
+  // 各账号是否已在独立窗口记忆成长计划网页登录态：{uid: boolean}
   const [boundMap, setBoundMap] = useState<Record<string, boolean>>({});
   const refreshBound = async () => {
     try {

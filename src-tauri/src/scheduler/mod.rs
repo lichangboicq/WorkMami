@@ -299,11 +299,13 @@ pub async fn start(app: AppHandle, state: Arc<AppState>) -> WmResult<JobSchedule
         sched.add(job).await?;
     }
 
-    // 猫猫旅行自动托管：每 60 分钟（一天只派一次猫，5 分钟太频繁易触发官方风控）。
+    // 猫猫旅行自动托管：每 10 分钟 tick 一次。每个账号在每天 01:00~06:00 之间被分配一个
+    // 确定性随机时刻（基于 uid + 日期 hash，同日固定、跨天不同），到点后首个 tick 才派猫；
+    // 01:00 之前不派（避免午夜整点动作）。到达/领奖仍按 tick 频率巡检，当日熔断后不再调用官方接口。
     {
         let st = state.clone();
         let handle = app.clone();
-        let job = Job::new_async("0 0 * * * *", move |_uuid, _l| {
+        let job = Job::new_async("0 */10 * * * *", move |_uuid, _l| {
             let st = st.clone();
             let handle = handle.clone();
             Box::pin(async move {
@@ -415,24 +417,39 @@ async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
                         "nickname": acc.nickname,
                     }));
                 } else {
-                    // 还能派猫 → 今日未完工；自动派猫
-                    all_done = false;
-                    let loc = select_location(&locations, &policy, &acc.uid, &state);
-                    if let Some(loc) = loc {
-                        let dep = state.api.buddy_travel_depart(&tokens, loc.id).await;
-                        match dep {
-                            Ok(_) => {
-                                actions.push(serde_json::json!({"uid": acc.uid, "action": "departed", "location": loc.name}));
-                                state.travel_seen_traveling.lock().unwrap().insert(acc.uid.clone());
-                                let _ = app.emit("travel-departed", serde_json::json!({
-                                    "uid": acc.uid,
-                                    "nickname": acc.nickname,
-                                    "location": loc.name,
-                                }));
-                            }
-                            Err(e) => {
-                                actions.push(serde_json::json!({"uid": acc.uid, "action": "depart_failed", "error": e.to_string()}));
-                                tracing::warn!("自动派猫失败({}): {e}", acc.uid);
+                    // 派猫时机门控：01:00 之前不派（避免午夜整点动作）；每个号在 01:00~06:00
+                    // 之间被分配一个确定性随机时刻，到点后首个 tick 才派。
+                    let now_min = Local::now().hour() * 60 + Local::now().minute();
+                    let window_start = 1u32 * 60; // 01:00
+                    if now_min < window_start {
+                        all_done = false;
+                        actions.push(serde_json::json!({"uid": acc.uid, "action": "wait_before_window", "note": "01:00 前不派猫"}));
+                    } else {
+                        let target_min = random_minute_in_window(&acc.uid, &today, window_start, 6u32 * 60);
+                        if now_min < target_min {
+                            all_done = false;
+                            actions.push(serde_json::json!({"uid": acc.uid, "action": "wait_dispatch_time", "target_min": target_min}));
+                        } else {
+                            // 还能派猫 → 今日未完工；自动派猫
+                            all_done = false;
+                            let loc = select_location(&locations, &policy, &acc.uid, &state);
+                            if let Some(loc) = loc {
+                                let dep = state.api.buddy_travel_depart(&tokens, loc.id).await;
+                                match dep {
+                                    Ok(_) => {
+                                        actions.push(serde_json::json!({"uid": acc.uid, "action": "departed", "location": loc.name}));
+                                        state.travel_seen_traveling.lock().unwrap().insert(acc.uid.clone());
+                                        let _ = app.emit("travel-departed", serde_json::json!({
+                                            "uid": acc.uid,
+                                            "nickname": acc.nickname,
+                                            "location": loc.name,
+                                        }));
+                                    }
+                                    Err(e) => {
+                                        actions.push(serde_json::json!({"uid": acc.uid, "action": "depart_failed", "error": e.to_string()}));
+                                        tracing::warn!("自动派猫失败({}): {e}", acc.uid);
+                                    }
+                                }
                             }
                         }
                     }
