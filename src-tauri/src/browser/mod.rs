@@ -1,12 +1,12 @@
-//! 成长中心人工操作窗口：为每个账号拉起一个**独立浏览器 profile**。
+//! 成长计划人工操作窗口：为每个账号拉起一个**独立浏览器 profile**。
 //!
 //! 背景：WorkMami 只保存插件 Bearer token（供 /v2/plugin、/billing 等 JSON 接口），
-//! 不持有网页 cookie 会话；成长中心 SPA（www.codebuddy.cn/profile/growth-space）
+//! 不持有网页 cookie 会话；成长计划 SPA（www.codebuddy.cn/profile/growth-space）
 //! 靠浏览器自身登录态判定身份，插件 token 无法注入网页。因此给每个 uid 分配独立的
 //! `--user-data-dir`，由浏览器自己保存该账号的网页登录。
 //!
 //! 门禁：只有当独立目录里检测到网页登录态（workbuddy.cn / codebuddy.cn 的 cookie），
-//! 才允许直接「打开成长中心」；未记忆的账号拒绝启动，要求先「登录/记忆」（重新扫码）。
+//! 才允许直接「打开成长计划」；未记忆的账号拒绝启动，要求先「登录/记忆」（重新扫码）。
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -208,7 +208,7 @@ pub fn launch_child(exe: &PathBuf, dir: &PathBuf, url: &str) -> WmResult<std::pr
         .map_err(WmError::from)
 }
 
-/// 用独立 profile 拉起浏览器直达成长中心；spawn 后不等待，浏览器独立运行。
+/// 用独立 profile 拉起浏览器直达成长计划；spawn 后不等待，浏览器独立运行。
 fn launch(label: &str, exe: &PathBuf, dir: &PathBuf) -> WmResult<Value> {
     launch_child(exe, dir, GROWTH_CENTER_URL)?;
     Ok(serde_json::json!({
@@ -218,7 +218,7 @@ fn launch(label: &str, exe: &PathBuf, dir: &PathBuf) -> WmResult<Value> {
     }))
 }
 
-/// 在指定 profile 目录中打开成长中心（OAuth 登录成功后自动衔接；
+/// 在指定 profile 目录中打开成长计划（OAuth 登录成功后自动衔接；
 /// 若该 profile 的浏览器仍在运行，只会在既有窗口里新开一个标签页）。
 pub fn open_growth_in(dir: &PathBuf) -> WmResult<Value> {
     let (label, exe) = detect().ok_or_else(|| {
@@ -227,13 +227,13 @@ pub fn open_growth_in(dir: &PathBuf) -> WmResult<Value> {
     launch(&label, &exe, dir)
 }
 
-/// 直接打开成长中心：仅当已记忆网页登录态才放行；未记忆**不启动浏览器**，
+/// 直接打开成长计划：仅当已记忆网页登录态才放行；未记忆**不启动浏览器**，
 /// 返回 `{bound:false, reason}` 由前端提示用户先退出并重新登录（扫码记忆）。
 pub fn open_growth_center(uid: &str) -> WmResult<Value> {
     if !is_bound(uid) {
         return Ok(serde_json::json!({
             "bound": false,
-            "reason": "该账号尚未记忆成长中心登录态，请先退出账号并重新登录（在独立窗口扫码一次）后再打开",
+            "reason": "该账号尚未记忆成长计划登录态，请先退出账号并重新登录（在独立窗口扫码一次）后再打开",
         }));
     }
     let (label, exe) = detect().ok_or_else(|| {

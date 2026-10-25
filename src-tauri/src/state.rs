@@ -72,7 +72,7 @@ impl Default for CheckinSettings {
     }
 }
 
-/// 猫猫旅行（成长中心）自动托管设置。
+/// 猫猫旅行（成长计划）自动托管设置。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TravelSettings {

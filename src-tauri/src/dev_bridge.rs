@@ -192,7 +192,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
                 .map_err(|e| e.to_string())
         }
 
-        // ----- 成长中心 -----
+        // ----- 成长计划 -----
         "open_growth_center" => {
             let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
             crate::commands::open_growth_center(s, uid)

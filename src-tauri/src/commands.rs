@@ -343,8 +343,8 @@ pub async fn travel_records(state: State<'_, Arc<AppState>>, uid: String) -> R<V
     Ok(records)
 }
 
-// ---------- 成长中心（独立浏览器 profile，人工领积分活动） ----------
-/// 直接打开成长中心：仅当该账号已在独立目录记忆网页登录态才放行；
+// ---------- 成长计划（独立浏览器 profile，人工领积分活动） ----------
+/// 直接打开成长计划：仅当该账号已在独立目录记忆网页登录态才放行；
 /// 未记忆则不启动浏览器，返回 bound:false 由前端提示先重新登录。
 #[tauri::command]
 pub fn open_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Value> {
@@ -354,7 +354,7 @@ pub fn open_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Val
     crate::browser::open_growth_center(&uid)
 }
 
-/// 登录/记忆成长中心：拉起独立浏览器窗口供扫码建立网页登录态
+/// 登录/记忆成长计划：拉起独立浏览器窗口供扫码建立网页登录态
 /// （“退出账号重新登录”的落点），成功后该账号即被记忆。
 #[tauri::command]
 pub fn bind_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Value> {
