@@ -21,7 +21,10 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
+      # fetch-depth: 0 保证能拉到全部 tag，nightly 自增计数依赖 tag 历史
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -43,25 +46,28 @@ jobs:
         id: ver
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            # tag push: stable or beta
+            # tag push: stable / beta / nightly（tag 名即版本号）
             VERSION="${GITHUB_REF_NAME#v}"
             TAG_NAME="${GITHUB_REF_NAME}"
             if [[ "${VERSION}" == *"-beta."* ]]; then
               CHANNEL="beta"
-              PRERELEASE=true
+            elif [[ "${VERSION}" == *"-nightly."* ]]; then
+              CHANNEL="nightly"
             else
               CHANNEL="stable"
-              PRERELEASE=false
             fi
           else
-            # nightly branch push
-            DATE=$(date +%Y%m%d)
+            # nightly branch push: 自动递增计数
+            # 版本形如 <package.json 版本>-nightly.N，N = 已有 nightly tag 最大值 + 1
             BASE=$(node -p "require('./package.json').version")
-            VERSION="${BASE}-nightly.${DATE}"
-            TAG_NAME="nightly"
+            LAST=$(git tag -l 'v*-nightly.*' | sed -E 's/.*-nightly\.([0-9]+)$/\1/' | sort -n | tail -1)
+            N=$(( ${LAST:-0} + 1 ))
+            VERSION="${BASE}-nightly.${N}"
+            TAG_NAME="v${VERSION}"
             CHANNEL="nightly"
-            PRERELEASE=true
           fi
+          # 含预发布分隔符 "-" 的一律标记为 prerelease
+          if [[ "${VERSION}" == *"-"* ]]; then PRERELEASE=true; else PRERELEASE=false; fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "channel=${CHANNEL}" >> $GITHUB_OUTPUT
