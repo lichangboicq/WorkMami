@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WorkMami 自定义简体中文本地化字符串。
+     tauri-bundler 会把内置默认字符串（TauriLanguage 等）自动追加进来，
+     此处定义模板 main.wxs 中自定义引用及需要覆盖默认英文的条目。 -->
+<WixLocalization Culture="zh-CN" Codepage="936" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+    <String Id="WorkMamiAutoStart">开机时自动启动 WorkMami</String>
+    <String Id="LaunchApp">启动 WorkMami</String>
+    <String Id="DowngradeErrorMessage">此电脑上已安装更新版本的 WorkMami，无法继续安装。</String>
+    <String Id="InstallAppFeature">安装 WorkMami。</String>
+    <String Id="PathEnvVarFeature">将 WorkMami 可执行文件的安装位置添加到 PATH 系统环境变量，以便可从任意位置调用 WorkMami。</String>
+</WixLocalization>

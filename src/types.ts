@@ -119,7 +119,6 @@ export interface ProxySettings {
   port: number;
   apiKey: string;
   strategy: Strategy;
-  reasoningEffort: string; // low/medium/high/none
   defaultModel: string;
   pools?: ModelPool[]; // 后端 serde default 注入，旧配置可能缺省
 }

@@ -166,37 +166,15 @@ async fn health(State(state): State<Arc<AppState>>) -> Json<Value> {
 
 async fn list_models(State(state): State<Arc<AppState>>) -> Json<Value> {
     let ps = state.proxy_settings();
-    // 池虚拟条目（白名单字段）：模型池与真实模型一并列出，客户端可按池名选择。
-    let pool_models = {
-        let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
-        let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
-        pools::pool_entries(&ps, &url, &ps.api_key)
-    };
-    // 优先返回已从 WorkBuddy 实时拉取并缓存的内置模型列表；
-    // 尚未拉取时回落到本地配置的默认模型 + 别名映射，保证端点始终可用。
-    let cached: Vec<Value> = state
-        .models_cache
-        .lock()
-        .unwrap()
-        .iter()
-        .filter_map(|m| m.get("id").and_then(|i| i.as_str()).map(|id| {
-            json!({
-                "id": id,
-                "object": "model",
-                "created": m.get("contextWindow").and_then(|v| v.as_i64()).unwrap_or(0),
-                "owned_by": "workbuddy",
-            })
-        }))
-        .collect();
-    if !cached.is_empty() {
-        let mut data = cached;
-        data.extend(pool_models);
-        return Json(json!({"object": "list", "data": data}));
+    // 同步策略（已拍板）：只暴露模型池，不把真实模型列表原样返回给客户端。
+    let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
+    let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
+    let pool_models = pools::pool_entries(&ps, &url, &ps.api_key);
+    if !pool_models.is_empty() {
+        return Json(json!({"object": "list", "data": pool_models}));
     }
-    // 尚未拉取模型列表时，至少回落到默认模型，保证端点始终可用。
-    let mut data = vec![json!({"id": ps.default_model, "object": "model", "owned_by": "workbuddy"})];
-    data.extend(pool_models);
-    Json(json!({"object": "list", "data": data}))
+    // 尚未配置池时回落到默认模型，保证端点始终可用。
+    Json(json!({"object": "list", "data": vec![json!({"id": ps.default_model, "object": "model", "owned_by": "workbuddy"})]}))
 }
 
 async fn get_model(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> Json<Value> {
@@ -271,12 +249,11 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
         obj.insert("model".into(), json!(requested));
     }
     // 思考档位：命中池时池档位优先（覆盖客户端自带 effort/thinking，按真实模型原生规范注入）；
-    // 未命中池维持既有默认行为。池档位为空视为未配置，走默认行为。
-    match pool {
-        Some(p) if !p.thinking.trim().is_empty() => {
-            pools::apply_pool_reasoning(&mut req, &requested, &p.thinking)
+    // 未命中池保持客户端原样，不注入默认思考强度。池档位为空视为未配置，同样保持原样。
+    if let Some(p) = pool {
+        if !p.thinking.trim().is_empty() {
+            pools::apply_pool_reasoning(&mut req, &requested, &p.thinking);
         }
-        _ => apply_reasoning_default(&mut req, &ps),
     }
 
     let is_stream = req.get("stream").and_then(|s| s.as_bool()).unwrap_or(false);
@@ -508,17 +485,6 @@ fn remaining(a: &Account) -> f64 {
 /// None 表示无近期到期（长期有效 / 未知）。
 fn soonest_expire(a: &Account) -> Option<i64> {
     a.quota.as_ref().and_then(|q| q.soonest_expire_at)
-}
-
-fn apply_reasoning_default(req: &mut Value, ps: &crate::state::ProxySettings) {
-    if req.get("reasoning_effort").is_some() || req.get("thinking").is_some() {
-        return; // 客户端已指定
-    }
-    if !ps.reasoning_effort.is_empty() && ps.reasoning_effort != "none" {
-        if let Some(obj) = req.as_object_mut() {
-            obj.insert("reasoning_effort".into(), json!(ps.reasoning_effort));
-        }
-    }
 }
 
 // ---------- SSE 错误事件截获（无感换号的基础） ----------

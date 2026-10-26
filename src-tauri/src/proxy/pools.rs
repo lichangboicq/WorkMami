@@ -233,7 +233,10 @@ pub fn pick_pool_member(state: &AppState, strategy: Strategy, pool: &ModelPool) 
 
 /// 单个池的 models.json / /v1/models 虚拟条目。
 /// 字段严格按白名单：id/name/credits/url/apiKey/maxInputTokens/maxOutputTokens/
-/// supportsToolCall/supportsImages/supportsReasoning/reasoning/managedBy，无 description 等赌注字段。
+/// supportsToolCall/supportsImages/supportsReasoning/managedBy，无 description 等赌注字段。
+/// 思考档位策略：池条目不声明推理能力（supportsReasoning:false 且无 reasoning 块），
+/// WorkBuddy 据此不渲染用户级「思考强度」下拉——思考档位只能由 WorkMami 池设置控制，
+/// 出站时由 apply_pool_reasoning 按池档位 + 真实模型原生规范注入。
 pub fn pool_whitelist_entry(pool: &ModelPool, url: &str, api_key: &str) -> Value {
     let name = if pool.name.trim().is_empty() { pool.id.clone() } else { pool.name.clone() };
     json!({
@@ -246,12 +249,7 @@ pub fn pool_whitelist_entry(pool: &ModelPool, url: &str, api_key: &str) -> Value
         "maxOutputTokens": 8192,
         "supportsToolCall": true,
         "supportsImages": false,
-        "supportsReasoning": true,
-        "reasoning": {
-            "defaultEffort": "medium",
-            "supportedEfforts": ["low", "medium", "high"],
-            "canDisableThinking": true,
-        },
+        "supportsReasoning": false,
         "managedBy": "WorkMami",
     })
 }
@@ -540,14 +538,17 @@ mod tests {
             keys,
             vec![
                 "apiKey", "credits", "id", "managedBy", "maxInputTokens", "maxOutputTokens",
-                "name", "reasoning", "supportsImages", "supportsReasoning", "supportsToolCall", "url"
+                "name", "supportsImages", "supportsReasoning", "supportsToolCall", "url"
             ]
         );
         assert_eq!(e["id"], "wm-pool-test");
         assert_eq!(e["name"], "测试池");
         assert_eq!(e["credits"], "x0.05");
         assert_eq!(e["managedBy"], "WorkMami");
-        assert_eq!(e["reasoning"]["canDisableThinking"], true);
+        // 思考档位只能由 WorkMami 控制：池条目不声明推理能力，
+        // WorkBuddy 不渲染用户级「思考强度」下拉。
+        assert_eq!(e["supportsReasoning"], false);
+        assert!(e.get("reasoning").is_none());
         assert!(e.get("description").is_none());
     }
 

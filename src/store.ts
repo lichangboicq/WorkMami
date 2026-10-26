@@ -16,7 +16,6 @@ export const defaultSettings: AppSettings = {
     port: 8765,
     apiKey: "",
     strategy: "expiring-first",
-    reasoningEffort: "medium",
     defaultModel: "wb-balanced",
     pools: [],
   },

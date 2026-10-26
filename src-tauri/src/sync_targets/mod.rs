@@ -64,17 +64,8 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
     let models = state.models_cache.lock().unwrap().clone();
     let proxy_settings = state.settings.read().unwrap().clone().proxy;
 
-    if models.is_empty() {
-        return targets.into_iter().map(|t| SyncResult {
-            id: t.id().into(),
-            label: t.label().into(),
-            detected: t.detect().is_some(),
-            synced: false,
-            written: 0,
-            error: Some("模型列表未拉取，跳过自动配置".into()),
-        }).collect();
-    }
-
+    // 同步策略（已拍板）：导出内容只有模型池条目，不依赖 models_cache，
+    // 因此 models_cache 为空时也照常执行（真实模型不再导出给客户端）。
     targets.into_iter().map(|t| {
         let detected = t.detect().is_some();
         if !detected {

@@ -47,7 +47,6 @@ const FIELD_LABELS: Record<string, string> = {
   host: "监听地址",
   port: "端口",
   strategy: "积分调度策略",
-  reasoningEffort: "默认思考强度",
   apiKey: "API Key",
 };
 
@@ -380,25 +379,6 @@ export default function Proxy() {
               placeholder="默认 8765"
               value={formValues.port}
               onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
-            />
-          </div>
-
-          {/* 默认思考强度 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.reasoningEffort}</span>
-              {dirtyDot("reasoningEffort")}
-            </label>
-            <Select
-              style={{ width: "100%" }}
-              value={formValues.reasoningEffort}
-              options={[
-                { value: "none", label: "关闭" },
-                { value: "low", label: "低" },
-                { value: "medium", label: "中" },
-                { value: "high", label: "高" },
-              ]}
-              onChange={(v) => onFieldChange("reasoningEffort", v as string)}
             />
           </div>
 

@@ -182,12 +182,16 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !insertmacro MULTIUSER_PAGE_INSTALLMODE
 !endif
 
-; 4. Custom page to ask user if he wants to reinstall/uninstall
-;    only if a previous installation was detected
-Var ReinstallPageCheck
-Page custom PageReinstall PageLeaveReinstall
+; 4. (removed) The old "reinstall / uninstall" choice page.
+;    Previous NSIS installations are now always overwritten in place
+;    (覆盖安装); the old uninstall step no longer exists.
+;    A previous WiX (MSI) installation is NOT uninstalled either —
+;    this installer always overwrites in place with no prompts.
 
 ; Find a previous WiX installation and set $R6 to its uninstall registry key, or to "" if none.
+;
+; Only used by the silent-mode downgrade check in .onInit; no uninstall
+; is performed by the installer itself.
 ;
 ; A WiX installer stores the installation info in registry
 ; using a UUID and so we have to loop through all keys under
@@ -195,9 +199,8 @@ Page custom PageReinstall PageLeaveReinstall
 ; and check if `DisplayName` and `Publisher` keys match ${PRODUCTNAME} and ${MANUFACTURER}
 ;
 ; This has a potential issue that there maybe another installation that matches
-; our ${PRODUCTNAME} and ${MANUFACTURER} but wasn't installed by our WiX installer,
-; however, this should be fine since the user will have to confirm the uninstallation
-; and they can chose to abort it if doesn't make sense.
+; our ${PRODUCTNAME} and ${MANUFACTURER} but wasn't installed by our WiX installer;
+; it is only used for version comparison, so a false match is harmless.
 Function FindWixInstall
   StrCpy $R6 ""
   StrCpy $0 0
@@ -216,205 +219,6 @@ Function FindWixInstall
   wix_loop_done:
 FunctionEnd
 
-Function PageReinstall
-  ; Uninstall previous WiX installation if exists.
-  Call FindWixInstall
-  ${If} $R6 != ""
-    StrCpy $WixMode 1
-    Goto compare_version
-  ${EndIf}
-
-  ; Check if there is an existing installation, if not, abort the reinstall page
-  ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
-  ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-  ${IfThen} "$R0$R1" == "" ${|} Abort ${|}
-
-  ; Compare this installar version with the existing installation
-  ; and modify the messages presented to the user accordingly
-  compare_version:
-  StrCpy $R4 "$(older)"
-  ${If} $WixMode = 1
-    ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
-  ${Else}
-    ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
-  ${EndIf}
-  ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
-
-  nsis_tauri_utils::SemverCompare "${VERSION}" $R0
-  Pop $R0
-
-  ; Read the install choice header through $R5 so a custom language file that only
-  ; defines the misspelled `choowHowToInstall` still shows its own text
-  ; TODO: remove the `choowHowToInstall` fallback in a future major version
-  StrCpy $R5 "$(chooseHowToInstall)"
-  ${IfThen} $R5 == "" ${|} StrCpy $R5 "$(choowHowToInstall)" ${|}
-
-  ; Reinstalling the same version
-  ${If} $R0 = 0
-    StrCpy $R1 "$(alreadyInstalledLong)"
-    StrCpy $R2 "$(addOrReinstall)"
-    StrCpy $R3 "$(uninstallApp)"
-    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(chooseMaintenanceOption)"
-  ; Upgrading
-  ${ElseIf} $R0 = 1
-    StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
-    StrCpy $R2 "$(uninstallBeforeInstalling)"
-    StrCpy $R3 "$(dontUninstall)"
-    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$R5"
-  ; Downgrading
-  ${ElseIf} $R0 = -1
-    StrCpy $R1 "$(newerVersionInstalled)"
-    StrCpy $R2 "$(uninstallBeforeInstalling)"
-    !if "${ALLOWDOWNGRADES}" == "true"
-      StrCpy $R3 "$(dontUninstall)"
-    !else
-      StrCpy $R3 "$(dontUninstallDowngrade)"
-    !endif
-    !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$R5"
-  ${Else}
-    Abort
-  ${EndIf}
-
-  ; Skip showing the page if passive
-  ;
-  ; Note that we don't call this earlier at the beginning
-  ; of this function because we need to populate some variables
-  ; related to current installed version if detected and whether
-  ; we are downgrading or not.
-  ${If} $PassiveMode = 1
-    Call PageLeaveReinstall
-  ${Else}
-    nsDialogs::Create 1018
-    Pop $R4
-    ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
-
-    ${NSD_CreateLabel} 0 0 100% 24u $R1
-    Pop $R1
-
-    ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
-    Pop $R2
-    ${NSD_OnClick} $R2 PageReinstallUpdateSelection
-
-    ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
-    Pop $R3
-    ; Disable this radio button if downgrading and downgrades are disabled
-    !if "${ALLOWDOWNGRADES}" == "false"
-      ${IfThen} $R0 = -1 ${|} EnableWindow $R3 0 ${|}
-    !endif
-    ${NSD_OnClick} $R3 PageReinstallUpdateSelection
-
-    ; Check the first radio button if this the first time
-    ; we enter this page or if the second button wasn't
-    ; selected the last time we were on this page.
-    ; On upgrade ($R0 = 1) we default to "don't uninstall" so the
-    ; new build is overlaid in place (prefer overwrite install).
-    ${If} $ReinstallPageCheck <> 2
-      ${If} $R0 = 1
-        SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
-      ${Else}
-        SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
-      ${EndIf}
-    ${Else}
-      SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
-    ${EndIf}
-
-    ${NSD_SetFocus} $R2
-    nsDialogs::Show
-  ${EndIf}
-FunctionEnd
-Function PageReinstallUpdateSelection
-  ${NSD_GetState} $R2 $R1
-  ${If} $R1 == ${BST_CHECKED}
-    StrCpy $ReinstallPageCheck 1
-  ${Else}
-    StrCpy $ReinstallPageCheck 2
-  ${EndIf}
-FunctionEnd
-Function PageLeaveReinstall
-  ${NSD_GetState} $R2 $R1
-
-  ; If migrating from Wix, always uninstall
-  ${If} $WixMode = 1
-    Goto reinst_uninstall
-  ${EndIf}
-
-  ; In update mode, always proceeds without uninstalling
-  ${If} $UpdateMode = 1
-    Goto reinst_done
-  ${EndIf}
-
-  ; $R0 holds whether same(0)/upgrading(1)/downgrading(-1) version
-  ; $R1 holds the radio buttons state:
-  ;   1 => first choice was selected
-  ;   0 => second choice was selected
-  ${If} $R0 = 0 ; Same version, proceed
-    ${If} $R1 = 1              ; User chose to add/reinstall
-      Goto reinst_done
-    ${Else}                    ; User chose to uninstall
-      Goto reinst_uninstall
-    ${EndIf}
-  ${ElseIf} $R0 = 1 ; Upgrading
-    ${If} $R1 = 1              ; User chose to uninstall
-      Goto reinst_uninstall
-    ${Else}
-      Goto reinst_done         ; User chose NOT to uninstall
-    ${EndIf}
-  ${ElseIf} $R0 = -1 ; Downgrading
-    ${If} $R1 = 1              ; User chose to uninstall
-      Goto reinst_uninstall
-    ${Else}
-      Goto reinst_done         ; User chose NOT to uninstall
-    ${EndIf}
-  ${EndIf}
-
-  reinst_uninstall:
-    HideWindow
-    ClearErrors
-
-    ${If} $WixMode = 1
-      ReadRegStr $R1 HKLM "$R6" "UninstallString"
-      ExecWait '$R1' $0
-    ${Else}
-      ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
-      ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|} ; append /UPDATE
-      ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|} ; append /P
-      StrCpy $R1 "$R1 _?=$4" ; append uninstall directory
-      ExecWait '$R1' $0
-    ${EndIf}
-
-    BringToFront
-
-    ${IfThen} ${Errors} ${|} StrCpy $0 2 ${|} ; ExecWait failed, set fake exit code
-
-    ${If} $0 <> 0
-    ${OrIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
-      ; User cancelled wix uninstaller? return to select un/reinstall page
-      ${If} $WixMode = 1
-      ${AndIf} $0 = 1602
-        Abort
-      ${EndIf}
-
-      ; User cancelled NSIS uninstaller? return to select un/reinstall page
-      ${If} $0 = 1
-        Abort
-      ${EndIf}
-
-      ; Other errors? show generic error message and return to select un/reinstall page
-      MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
-      Abort
-    ${EndIf}
-
-    ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
-    ; and the install directory, clean them up here once the uninstall succeeded
-    ; https://nsis.sourceforge.io/Docs/Chapter3.html#:~:text=path%20contains%20spaces.-,3.2.3%20Examples,-installer.exe%20/NCRC
-    ${If} $WixMode = 0
-    ${AndIf} $4 != ""
-      Delete "$4\uninstall.exe"
-      RMDir "$4"
-    ${EndIf}
-  reinst_done:
-FunctionEnd
 
 ; 5. Choose install directory page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
@@ -432,8 +236,6 @@ Var AutoStartState
 !endif
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
-; 6.5 Auto start option page
-Page custom PageAutoStart PageLeaveAutoStart
 
 ; 7. Installation page
 !insertmacro MUI_PAGE_INSTFILES
@@ -450,11 +252,50 @@ Page custom PageAutoStart PageLeaveAutoStart
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
+; Custom show/leave callbacks add the "launch at startup" checkbox to this
+; final step, so the option lives inside the "打开 WorkMami" finish page
+; instead of being its own wizard step.
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW FinishPageShow
+!define MUI_PAGE_CUSTOMFUNCTION_LEAVE FinishPageLeave
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary
   nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" ""
+FunctionEnd
+
+; ----------------------------------------------------------------------------
+; Auto start checkbox on the finish page ("打开 WorkMami" step).
+;
+; Offers to register ${PRODUCTNAME} in the current user's Run key so it
+; launches at login. The registry write matches exactly what
+; `tauri-plugin-autostart` (via the `auto-launch` crate) does from inside
+; the app, so this checkbox and the in-app switch control the very same
+; registry value. Default state is off.
+; ----------------------------------------------------------------------------
+Function FinishPageShow
+  ; Placed right below the run checkbox (top 90u) and the desktop shortcut
+  ; checkbox (top 110u), inside the finish page's nsDialogs area.
+  ${NSD_CreateCheckbox} 120u 130u 195u 10u "开机时自动启动 WorkMami"
+  Pop $AutoStartCheckbox
+  SetCtlColors $AutoStartCheckbox "${MUI_TEXTCOLOR}" "${MUI_BGCOLOR}"
+  ; Default: checked (same default as the MSI exit-dialog checkbox)
+  ${NSD_SetState} $AutoStartCheckbox 1
+FunctionEnd
+
+Function FinishPageLeave
+  ${NSD_GetState} $AutoStartCheckbox $AutoStartState
+  ${If} $AutoStartState = 1
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe"
+    ; StartupApproved override: 12-byte enabled marker, keeps Task Manager's
+    ; "Startup" list showing the entry as Enabled.
+    WriteRegBin HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}" "020000000000000000000000"
+  ${Else}
+    ; Unchecked: clear any previous autostart entry (same behavior as the
+    ; MSI installer when the checkbox is left unchecked).
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
+  ${EndIf}
 FunctionEnd
 
 ; Uninstaller Pages
@@ -503,7 +344,7 @@ FunctionEnd
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ;Languages
-; PageReinstall reads the misspelled `choowHowToInstall` as a fallback, and makensis warns
+; Language files may define the misspelled `choowHowToInstall`; makensis warns
 ; about a language string that is read but never set, so default it to an empty string for
 ; every language. This runs before the language files are included, so a custom language
 ; file that only defines the old spelling overrides the default and the fallback shows its
@@ -518,32 +359,6 @@ LangString choowHowToInstall 0 ""
   !include "{{this}}"
 {{/each}}
 
-; ----------------------------------------------------------------------------
-; Auto start option page
-;
-; Offers to register ${PRODUCTNAME} in the current user's Run key so it launches
-; at login. The registry write matches exactly what `tauri-plugin-autostart`
-; (via the `auto-launch` crate) does from inside the app, so the in-app switch
-; and this installer checkbox stay perfectly in sync.
-; ----------------------------------------------------------------------------
-Function PageAutoStart
-  nsDialogs::Create 1018
-  Pop $R4
-  ${If} $(^RTL) = 1
-    nsDialogs::SetRTL $(^RTL)
-  ${EndIf}
-
-  ${NSD_CreateCheckBox} 0 0 100% 12u "开机时自动启动 WorkMami"
-  Pop $AutoStartCheckbox
-  ; Default off, mirroring the in-app switch's default state.
-  ${NSD_SetState} $AutoStartCheckbox 0
-
-  nsDialogs::Show
-FunctionEnd
-
-Function PageLeaveAutoStart
-  ${NSD_GetState} $AutoStartCheckbox $AutoStartState
-FunctionEnd
 
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode
@@ -719,7 +534,41 @@ Section WebView2
 SectionEnd
 
 Section Install
+  ; Cross-installer migration: both installers now share the same install
+  ; directory, shortcuts and data, so each one removes the other's product
+  ; registration first. Everything is done SILENTLY (no UI, no prompts).
+  ;
+  ; 1. A previous WiX (MSI) installation is silently uninstalled via
+  ;    msiexec /x {ProductCode} /qn so the MSI entry disappears from
+  ;    "Apps & Features" before NSIS registers itself.
+  Call FindWixInstall
+  ${If} $R6 != ""
+    ; $R6 ends in the MSI product code, e.g.
+    ; "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{GUID}"
+    ${WordFind} "$R6" "\" "-1" $R7
+    ExecWait '"MsiExec.exe" /X$R7 /qn REBOOT=ReallySuppress' $R8
+    ${If} $R8 != 0
+    ${AndIf} $R8 != 3010
+      MessageBox MB_ICONSTOP "$(unableToUninstall)"
+      Abort
+    ${EndIf}
+  ${EndIf}
+
+  ; 2. A previous per-user NSIS installation (from before perMachine mode)
+  ;    is silently uninstalled via its own uninstaller so no second entry,
+  ;    copy or shortcut is left behind.
+  ReadRegStr $R1 HKCU "${UNINSTKEY}" "UninstallString"
+  ${If} $R1 != ""
+    ExecWait '$R1 /S'
+    ; Insurance: the async NSIS uninstaller may not have finished removing
+    ; its ARP entry yet — drop it unconditionally.
+    DeleteRegKey HKCU "${UNINSTKEY}"
+  ${EndIf}
+
   SetOutPath $INSTDIR
+
+  ; From here on it is a plain overwrite install: files in $INSTDIR are
+  ; replaced in place (覆盖安装), user data is never touched.
 
   !ifmacrodef NSIS_HOOK_PREINSTALL
     !insertmacro NSIS_HOOK_PREINSTALL
@@ -811,17 +660,6 @@ Section Install
   ${If} $PassiveMode = 1
   ${OrIf} ${Silent}
     Call CreateOrUpdateDesktopShortcut
-  ${EndIf}
-
-  ; Write the autostart (launch at login) entry when the user opted in on the
-  ; autostart page. This mirrors exactly what `tauri-plugin-autostart` writes
-  ; from inside the app (via the `auto-launch` crate), so the installer checkbox
-  ; and the in-app switch control the very same registry value.
-  ${If} $AutoStartState = 1
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe"
-    ; StartupApproved override: 12-byte enabled marker, keeps Task Manager's
-    ; "Startup" list showing the entry as Enabled.
-    WriteRegBin HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}" "020000000000000000000000"
   ${EndIf}
 
   !ifmacrodef NSIS_HOOK_POSTINSTALL
@@ -926,6 +764,13 @@ Section Uninstall
       Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
       RMDir "$SMPROGRAMS\$AppStartMenuFolder"
     ${EndIf}
+    !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\${PRODUCTNAME}\${PRODUCTNAME}.lnk"
+      Delete "$SMPROGRAMS\${PRODUCTNAME}\${PRODUCTNAME}.lnk"
+      RMDir "$SMPROGRAMS\${PRODUCTNAME}"
+    ${EndIf}
     !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     Pop $0
     ${If} $0 = 1
@@ -990,7 +835,16 @@ Section Uninstall
 SectionEnd
 
 Function RestorePreviousInstallLocation
+  ; 1) NSIS perMachine writes the default value under HKLM
   ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+  StrCmp $4 "" +2 0
+    StrCpy $INSTDIR $4
+  ; 2) The MSI installer stores "InstallDir" under HKCU
+  ReadRegStr $4 HKCU "${MANUPRODUCTKEY}" "InstallDir"
+  StrCmp $4 "" +2 0
+    StrCpy $INSTDIR $4
+  ; 3) Legacy: NSIS currentUser wrote the default value under HKCU
+  ReadRegStr $4 HKCU "${MANUPRODUCTKEY}" ""
   StrCmp $4 "" +2 0
     StrCpy $INSTDIR $4
 FunctionEnd
@@ -1043,6 +897,8 @@ Function CreateOrUpdateStartMenuShortcut
     CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
   !else
+    ; No start menu page is shown, so place the shortcut directly in
+    ; Programs\ root — the same location the MSI installer uses.
     CreateShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\${PRODUCTNAME}.lnk"
   !endif

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::state::ProxySettings;
 
@@ -26,74 +26,35 @@ impl IdeSyncTarget for WorkBuddyTarget {
         }
     }
 
-    fn sync(&self, ps: &ProxySettings, models: &[Value]) -> R<usize> {
-        tracing::info!("WorkBuddy sync: detected={}, models={}", self.detect().is_some(), models.len());
+    fn sync(&self, ps: &ProxySettings, _models: &[Value]) -> R<usize> {
+        tracing::info!("WorkBuddy sync: detected={}", self.detect().is_some());
         let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
         let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
 
-        let display_map = crate::model_display::real_to_display(models);
-        let mut ours: Vec<Value> = models
-            .iter()
-            .filter_map(|m| {
-                let id = m.get("id").and_then(|v| v.as_str())?;
-                let reasoning = m.get("raw").and_then(|r| r.get("reasoning"));
-                let can_disable = reasoning
-                    .and_then(|r| r.get("canDisableThinking"))
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true);
-                let default_effort = m
-                    .get("defaultEffort")
-                    .and_then(|v| v.as_str())
-                    .filter(|s| !s.is_empty())
-                    .unwrap_or("medium");
-                let credits = m.get("credits").and_then(|v| v.as_str()).unwrap_or("");
-                // WorkBuddy 会按「name:id」渲染自定义模型条目，只有 name 与 id 完全一致
-                // 时才只显示一个名字。这里统一用展示用 id 作为 name，倍率放到 credits 字段，
-                // 由官方渲染成右侧的「0.51x」，与内置模型排版一致。
-                let display_id = display_map
-                    .get(id)
-                    .cloned()
-                    .unwrap_or_else(|| crate::model_display::pretty_model_id(id));
-                Some(json!({
-                    "id": display_id,
-                    "name": display_id,
-                    "credits": credits,
-                    "url": url,
-                    "apiKey": ps.api_key,
-                    "maxInputTokens": m.get("contextWindow").and_then(|v| v.as_i64()).filter(|v| *v > 0).unwrap_or(131072),
-                    "maxOutputTokens": m.get("maxOutputTokens").and_then(|v| v.as_i64()).filter(|v| *v > 0).unwrap_or(8192),
-                    "supportsToolCall": m.get("supportsToolCall").and_then(|v| v.as_bool()).unwrap_or(true),
-                    "supportsImages": m.get("supportsImages").and_then(|v| v.as_bool()).unwrap_or(false),
-                    "supportsReasoning": m.get("supportsReasoning").and_then(|v| v.as_bool()).unwrap_or(false),
-                    "reasoning": {
-                        "defaultEffort": default_effort,
-                        "supportedEfforts": ["low", "medium", "high"],
-                        "canDisableThinking": can_disable,
-                    },
-                    "managedBy": "WorkMami",
-                }))
-            })
-            .collect();
-
-        // 模型池虚拟条目：与真实模型一并列出（严格白名单字段 + managedBy:"WorkMami"），
-        // 客户端选择池后由代理在出站时重写为真实模型 id（池名不出本机）。
-        ours.extend(crate::proxy::pools::pool_entries(ps, &url, &ps.api_key));
-
-        if ours.is_empty() {
-            return Ok(0);
-        }
+        // 同步策略（已拍板）：只把模型池虚拟条目导入 WorkBuddy，
+        // 真实模型不再原样写入 models.json，客户端只见池名、不见真实模型名。
+        let ours: Vec<Value> = crate::proxy::pools::pool_entries(ps, &url, &ps.api_key);
 
         let path = crate::platform::workbuddy_paths().home.join("models.json");
-        let mut kept: Vec<Value> = std::fs::read(&path)
+        let existing: Vec<Value> = std::fs::read(&path)
             .ok()
             .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
             .and_then(|v| v.as_array().cloned())
-            .unwrap_or_default()
-            .into_iter()
+            .unwrap_or_default();
+        // 只清理自己 managedBy 标记的条目（含历史遗留的真实模型托管条目，一并清出）
+        let mut kept: Vec<Value> = existing
+            .iter()
             .filter(|e| {
                 e.get("managedBy").and_then(|v| v.as_str()) != Some("WorkMami")
             })
+            .cloned()
             .collect();
+        let removed = existing.len() - kept.len();
+
+        // 无池可写且无遗留可清理 → 无需写盘
+        if ours.is_empty() && removed == 0 {
+            return Ok(0);
+        }
 
         let base = kept.len();
         kept.extend(ours);
@@ -121,7 +82,7 @@ impl IdeSyncTarget for WorkBuddyTarget {
             return Err(e.into());
         }
 
-        tracing::info!("WorkBuddy sync: 写入 {} 个条目，保留原有 {}", kept.len() - base, base);
+        tracing::info!("WorkBuddy sync: 写入 {} 个池条目，清理 {} 个托管条目，保留原有 {}", kept.len() - base, removed, base);
         Ok(kept.len() - base)
     }
 

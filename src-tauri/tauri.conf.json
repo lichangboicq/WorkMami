@@ -45,7 +45,16 @@
       "nsis": {
         "languages": ["SimpChinese"],
         "displayLanguageSelector": false,
+        "installMode": "perMachine",
         "template": "installer.nsi"
+      },
+      "wix": {
+        "template": "windows/main.wxs",
+        "language": {
+          "zh-CN": {
+            "localePath": "./windows/zh-CN.wxl"
+          }
+        }
       }
     }
   },

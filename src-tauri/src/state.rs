@@ -66,8 +66,6 @@ pub struct ProxySettings {
     /// 访问本地自定义模型所需的 key；留空表示不校验
     pub api_key: String,
     pub strategy: Strategy,
-    /// 默认思考强度：low/medium/high/none
-    pub reasoning_effort: String,
     /// 默认模型（客户端未指定时）
     pub default_model: String,
     /// 虚拟模型池；默认空，首次加载由迁移逻辑注入默认三档池（非空时绝不注入，保证幂等）
@@ -82,7 +80,6 @@ impl Default for ProxySettings {
             port: 8765,
             api_key: String::new(),
             strategy: Strategy::default(),
-            reasoning_effort: "medium".into(),
             default_model: "wb-balanced".into(),
             pools: Vec::new(),
         }
