@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button, Input, Modal, Select, Tooltip, notification } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, HolderOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ModelInfo, ModelPool, PoolMember } from "../types";
 
 // —— 思考档位（三选一，value 直接与后端默认池契约一致）——
@@ -425,100 +425,95 @@ function PoolCard({
       className={`wm-pool-card${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* drag-zone 包住整张卡的内容，listeners 挂在此层；
-          只有 head / wm-pool-rows / wm-pool-add-row 三者未覆盖的空白（gap、padding）
-          才是卡级拖拽激活区——三者自身都 stopPropagation，不冒泡到 drag-zone */}
-      <div className="wm-pool-card__drag-zone" {...listeners}>
-        {/* 头部：池名 | 倍率 | 思考档位 | 删除（整体不参与卡级拖拽） */}
-        <div
-          className="wm-pool-card__head"
-          onPointerDown={(e) => e.stopPropagation()}
+      {/* 头部：拖拽手柄 | 池名 | 倍率 | 思考档位 | 删除 */}
+      <div className="wm-pool-card__head">
+        <span
+          className="wm-pool-drag-handle"
+          title="拖拽排序模型池"
+          {...listeners}
         >
-          {editing ? (
-            <Input
-              size="small"
-              autoFocus
-              defaultValue={pool.name}
-              maxLength={20}
-              className="wm-pool-name-input"
-              onPressEnter={(e) => e.currentTarget.blur()}
-              onBlur={(e) => {
-                onRename(pool.id, e.target.value);
-                setEditing(false);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") e.currentTarget.blur();
-              }}
-            />
-          ) : (
-            <span
-              className="wm-pool-card__name"
-              title="点击重命名"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditing(true);
-              }}
-            >
-              {pool.name}
-            </span>
-          )}
-          <Tooltip title={rateTip} placement="top">
-            <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
-          </Tooltip>
-          <Tooltip title={THINKING_TIP} placement="top">
-            <Select
-              className="wm-thinking-select"
-              variant="borderless"
-              size="small"
-              value={pool.thinking}
-              options={THINKING_OPTIONS}
-              onChange={(v) => onThinking(pool.id, v)}
-              popupMatchSelectWidth={false}
-            />
-          </Tooltip>
-          <Tooltip title="删除整个模型池">
-            <span
-              className="wm-pool-icon-btn"
-              onClick={() => onDeletePool(pool)}
-            >
-              <DeleteOutlined />
-            </span>
-          </Tooltip>
-        </div>
-
-        {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
-        <div
-          className="wm-pool-rows"
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <SortableContext
-            items={pool.models.map((m) => rowKey(pool.id, m.id))}
-            strategy={verticalListSortingStrategy}
+          <HolderOutlined />
+        </span>
+        {editing ? (
+          <Input
+            size="small"
+            autoFocus
+            defaultValue={pool.name}
+            maxLength={20}
+            className="wm-pool-name-input"
+            onPressEnter={(e) => e.currentTarget.blur()}
+            onBlur={(e) => {
+              onRename(pool.id, e.target.value);
+              setEditing(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") e.currentTarget.blur();
+            }}
+          />
+        ) : (
+          <span
+            className="wm-pool-card__name"
+            title="点击重命名"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
           >
-            {pool.models.map((m) => (
-              <ModelRow
-                key={m.id}
-                poolId={pool.id}
-                member={m}
-                name={memberName(m)}
-                credits={memberCredits(m.id)}
-                onDelete={() => onDeleteModel(pool, m)}
-              />
-            ))}
-          </SortableContext>
-        </div>
-
-        {/* 池末：添加模型 */}
-        <button
-          type="button"
-          className="wm-pool-add-row"
-          onClick={() => onAdd(pool)}
-          onPointerDown={(e) => e.stopPropagation()}
-        >
-          <PlusOutlined />
-          <span>添加模型</span>
-        </button>
+            {pool.name}
+          </span>
+        )}
+        <Tooltip title={rateTip} placement="top">
+          <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
+        </Tooltip>
+        <Tooltip title={THINKING_TIP} placement="top">
+          <Select
+            className="wm-thinking-select"
+            variant="borderless"
+            size="small"
+            value={pool.thinking}
+            options={THINKING_OPTIONS}
+            onChange={(v) => onThinking(pool.id, v)}
+            popupMatchSelectWidth={false}
+          />
+        </Tooltip>
+        <Tooltip title="删除整个模型池">
+          <span
+            className="wm-pool-icon-btn"
+            onClick={() => onDeletePool(pool)}
+          >
+            <DeleteOutlined />
+          </span>
+        </Tooltip>
       </div>
+
+      {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
+      <div className="wm-pool-rows">
+        <SortableContext
+          items={pool.models.map((m) => rowKey(pool.id, m.id))}
+          strategy={verticalListSortingStrategy}
+        >
+          {pool.models.map((m) => (
+            <ModelRow
+              key={m.id}
+              poolId={pool.id}
+              member={m}
+              name={memberName(m)}
+              credits={memberCredits(m.id)}
+              onDelete={() => onDeleteModel(pool, m)}
+            />
+          ))}
+        </SortableContext>
+      </div>
+
+      {/* 池末：添加模型 */}
+      <button
+        type="button"
+        className="wm-pool-add-row"
+        onClick={() => onAdd(pool)}
+      >
+        <PlusOutlined />
+        <span>添加模型</span>
+      </button>
     </div>
   );
 }
@@ -540,10 +535,16 @@ function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
       className={`wm-pool-row${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
+      <span
+        className="wm-pool-drag-handle"
+        title="拖拽排序"
+        {...listeners}
+      >
+        <HolderOutlined />
+      </span>
       <span className="wm-pool-row__name" title={name}>
         {name}
       </span>
@@ -551,7 +552,6 @@ function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
       <Tooltip title="移除">
         <span
           className="wm-pool-icon-btn"
-          onPointerDown={(e) => e.stopPropagation()}
           onClick={onDelete}
         >
           <DeleteOutlined />

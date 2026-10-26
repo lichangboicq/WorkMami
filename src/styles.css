@@ -377,29 +377,34 @@ body {
   border: 1px solid var(--pool-border);
   border-radius: 12px;
   padding: 10px 12px 12px;
-  transition: box-shadow 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-/* drag-zone 包住整张卡的内容，listeners 挂在此层；
-   只有 head / wm-pool-rows / wm-pool-add-row 三者未覆盖的空白（gap + card padding）
-   才是卡级拖拽激活区——三者自身都 stopPropagation + 覆写 cursor */
-.wm-pool-card__drag-zone {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  gap: 12px;
-  cursor: grab;
-  touch-action: none;
-}
-.wm-pool-card__drag-zone:active { cursor: grabbing; }
-/* drag-zone hover → 外边框染品牌色，复用 .wm-page .ant-input 同色系 */
-.wm-pool-card:has(> .wm-pool-card__drag-zone:hover) {
+.wm-pool-card:hover {
   border-color: rgba(var(--wm-brand-rgb), 0.55);
-  transition: border-color 0.15s ease;
 }
-[data-theme="dark"] .wm-pool-card:has(> .wm-pool-card__drag-zone:hover) {
+[data-theme="dark"] .wm-pool-card:hover {
   border-color: rgba(var(--wm-brand-rgb), 0.75);
 }
-.wm-pool-card__drag-zone > * { cursor: default; }
+
+/* 拖拽手柄：池卡头部 / 池内行首，统一用 HolderOutlined */
+.wm-pool-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--pool-text-secondary);
+  cursor: grab;
+  touch-action: none;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+.wm-pool-drag-handle:hover {
+  color: var(--wm-brand);
+  background: rgba(var(--wm-brand-rgb), 0.12);
+}
+.wm-pool-drag-handle:active { cursor: grabbing; }
 
 /* 拖动中 */
 .wm-pool-card.is-dragging,
@@ -407,7 +412,6 @@ body {
   box-shadow: 0 8px 24px rgba(18, 12, 28, 0.16);
   opacity: 0.92;
 }
-.wm-pool-card.is-dragging .wm-pool-card__drag-zone { cursor: grabbing; }
 [data-theme="dark"] .wm-pool-card.is-dragging,
 [data-theme="dark"] .wm-pool-row.is-dragging {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -416,31 +420,20 @@ body {
 /* 头部：拖拽柄 | 池名/铅笔 | 倍率 | 思考档位 | 悬停垃圾桶 */
 .wm-pool-card__head {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 4px;
   min-width: 0;
-  min-height: 32px;
 }
 .wm-pool-card__name {
   flex: 1;
   min-width: 0;
-  display: inline-flex;
-  align-items: center;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  padding: 0 6px;
-  border-radius: 8px;
-  border: 1px solid transparent;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: text;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.wm-pool-card__name:hover {
-  border-color: var(--wm-brand);
-  box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
 }
 .wm-pool-name-input { flex: 1; min-width: 0; }
 
@@ -528,18 +521,10 @@ body {
   color: var(--pool-text);
   border: 1px solid transparent;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  cursor: grab;
 }
 .wm-pool-row:hover {
   border-color: rgba(var(--wm-brand-rgb), 0.55);
   box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
-}
-.wm-pool-row:active { cursor: grabbing; }
-/* 行内按钮恢复默认 pointer，不和整行 grab 打架 */
-.wm-pool-row button,
-.wm-pool-row [class*="ant-"],
-.wm-pool-row .wm-pool-icon-btn {
-  cursor: pointer;
 }
 .wm-pool-row__name {
   flex: 1;
