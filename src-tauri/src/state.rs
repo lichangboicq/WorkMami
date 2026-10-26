@@ -23,6 +23,7 @@ pub enum Strategy {
     ExpiringFirst,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for Strategy {
     fn default() -> Self {
         // 默认走“先用临期积分”：优先消耗最早到期（且仍有余量）的账号，避免积分过期浪费
@@ -40,7 +41,7 @@ pub struct ModelPool {
     pub name: String,
     /// 倍率，如 0.00 / 0.05 / 0.85（写入 models.json credits 时格式化为 "x0.05"）
     pub rate: f64,
-    /// 池级思考档位（三选一）：fast=快闪 / medium=斟酌 / deep=精算
+    /// 池级思考档位（三选一）：「快闪」/「斟酌」/「精算」
     pub thinking: String,
     /// 池内成员，自上而下 = 调度优先级
     pub models: Vec<PoolMember>,

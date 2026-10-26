@@ -165,7 +165,7 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
             // 反推本次到账：优先用余额差（>0.5 才认，滤掉浮点噪声），否则回落响应解析值。
             let mut gained = reward;
             if ok {
-                if let Some(nq) = state.api.fetch_quota(&tokens).await.ok() {
+                if let Ok(nq) = state.api.fetch_quota(&tokens).await {
                     let _ = state.accounts.update_quota(uid, nq.clone());
                     state.record_balance(uid, nq.remaining);
                     if let Some(b) = before {
@@ -230,8 +230,8 @@ pub async fn start(app: AppHandle, state: Arc<AppState>) -> WmResult<JobSchedule
                 let now = Local::now();
                 let today = now.format("%Y-%m-%d").to_string();
                 let now_min = now.hour() * 60 + now.minute(); // 当日分钟数
-                let window_start = 1u32 * 60; // 01:00
-                let window_end = 6u32 * 60;   // 06:00
+                let window_start = 60; // 01:00
+                let window_end = 6 * 60;   // 06:00
                 if now_min < window_start {
                     return; // 还没到最早触发窗口，直接等下个 tick
                 }
@@ -334,8 +334,8 @@ fn random_minute_in_window(uid: &str, day: &str, start_min: u32, end_min: u32) -
 /// - arrived → 自动领取 + 通知
 /// - idle + auto_enabled → 自动派猫（按策略选地点）
 /// - traveling → 记录到 seen_traveling（用于区分在线到点 vs 离线到点）
-/// 当日熔断：连续 3 次确认“所有账号都 idle+今日已达上限”后，将今日标记为完成，
-/// 之后当日不再调用任何官方接口（避免高频轮询触发账号风控）；次日自动恢复。
+///   当日熔断：连续 3 次确认“所有账号都 idle+今日已达上限”后，将今日标记为完成，
+///   之后当日不再调用任何官方接口（避免高频轮询触发账号风控）；次日自动恢复。
 async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
     let today = Local::now().format("%Y-%m-%d").to_string();
     // 熔断早退：今日已确认全部账号达上限，直接返回，不发起任何官方请求。
@@ -420,7 +420,7 @@ async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
                     // 派猫时机门控：01:00 之前不派（避免午夜整点动作）；每个号在 01:00~06:00
                     // 之间被分配一个确定性随机时刻，到点后首个 tick 才派。
                     let now_min = Local::now().hour() * 60 + Local::now().minute();
-                    let window_start = 1u32 * 60; // 01:00
+                    let window_start = 60; // 01:00
                     if now_min < window_start {
                         all_done = false;
                         actions.push(serde_json::json!({"uid": acc.uid, "action": "wait_before_window", "note": "01:00 前不派猫"}));

@@ -106,10 +106,10 @@ export interface PoolMember {
 }
 
 export interface ModelPool {
-  id: string; // 稳定 ASCII slug（如 "wm-pool-wenyuan"），用于路由与 models.json 的 id
-  name: string; // 展示名（中性中文，如 "文员"）
+  id: string; // 与 name 保持一致（如 "文员"），WorkBuddy 侧用作文档模型名与 models.json 的 id
+  name: string; // 展示名（与 id 同步）
   rate: number; // 倍率，如 0.00 / 0.05 / 0.85
-  thinking: string; // 思考档位三选一：fast（快闪）/ medium（斟酌）/ deep（精算）
+  thinking: string; // 思考档位三选一：「快闪」/「斟酌」/「精算」
   models: PoolMember[]; // 池内成员，自上而下 = 调度优先级
 }
 

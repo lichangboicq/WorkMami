@@ -216,7 +216,7 @@ pub async fn oauth_poll(state: State<'_, Arc<AppState>>, session_id: String) -> 
         Ok(oauth::PollOutcome::Pending) => Ok(serde_json::json!({"status": "pending"})),
         Ok(oauth::PollOutcome::Authorized(acc)) => Ok(serde_json::json!({"status": "authorized", "account": acc})),
         Ok(oauth::PollOutcome::Expired) => Ok(serde_json::json!({"status": "expired"})),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(e),
     }
 }
 
@@ -448,7 +448,7 @@ pub fn data_uids(state: State<'_, Arc<AppState>>) -> R<Vec<String>> {
             }
         }
     }
-    if let Some((info, _)) = wbauth::load_and_decrypt().ok() {
+    if let Ok((info, _)) = wbauth::load_and_decrypt() {
         for (uid, _, _) in wbauth::list_account_meta(&info) {
             if !uids.iter().any(|x| x == &uid) {
                 uids.push(uid);

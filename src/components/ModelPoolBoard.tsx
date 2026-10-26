@@ -20,23 +20,22 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Button, Input, Modal, Select, Tooltip, notification } from "antd";
-import { DeleteOutlined, EditOutlined, HolderOutlined, PlusOutlined } from "@ant-design/icons";
+import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 import type { ModelInfo, ModelPool, PoolMember } from "../types";
 
-// —— 思考档位（三选一，key 与后端 §4.1 契约一致）——
+// —— 思考档位（三选一，value 直接与后端默认池契约一致）——
 const THINKING_OPTIONS = [
-  { value: "fast", label: "快闪" },
-  { value: "medium", label: "斟酌" },
-  { value: "deep", label: "精算" },
+  { value: "快闪", label: "快闪" },
+  { value: "斟酌", label: "斟酌" },
+  { value: "精算", label: "精算" },
 ];
 
 // 计划 §6.1 固定 tooltip 文案（深色浮层）
 const THINKING_TIP = (
   <div className="wm-thinking-tip">
-    <div className="wm-thinking-tip__title">思考档位 · 三选一</div>
-    <div>快闪（文员本意）：少想，快点干</div>
-    <div>斟酌（程序员本意）：想，但别浪费时间和积分</div>
-    <div>精算（架构师本意）：多想，别出错</div>
+    <div>快闪：少想，快点干</div>
+    <div>斟酌：要想，但别浪费积分</div>
+    <div>精算：多想，慢工出细活</div>
   </div>
 );
 
@@ -44,13 +43,73 @@ const THINKING_TIP = (
 const rowKey = (poolId: string, modelId: string) => `${poolId}::${modelId}`;
 const formatRate = (rate: number) => `x${rate.toFixed(2)}`;
 
+// —— 动态组合倍率：账号池全限流降级链概率模型 ——
+// pSigma = 单账号一次请求对某模型触发 429 的概率（WorkBuddy 限流强度基线）
+const P_SIGMA = 0.25;
+
+/// 解析 credits 字符串（"x0.69 credits" / "x0.00" 等），无匹配返回 null
+function parseCredits(s: string): number | null {
+  const m = s.match(/x([\d.]+)/i);
+  return m ? Number(m[1]) : null;
+}
+
+/// 给定池内 N 个成员的 credits 数组 + 账号数 K，返回被选中概率 [P₀, P₁, ..., P_{N-1}]
+/// 物理含义：越靠后的模型，只有当前面所有模型在 K 个账号上全部 429 时才会被用到
+function selectionProbs(n: number, accountCount: number): number[] {
+  if (n <= 0) return [];
+  const k = Math.max(1, accountCount);
+  const q = Math.pow(P_SIGMA, k); // 某个模型在 K 账号上全限流的概率
+  const out: number[] = new Array(n);
+  for (let i = 0; i < n - 1; i++) out[i] = Math.pow(q, i) * (1 - q);
+  out[n - 1] = Math.pow(q, n - 1); // 最后一个兜底
+  return out;
+}
+
+interface WeightedMember {
+  id: string;
+  name: string;
+  rate: number;        // 解析后的 credits 倍率
+  p: number;           // 被选中概率
+}
+
+/// 计算池的动态组合倍率 + 每个成员的加权明细
+/// members 为池内成员（已过滤掉 credits 缺失的），缺的位置概率重新归一化
+function computeCompositeRate(
+  pool: ModelPool,
+  memberName: (m: PoolMember) => string,
+  modelCredits: (id: string) => string,
+  accountCount: number,
+): { rate: number; details: WeightedMember[] } {
+  // 1. 解析每个成员的 credits，缺失则跳过
+  const parsed: Array<{ m: PoolMember; rate: number }> = [];
+  for (const m of pool.models) {
+    const rate = parseCredits(modelCredits(m.id));
+    if (rate != null) parsed.push({ m, rate });
+  }
+  if (parsed.length === 0) {
+    return { rate: 0, details: [] };
+  }
+  // 2. 降级链概率
+  const probs = selectionProbs(parsed.length, accountCount);
+  // 3. 组合倍率 + 明细
+  let total = 0;
+  const details: WeightedMember[] = [];
+  parsed.forEach(({ m, rate }, i) => {
+    const p = probs[i];
+    total += p * rate;
+    details.push({ id: m.id, name: memberName(m), rate, p });
+  });
+  return { rate: total, details };
+}
+
 interface BoardProps {
   pools: ModelPool[];
   models: ModelInfo[]; // 本机真实模型（「+ 添加模型」选择器数据源）
+  accountCount: number; // 有效账号数，决定降级链概率 q(K)
   onChange: (next: ModelPool[]) => void;
 }
 
-export default function ModelPoolBoard({ pools, models, onChange }: BoardProps) {
+export default function ModelPoolBoard({ pools, models, accountCount, onChange }: BoardProps) {
   const [modal, modalContextHolder] = Modal.useModal();
   const [addPoolId, setAddPoolId] = useState<string | null>(null);
   const [addSelection, setAddSelection] = useState<string[]>([]);
@@ -172,7 +231,10 @@ export default function ModelPoolBoard({ pools, models, onChange }: BoardProps) 
   const renamePool = (poolId: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return; // 空名不落盘，保留原名
-    onChange(pools.map((p) => (p.id === poolId ? { ...p, name: trimmed } : p)));
+    // id 跟随 name 同步更新，保证 WorkBuddy 侧展示与调用都使用中文池名
+    const idCollision = pools.some((p) => p.id !== poolId && p.name === trimmed);
+    const newId = idCollision ? `${trimmed}-${Date.now().toString(36).slice(-4)}` : trimmed;
+    onChange(pools.map((p) => (p.id === poolId ? { ...p, name: trimmed, id: newId } : p)));
   };
 
   const setThinking = (poolId: string, tier: string) => {
@@ -185,7 +247,7 @@ export default function ModelPoolBoard({ pools, models, onChange }: BoardProps) 
     do {
       id = `wm-pool-${Math.random().toString(36).slice(2, 8)}`;
     } while (ids.has(id));
-    onChange([...pools, { id, name: "新模型池", rate: 0, thinking: "fast", models: [] }]);
+    onChange([...pools, { id, name: "新模型池", rate: 0, thinking: "快闪", models: [] }]);
   };
 
   // —— 添加模型（只列本机真实模型且未在本池者）——
@@ -195,6 +257,15 @@ export default function ModelPoolBoard({ pools, models, onChange }: BoardProps) 
     const inPool = new Set(addPool.models.map((m) => m.id));
     return models.filter((m) => !inPool.has(m.id));
   }, [addPool, models]);
+
+  // —— 动态组合倍率预计算（每个池各算一份，依赖 pools/models/accountCount）——
+  const compositeMap = useMemo(() => {
+    const map = new Map<string, { rate: number; details: WeightedMember[] }>();
+    for (const pool of pools) {
+      map.set(pool.id, computeCompositeRate(pool, memberName, memberCredits, accountCount));
+    }
+    return map;
+  }, [pools, memberName, memberCredits, accountCount]);
 
   const commitAdd = () => {
     if (!addPool) return;
@@ -223,6 +294,8 @@ export default function ModelPoolBoard({ pools, models, onChange }: BoardProps) 
                 pool={pool}
                 memberName={memberName}
                 memberCredits={memberCredits}
+                composite={compositeMap.get(pool.id) || { rate: 0, details: [] }}
+                accountCount={accountCount}
                 onRename={renamePool}
                 onThinking={setThinking}
                 onDeletePool={confirmDeletePool}
@@ -275,6 +348,8 @@ interface PoolCardProps {
   pool: ModelPool;
   memberName: (m: PoolMember) => string;
   memberCredits: (id: string) => string;
+  composite: { rate: number; details: WeightedMember[] };
+  accountCount: number;
   onRename: (poolId: string, name: string) => void;
   onThinking: (poolId: string, tier: string) => void;
   onDeletePool: (pool: ModelPool) => void;
@@ -282,10 +357,18 @@ interface PoolCardProps {
   onAdd: (pool: ModelPool) => void;
 }
 
+// 小数 → 短百分比：0.99902 → "99.9%"；0.000095 → "0.01%"；≈ 0 → "<0.01%"
+function fmtPct(p: number): string {
+  if (p < 0.0001) return "<0.01%";
+  return `${(p * 100).toFixed(p >= 0.1 ? 1 : 2)}%`;
+}
+
 function PoolCard({
   pool,
   memberName,
   memberCredits,
+  composite,
+  accountCount,
   onRename,
   onThinking,
   onDeletePool,
@@ -298,91 +381,144 @@ function PoolCard({
     data: { type: "pool" },
   });
 
+  // 动态组合倍率 Tooltip：模型名（左） · 倍率（紧跟模型名后） — 概率（右）
+  const rateTip = (
+    <>
+      <div style={{ fontWeight: 600, marginBottom: 2 }}>
+        首选模型若被限流，将启用次选模型
+      </div>
+      <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 1 }}>
+        {composite.details.map((d, i) => (
+          <div
+            key={d.id}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              fontSize: 13,
+            }}
+          >
+            <span style={{ whiteSpace: "nowrap" }}>
+              <b style={{ opacity: 0.7 }}>{i + 1}.</b> {d.name}{" "}
+              <span style={{ fontSize: 12, opacity: 0.65 }}>· {formatRate(d.rate)}</span>
+            </span>
+            <span
+              style={{
+                fontVariantNumeric: "tabular-nums",
+                fontWeight: 600,
+                marginLeft: 16,
+                opacity: d.p < 0.01 ? 0.55 : 1,
+              }}
+            >
+              {fmtPct(d.p)}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
       className={`wm-pool-card${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* 头部：拖拽柄 | 池名/铅笔更名 | 倍率 | 思考档位 | 悬停删池 */}
-      <div className="wm-pool-card__head">
-        <span className="wm-pool-drag-handle" title="拖动调整池顺序" {...attributes} {...listeners}>
-          <HolderOutlined />
-        </span>
-        {editing ? (
-          <Input
-            size="small"
-            autoFocus
-            defaultValue={pool.name}
-            maxLength={20}
-            className="wm-pool-name-input"
-            onPressEnter={(e) => e.currentTarget.blur()}
-            onBlur={(e) => {
-              onRename(pool.id, e.target.value);
-              setEditing(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") e.currentTarget.blur();
-            }}
-          />
-        ) : (
-          <>
-            <span className="wm-pool-card__name" title={pool.name}>
+      {/* drag-zone 包住整张卡的内容，listeners 挂在此层；
+          只有 head / wm-pool-rows / wm-pool-add-row 三者未覆盖的空白（gap、padding）
+          才是卡级拖拽激活区——三者自身都 stopPropagation，不冒泡到 drag-zone */}
+      <div className="wm-pool-card__drag-zone" {...listeners}>
+        {/* 头部：池名 | 倍率 | 思考档位 | 删除（整体不参与卡级拖拽） */}
+        <div
+          className="wm-pool-card__head"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {editing ? (
+            <Input
+              size="small"
+              autoFocus
+              defaultValue={pool.name}
+              maxLength={20}
+              className="wm-pool-name-input"
+              onPressEnter={(e) => e.currentTarget.blur()}
+              onBlur={(e) => {
+                onRename(pool.id, e.target.value);
+                setEditing(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") e.currentTarget.blur();
+              }}
+            />
+          ) : (
+            <span
+              className="wm-pool-card__name"
+              title="点击重命名"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(true);
+              }}
+            >
               {pool.name}
             </span>
-            <Tooltip title="重命名">
-              <span
-                className="wm-pool-icon-btn wm-pool-icon-btn--edit"
-                onClick={() => setEditing(true)}
-              >
-                <EditOutlined />
-              </span>
-            </Tooltip>
-          </>
-        )}
-        <span className="wm-pool-rate">{formatRate(pool.rate)}</span>
-        <Tooltip title={THINKING_TIP} placement="top">
-          <Select
-            className="wm-thinking-select"
-            variant="borderless"
-            size="small"
-            value={pool.thinking}
-            options={THINKING_OPTIONS}
-            onChange={(v) => onThinking(pool.id, v)}
-            popupMatchSelectWidth={false}
-          />
-        </Tooltip>
-        <Tooltip title="删除整个模型池">
-          <span className="wm-pool-icon-btn" onClick={() => onDeletePool(pool)}>
-            <DeleteOutlined />
-          </span>
-        </Tooltip>
-      </div>
-
-      {/* 主体：模型纵向全宽行，自上而下 = 调度优先级 */}
-      <div className="wm-pool-rows">
-        <SortableContext
-          items={pool.models.map((m) => rowKey(pool.id, m.id))}
-          strategy={verticalListSortingStrategy}
-        >
-          {pool.models.map((m) => (
-            <ModelRow
-              key={m.id}
-              poolId={pool.id}
-              member={m}
-              name={memberName(m)}
-              credits={memberCredits(m.id)}
-              onDelete={() => onDeleteModel(pool, m)}
+          )}
+          <Tooltip title={rateTip} placement="top">
+            <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
+          </Tooltip>
+          <Tooltip title={THINKING_TIP} placement="top">
+            <Select
+              className="wm-thinking-select"
+              variant="borderless"
+              size="small"
+              value={pool.thinking}
+              options={THINKING_OPTIONS}
+              onChange={(v) => onThinking(pool.id, v)}
+              popupMatchSelectWidth={false}
             />
-          ))}
-        </SortableContext>
-      </div>
+          </Tooltip>
+          <Tooltip title="删除整个模型池">
+            <span
+              className="wm-pool-icon-btn"
+              onClick={() => onDeletePool(pool)}
+            >
+              <DeleteOutlined />
+            </span>
+          </Tooltip>
+        </div>
 
-      {/* 池末：添加模型 */}
-      <button type="button" className="wm-pool-add-row" onClick={() => onAdd(pool)}>
-        <PlusOutlined />
-        <span>添加模型</span>
-      </button>
+        {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
+        <div
+          className="wm-pool-rows"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <SortableContext
+            items={pool.models.map((m) => rowKey(pool.id, m.id))}
+            strategy={verticalListSortingStrategy}
+          >
+            {pool.models.map((m) => (
+              <ModelRow
+                key={m.id}
+                poolId={pool.id}
+                member={m}
+                name={memberName(m)}
+                credits={memberCredits(m.id)}
+                onDelete={() => onDeleteModel(pool, m)}
+              />
+            ))}
+          </SortableContext>
+        </div>
+
+        {/* 池末：添加模型 */}
+        <button
+          type="button"
+          className="wm-pool-add-row"
+          onClick={() => onAdd(pool)}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <PlusOutlined />
+          <span>添加模型</span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -403,18 +539,21 @@ function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
   return (
     <div
       ref={setNodeRef}
+      {...attributes}
+      {...listeners}
       className={`wm-pool-row${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      <span className="wm-pool-drag-handle" title="拖动调整优先级" {...attributes} {...listeners}>
-        <HolderOutlined />
-      </span>
       <span className="wm-pool-row__name" title={name}>
         {name}
       </span>
       {credits && <span className="wm-pool-row__credits">{credits}</span>}
       <Tooltip title="移除">
-        <span className="wm-pool-icon-btn" onClick={onDelete}>
+        <span
+          className="wm-pool-icon-btn"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onDelete}
+        >
           <DeleteOutlined />
         </span>
       </Tooltip>

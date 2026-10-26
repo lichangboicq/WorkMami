@@ -8,7 +8,7 @@
 //! 门禁：只有当独立目录里检测到网页登录态（workbuddy.cn / codebuddy.cn 的 cookie），
 //! 才允许直接「打开成长计划」；未记忆的账号拒绝启动，要求先「登录/记忆」（重新扫码）。
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use rusqlite::{Connection, OpenFlags};
@@ -148,7 +148,7 @@ pub fn detect() -> Option<(&'static str, PathBuf)> {
 }
 
 /// Chromium profile 内 cookie 库候选位置（新版在 Network/，旧版直接在 Default/）。
-fn cookie_files(dir: &PathBuf) -> Vec<PathBuf> {
+fn cookie_files(dir: &Path) -> Vec<PathBuf> {
     let default = dir.join("Default");
     vec![
         default.join("Network").join("Cookies"),
@@ -224,7 +224,7 @@ pub fn open_growth_in(dir: &PathBuf) -> WmResult<Value> {
     let (label, exe) = detect().ok_or_else(|| {
         WmError::Other("未找到可用浏览器（Microsoft Edge 或 Google Chrome），请安装其一后重试".into())
     })?;
-    launch(&label, &exe, dir)
+    launch(label, &exe, dir)
 }
 
 /// 直接打开成长计划：仅当已记忆网页登录态才放行；未记忆**不启动浏览器**，

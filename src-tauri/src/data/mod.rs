@@ -61,7 +61,7 @@ pub fn list(category: Category, uid: Option<&str>) -> WmResult<Vec<DataItem>> {
     let p = workbuddy_paths();
     let items = match category {
         Category::Sessions => list_sessions(&p.workbuddy_db, &p.sessions_dir, uid)?,
-        Category::Memory => list_md_files(&[p.memory_dir.clone()], "memory")?,
+        Category::Memory => list_md_files(std::slice::from_ref(&p.memory_dir), "memory")?,
         Category::AgentConfig => list_agent_config(uid)?,
         Category::Skills => list_skills(&p.skills_dir)?,
         Category::Artifacts => list_artifacts(&p.workspace)?,
@@ -279,7 +279,7 @@ fn list_artifacts(workspace: &Path) -> WmResult<Vec<DataItem>> {
             });
         }
     }
-    out.sort_by(|a, b| b.modified.cmp(&a.modified));
+    out.sort_by_key(|a| std::cmp::Reverse(a.modified));
     Ok(out)
 }
 
@@ -406,13 +406,11 @@ fn read_session_transcript(sid: &str) -> Option<String> {
                     let pt = p.get("type").and_then(|t| t.as_str()).unwrap_or("");
                     let t = p.get("text").and_then(|t| t.as_str()).unwrap_or("");
                     match pt {
-                        "input_text" | "output_text" | "text" => {
-                            if !t.is_empty() {
-                                if !msg.is_empty() {
-                                    msg.push('\n');
-                                }
-                                msg.push_str(t);
+                        "input_text" | "output_text" | "text" if !t.is_empty() => {
+                            if !msg.is_empty() {
+                                msg.push('\n');
                             }
+                            msg.push_str(t);
                         }
                         _ => {} // reasoning / function_call 等不混入正文
                     }

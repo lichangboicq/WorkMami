@@ -27,6 +27,8 @@ pub struct WorkmamiPaths {
     pub root: PathBuf,
     pub accounts_file: PathBuf,
     pub settings_file: PathBuf,
+    /// 用户可编辑的默认模型池模板（首次启动时由内置模板生成，升级不覆盖）
+    pub default_pools_file: PathBuf,
     pub usage_db: PathBuf,
     pub backups_dir: PathBuf,
     pub trash_dir: PathBuf,
@@ -82,6 +84,7 @@ pub fn workmami_paths() -> &'static WorkmamiPaths {
         WorkmamiPaths {
             accounts_file: root.join("accounts.json"),
             settings_file: root.join("settings.json"),
+            default_pools_file: root.join("default-pools.json"),
             usage_db: root.join("workmami-usage.db"),
             backups_dir: root.join("Backups"),
             trash_dir: root.join("trash"),
@@ -89,6 +92,23 @@ pub fn workmami_paths() -> &'static WorkmamiPaths {
             root,
         }
     })
+}
+
+/// 首次启动时把内置 default-pools.json 模板拷贝到用户 AppData 目录。
+/// 文件已存在则绝不动它 —— 用户改过就尊重用户，升级绝不覆盖。
+pub fn ensure_default_pools_template() {
+    let p = workmami_paths().default_pools_file.clone();
+    if p.exists() {
+        return;
+    }
+    if let Some(parent) = p.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let template = include_str!("../proxy/default-pools.json");
+    match std::fs::write(&p, template) {
+        Ok(_) => tracing::info!("已生成默认模型池模板: {}", p.display()),
+        Err(e) => tracing::warn!("生成默认模型池模板失败（可忽略）: {e}"),
+    }
 }
 
 pub fn workbuddy_paths() -> &'static WorkbuddyPaths {
@@ -103,11 +123,12 @@ pub fn workbuddy_paths() -> &'static WorkbuddyPaths {
             dirs::data_dir(),
             dirs::config_dir(),
             dirs::data_local_dir(),
-        ] {
-            if let Some(b) = b {
-                if !bases.iter().any(|x| x == &b) {
-                    bases.push(b);
-                }
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if !bases.iter().any(|x| x == &b) {
+                bases.push(b);
             }
         }
         let app_names = ["CodeBuddyExtension", "WorkBuddy", "CodeBuddy"];

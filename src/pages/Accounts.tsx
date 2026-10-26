@@ -276,7 +276,7 @@ export default function Accounts() {
         <Button icon={<ReloadOutlined />} loading={refreshing} onClick={refreshAll}>
           更新全部积分
         </Button>
-        <span style={{ marginLeft: "auto", opacity: 0.8 }}>
+        <span style={{ marginLeft: "auto", fontSize: 22, fontWeight: 700 }}>
           {accounts.length} 个账号 · 剩余 {Math.round(totalRemaining)} 分
         </span>
       </div>

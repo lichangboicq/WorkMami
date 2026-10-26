@@ -43,7 +43,7 @@ async fn invoke_handler(
     if headers
         .get("x-wm-bridge")
         .and_then(|v| v.to_str().ok())
-        .map_or(true, |v| v != "workmami-dev")
+        != Some("workmami-dev")
     {
         return (StatusCode::FORBIDDEN, axum::Json(json!({"error": "bad bridge header"})));
     }
@@ -79,12 +79,12 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             .and_then(|v| serde_json::to_value(v).map_err(|e| e.to_string())),
         "list_accounts" => crate::commands::list_accounts(s)
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
         "proxy_status" => crate::commands::proxy_status(s)
             .map_err(|e| e.to_string()),
         "ide_sync_status" => crate::commands::ide_sync_status(s)
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
 
         // ----- 设置 & 账号操作 -----
         "save_settings" => {
@@ -121,7 +121,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
             crate::commands::credential_status(s, uid)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "credit_ledger" => {
             let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
@@ -135,7 +135,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
         "oauth_begin" => crate::commands::oauth_begin(s)
             .await
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
         "oauth_poll" => {
             let sid = args["sessionId"].as_str().ok_or("缺少 sessionId")?.to_string();
             crate::commands::oauth_poll(s, sid)
@@ -159,7 +159,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             crate::commands::checkin_all(handle, s)
                 .await
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "checkin_one" => {
             let uid = args["uid"].as_str().ok_or("缺少 uid")?.to_string();
@@ -171,7 +171,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             crate::commands::checkin_one(handle, s, uid)
                 .await
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
 
         // ----- 猫猫旅行 -----
@@ -209,32 +209,32 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
         // ----- IDE 自动配置 -----
         "sync_all_ides" => crate::commands::sync_all_ides(s)
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
 
         // ----- 数据管理 -----
         "data_uids" => crate::commands::data_uids(s)
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
         "data_list" => {
             let category = args["category"].as_str().ok_or("缺少 category")?.to_string();
             let uid = args["uid"].as_str().map(|ss| ss.to_string());
             crate::commands::data_list(s, category, uid)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "data_read" => {
             let item: crate::data::DataItem =
                 serde_json::from_value(args["item"].clone()).map_err(|e| e.to_string())?;
             crate::commands::data_read(item)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "data_delete" => {
             let items: Vec<crate::data::DataItem> =
                 serde_json::from_value(args["items"].clone()).map_err(|e| e.to_string())?;
             crate::commands::data_delete(items)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "data_backup" => {
             let items: Vec<crate::data::DataItem> =
@@ -243,7 +243,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             let dest = args.get("destDir").and_then(|v| v.as_str()).map(|ss| ss.to_string());
             crate::commands::data_backup(items, label, dest)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "data_migrate" => {
             let from = args["fromUid"].as_str().ok_or("缺少 fromUid")?.to_string();
@@ -252,7 +252,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
                 serde_json::from_value(args["categories"].clone()).map_err(|e| e.to_string())?;
             crate::commands::data_migrate(from, to, cats)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "data_export" => {
             let item: crate::data::DataItem =
@@ -260,7 +260,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             let dest = args["destDir"].as_str().ok_or("缺少 destDir")?.to_string();
             crate::commands::data_export(item, dest)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
 
         // ----- 看板 -----
@@ -289,12 +289,12 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
         }
         "dashboard_balances" => crate::commands::dashboard_balances(s)
             .map_err(|e| e.to_string())
-            .and_then(|v| Ok(json!(v))),
+            .map(|v| json!(v)),
         "dashboard_import_app" => {
             let uid = args.get("uid").and_then(|v| v.as_str()).map(|ss| ss.to_string());
             crate::commands::dashboard_import_app(s, uid)
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "dashboard_requests" => {
             let from = args["fromMs"].as_i64().ok_or("缺少 fromMs")?;
@@ -316,7 +316,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             crate::commands::list_models(s, uid)
                 .await
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
         "refresh_quota" => {
             let uids: Option<Vec<String>> = args
@@ -335,7 +335,7 @@ async fn dispatch(cmd: &str, args: Value, state: &Arc<AppState>) -> Result<Value
             crate::commands::refresh_quota(handle, s, uids)
                 .await
                 .map_err(|e| e.to_string())
-                .and_then(|v| Ok(json!(v)))
+                .map(|v| json!(v))
         }
 
         other => Err(format!("bridge 尚未实现: {other}")),

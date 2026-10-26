@@ -213,7 +213,7 @@ impl Drop for MasterKey {
 /// 1) ~/.workbuddy-key-fallback/.master.key（明文降级文件）
 /// 2) connector-keys/*.key 作为 protector 逐个尝试解 keyblob
 /// 3) keyring 中候选 service 名
-/// 全部失败返回 None，上层走“重新授权”。
+///   全部失败返回 None，上层走“重新授权”。
 pub fn resolve_master_key() -> Option<MasterKey> {
     let paths = workbuddy_paths();
 

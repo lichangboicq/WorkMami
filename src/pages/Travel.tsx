@@ -315,21 +315,23 @@ export default function Travel() {
                             message="猫猫跑累了，明天再来"
                           />
                         ) : (
-                          <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                            {settings.travel.autoEnabled
-                              ? `猫猫在家。自动托管已开，最迟约 60 分钟内会按「${POLICY_LABEL[settings.travel.locationPolicy] || settings.travel.locationPolicy}」策略自动出发。`
-                              : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
-                          </Text>
+                          <>
+                            <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                              {settings.travel.autoEnabled
+                                ? `猫猫在家。自动托管已开，最迟约 60 分钟内会按「${POLICY_LABEL[settings.travel.locationPolicy] || settings.travel.locationPolicy}」策略自动出发。`
+                                : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
+                            </Text>
+                            <Select
+                              placeholder={settings.travel.autoEnabled ? "手动立即出发（可选）" : "选择目的地出发"}
+                              style={{ width: "100%", marginBottom: 8 }}
+                              onChange={(v: number) => handleDepart(item.uid, v)}
+                              options={data.config.map((loc: TravelLocation) => ({
+                                label: `${loc.name} (${loc.durationMinHours}-${loc.durationMaxHours}h)`,
+                                value: loc.id,
+                              }))}
+                            />
+                          </>
                         )}
-                        <Select
-                          placeholder={settings.travel.autoEnabled ? "手动立即出发（可选）" : "选择目的地出发"}
-                          style={{ width: "100%", marginBottom: 8 }}
-                          onChange={(v: number) => handleDepart(item.uid, v)}
-                          options={data.config.map((loc: TravelLocation) => ({
-                            label: `${loc.name} (${loc.durationMinHours}-${loc.durationMaxHours}h)`,
-                            value: loc.id,
-                          }))}
-                        />
                       </>
                     )}
                     <TodayLedger records={item.records} />

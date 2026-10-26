@@ -1,0 +1,35 @@
+[
+  {
+    "id": "文员",
+    "name": "文员",
+    "rate": 0.0,
+    "thinking": "快闪",
+    "models": [
+      { "id": "hy3" }
+    ]
+  },
+  {
+    "id": "程序员",
+    "name": "程序员",
+    "rate": 0.05,
+    "thinking": "斟酌",
+    "models": [
+      { "id": "glm-5.3-flash" },
+      { "id": "space-bunny" },
+      { "id": "minimax-m3.1-flash" },
+      { "id": "deepseek-v4.1-flash" },
+      { "id": "step-5-preview" }
+    ]
+  },
+  {
+    "id": "架构师",
+    "name": "架构师",
+    "rate": 0.85,
+    "thinking": "精算",
+    "models": [
+      { "id": "kimi-k3.1-pro" },
+      { "id": "kimi-k3" },
+      { "id": "glm-5.3" }
+    ]
+  }
+]

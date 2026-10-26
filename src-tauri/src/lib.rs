@@ -3,6 +3,7 @@
     dead_code,
     reason = "公共 API / 预留扩展点在本地运行期未被引用是正常现象，Rust 默认对 pub 符号仍会 dead_code lint"
 )]
+#![allow(clippy::doc_lazy_continuation, reason = "文档续行按中文习惯缩进，不强制 Rustdoc 列表对齐规则")]
 
 mod accounts;
 mod api;
@@ -65,6 +66,7 @@ pub fn run() {
 
     builder = builder.setup(|app| {
         platform::init_paths();
+        platform::ensure_default_pools_template();
         let app_state = Arc::new(AppState::load()?);
         app.manage(app_state.clone());
         // 注入 AppHandle：代理转发层（非 command 上下文）发系统通知需要

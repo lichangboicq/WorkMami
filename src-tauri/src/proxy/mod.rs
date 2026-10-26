@@ -2,7 +2,7 @@
 //! - 监听 127.0.0.1:<port>，校验 Bearer key
 //! - /v1/chat/completions：多账号调度 + 会话粘性 + failover + 流式透传
 //! - /v1/models、/v1/workmami/quota、/v1/workmami/health
-//! 上游为 {domain}/v2/chat/completions（强制流式，非流式客户端自动组装）。
+//!   上游为 {domain}/v2/chat/completions（强制流式，非流式客户端自动组装）。
 
 use std::sync::Arc;
 
@@ -746,7 +746,7 @@ fn parse_retry_text(text: &str, now_ms: i64) -> Option<i64> {
                 .and_then(|d| d.with_second(0))
                 .and_then(|d| d.with_nanosecond(0))?;
             if cand.timestamp_millis() <= now_ms {
-                cand = cand + chrono::Duration::days(1);
+                cand += chrono::Duration::days(1);
             }
             return Some(cand.timestamp_millis());
         }
@@ -1069,6 +1069,7 @@ fn scan_usage(chunk: &Bytes, usage: &mut Value) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn log_usage(
     state: &Arc<AppState>,
     acc: &Account,
@@ -1083,6 +1084,7 @@ fn log_usage(
     log_usage_by_uid(state, &acc.uid, model, usage, latency, ttft, status, ok, ua);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn log_usage_by_uid(
     state: &Arc<AppState>,
     uid: &str,

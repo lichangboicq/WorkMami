@@ -54,9 +54,11 @@ const FIELD_LABELS: Record<string, string> = {
 export default function Proxy() {
   const settings = useStore((s) => s.settings);
   const proxy = useStore((s) => s.proxy);
+  const accounts = useStore((s) => s.accounts);
   const saveSettings = useStore((s) => s.saveSettings);
   const syncStatus = useStore((s) => s.syncStatus);
   const refreshSyncStatus = useStore((s) => s.refreshSyncStatus);
+  const syncAllIdes = useStore((s) => s.syncAllIdes);
 
   // form 内部状态：受控的 PS 值 + 额外 saveStatus
   const [formValues, setFormValues] = useState<PS>(settings.proxy);
@@ -268,8 +270,8 @@ export default function Proxy() {
   const dirtyDot = (field: keyof PS) =>
     dirty.has(field) ? <span title="已修改，等待保存" className="wm-dirty-dot" /> : null;
 
-  // —— 检测到的 IDE：自动配置，仅标题行轻量示状态 ——
-  const ideCards = syncStatus.filter((s) => s.detected);
+  // —— 全部注册的 IDE：未安装也展示，灰点提示未检测到 ——
+  const ideCards = syncStatus;
 
   return (
     <div className="wm-page">
@@ -412,8 +414,21 @@ export default function Proxy() {
             {/* IDE 自动配置状态：轻量示状态 */}
             <div className="wm-ide-row">
               {ideCards.map((ide) => {
-                const statusText = ide.error || (ide.synced ? "已自动配置" : "待配置");
+                const statusText = ide.error
+                  ? ide.error
+                  : !ide.detected
+                  ? "未检测到安装目录"
+                  : ide.synced
+                  ? "已自动配置"
+                  : "待配置";
                 const demoGif = IDE_DEMO_GIFS[ide.id];
+                const cls = ide.error
+                  ? "is-error"
+                  : !ide.detected
+                  ? "is-missing"
+                  : ide.synced
+                  ? "is-ok"
+                  : "is-pending";
                 return (
                   <Tooltip
                     key={ide.id}
@@ -430,11 +445,7 @@ export default function Proxy() {
                     }
                     classNames={demoGif ? { root: "wm-ide-gif-tooltip" } : undefined}
                   >
-                    <span
-                      className={`wm-ide-chip${
-                        ide.error ? " is-error" : ide.synced ? " is-ok" : " is-pending"
-                      }`}
-                    >
+                    <span className={`wm-ide-chip ${cls}`}>
                       <span className="wm-ide-chip__dot" />
                       {ide.label}
                     </span>
@@ -442,25 +453,32 @@ export default function Proxy() {
                 );
               })}
             </div>
+            <Tooltip title="自动配置所有IDE">
+              <ReloadOutlined
+                className="wm-pool-refresh"
+                onClick={async () => {
+                  try {
+                    await syncAllIdes();
+                    message.success("已自动配置所有IDE");
+                  } catch (e: any) {
+                    message.error(e?.toString?.() || "自动配置失败");
+                  }
+                }}
+              />
+            </Tooltip>
           </div>
         }
       >
         {/* 支持的模型 —— 模型池看板 */}
         <div className="wm-field-label">
-          <span className="wm-field-label__text">支持的模型</span>
-          <span className="wm-pool-hint">
-            拖动排序 · 铅笔更名 · 悬停删除（可撤销） · 思考档位三选一（hover 看本意） · 实时同步
-            <Tooltip title="刷新">
-              <ReloadOutlined className="wm-pool-refresh" onClick={() => loadModels()} />
-            </Tooltip>
-          </span>
+          <span className="wm-field-label__text">模型池</span>
         </div>
 
         {/* 模型池看板（池卡片横向排序 + 池内模型行纵向 = 优先级） */}
         {modelsLoading ? (
           <div className="wm-model-gallery-loading">加载中…</div>
         ) : (
-          <ModelPoolBoard pools={pools} models={models} onChange={savePools} />
+          <ModelPoolBoard pools={pools} models={models} accountCount={accounts.length} onChange={savePools} />
         )}
       </Card>
     </div>

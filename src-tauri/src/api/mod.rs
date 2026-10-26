@@ -214,7 +214,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         if !status.is_success() {
             return Err(WmError::Upstream(format!("{path} -> {status}: {}", summarize(&body))));
         }
@@ -230,7 +230,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let out: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let out: Value = resp.json().await.unwrap_or(Value::Null);
         if !status.is_success() {
             return Err(WmError::Upstream(format!("{path} -> {status}: {}", summarize(&out))));
         }
@@ -357,7 +357,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let out: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let out: Value = resp.json().await.unwrap_or(Value::Null);
         // 4xx 但有有效 JSON body（含 code 字段）→ 交给 activity_data 处理
         if !status.is_success() && out.get("code").is_none() {
             return Err(WmError::Upstream(format!("{path} -> {status}: {}", summarize(&out))));
@@ -500,12 +500,10 @@ impl ApiClient {
 
         // 明细优先（paid/free 带完整到期信息），再并入 summary 中未出现的资源包。
         let mut resources: Vec<QuotaResource> = Vec::new();
-        for resp in [paid, free] {
-            if let Ok(v) = resp {
-                for obj in find_objects(&v, &["Accounts", "accounts"]) {
-                    if let Some(r) = parse_resource(&obj, now) {
-                        resources.push(r);
-                    }
+        for v in [paid, free].into_iter().flatten() {
+            for obj in find_objects(&v, &["Accounts", "accounts"]) {
+                if let Some(r) = parse_resource(&obj, now) {
+                    resources.push(r);
                 }
             }
         }
@@ -566,12 +564,10 @@ impl ApiClient {
         let paid = self.post_quota(RESOURCE_PAID, tokens, &paid_packages_body()).await;
         let free = self.post_quota(RESOURCE_FREE, tokens, &free_packages_body()).await;
         let mut items: Vec<RewardItem> = Vec::new();
-        for resp in [paid, free] {
-            if let Ok(v) = resp {
-                for obj in find_objects(&v, &["Accounts", "accounts"]) {
-                    if let Some(it) = parse_reward(&obj, now) {
-                        items.push(it);
-                    }
+        for v in [paid, free].into_iter().flatten() {
+            for obj in find_objects(&v, &["Accounts", "accounts"]) {
+                if let Some(it) = parse_reward(&obj, now) {
+                    items.push(it);
                 }
             }
         }
@@ -634,7 +630,7 @@ impl ApiClient {
             }
             page += 1;
         }
-        items.sort_by(|a, b| b.ts.cmp(&a.ts));
+        items.sort_by_key(|a| std::cmp::Reverse(a.ts));
         Ok(items)
     }
 
@@ -647,7 +643,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let out: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let out: Value = resp.json().await.unwrap_or(Value::Null);
         if !status.is_success() {
             return Err(WmError::Upstream(format!("{url} -> {status}: {}", summarize(&out))));
         }
@@ -680,7 +676,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         let data = unwrap_data(&body);
         let code = pick_i64(&body, &["code"]).unwrap_or(0);
         let msg = pick_str(&body, &["msg", "message"]).unwrap_or_default();
@@ -713,7 +709,7 @@ impl ApiClient {
         }
         let resp = req.send().await?;
         let status = resp.status();
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         if !status.is_success() {
             return Err(WmError::Credential(format!("刷新失败 {status}: {}", summarize(&body))));
         }
@@ -746,7 +742,7 @@ impl ApiClient {
             .send()
             .await?;
         let status = resp.status();
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         if !status.is_success() {
             return Err(WmError::Upstream(format!("auth/state -> {status}: {}", summarize(&body))));
         }
@@ -768,7 +764,7 @@ impl ApiClient {
             .header("Accept", "application/json")
             .send()
             .await?;
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         let code = body.get("code").and_then(|v| v.as_i64()).unwrap_or(-1);
         if code != 0 && code != 200 {
             return Ok(None); // 用户尚未完成登录
@@ -801,7 +797,7 @@ impl ApiClient {
             .header("X-Domain", domain)
             .send()
             .await?;
-        let body: Value = resp.json().await.unwrap_or_else(|_| Value::Null);
+        let body: Value = resp.json().await.unwrap_or(Value::Null);
         Ok(unwrap_data(&body))
     }
 }
