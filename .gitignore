@@ -19,7 +19,6 @@ src-tauri/gen/schemas/
 # workbuddy artifacts
 .workbuddy/
 .superpowers/
-.trae/
 .screenshots/
 docs/
 
