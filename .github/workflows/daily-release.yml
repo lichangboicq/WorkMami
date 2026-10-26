@@ -1,0 +1,127 @@
+name: Daily Release (04:00 UTC+8)
+
+# 每天北京时间 04:00 自动发版：patch +0.0.1 → 编译出包 → 打 tag → 推送
+on:
+  schedule:
+    # 北京时间 04:00 = UTC 前一天 20:00
+    - cron: "0 20 * * *"
+  workflow_dispatch: # 允许手动触发，便于先验证
+
+permissions:
+  contents: write # 需要推送版本提交与 tag
+
+jobs:
+  # 单跑一次：算版本号 + 改文件 + 提交 + 推送到 main（不推 tag，避免重复触发 release.yml）
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag_name: ${{ steps.ver.outputs.tag_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Determine next stable version (patch +0.0.1)
+        id: ver
+        run: |
+          VERSION=$(node scripts/next-version.mjs stable)
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Next version: ${VERSION}"
+
+      - name: Bump version in package.json / tauri.conf.json / Cargo.toml
+        run: |
+          npm version "$VERSION" --no-git-tag-version
+          node scripts/sync-version.mjs
+
+      - name: Commit & push version bump to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git commit -m "chore(release): v$VERSION [skip ci]" || echo "nothing to commit"
+          git push origin HEAD:main
+
+  # 多平台打包，依赖 prepare 算出的版本号
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build and publish (creates tag + GitHub Release)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ needs.prepare.outputs.tag_name }}
+          releaseName: 'WorkMami ${{ needs.prepare.outputs.version }}'
+          releaseBody: |
+            **Channel**: daily-stable
+            **Version**: ${{ needs.prepare.outputs.version }}
+            Auto-released daily at 04:00 (UTC+8).
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
+
+  # 把 main 分支 + 新 tag 同步镜像到 Gitee
+  # 前置条件：在 GitHub 仓库 Secrets 中配置
+  #   GITEE_USERNAME  -> 你的 Gitee 登录名
+  #   GITEE_TOKEN     -> Gitee 私人令牌（需 projects 权限）
+  mirror:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Fetch version commit + tag from GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch --tags origin
+
+      - name: Push main and tags to Gitee
+        env:
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+        run: |
+          if [ -z "$GITEE_TOKEN" ]; then
+            echo "::warning::未配置 GITEE_TOKEN，跳过 Gitee 镜像"
+            exit 0
+          fi
+          git remote add gitee "https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/lichangboicq/WorkMami.git" \
+            || git remote set-url gitee "https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/lichangboicq/WorkMami.git"
+          git push gitee HEAD:main --tags

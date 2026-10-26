@@ -11,6 +11,8 @@ on:
 
 jobs:
   build:
+    # 放行人工触发的分支/tag 发版；屏蔽 daily-release.yml 由机器人创建的 v* tag 回环触发
+    if: github.actor != 'github-actions[bot]'
     strategy:
       fail-fast: false
       matrix:
