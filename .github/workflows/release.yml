@@ -6,6 +6,8 @@ on:
       - 'v*'
     branches:
       - nightly
+      - beta
+      - stable
 
 jobs:
   build:
@@ -46,7 +48,7 @@ jobs:
         id: ver
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            # tag push: stable / beta / nightly（tag 名即版本号）
+            # 手动 tag 发版：tag 名即版本号
             VERSION="${GITHUB_REF_NAME#v}"
             TAG_NAME="${GITHUB_REF_NAME}"
             if [[ "${VERSION}" == *"-beta."* ]]; then
@@ -57,14 +59,11 @@ jobs:
               CHANNEL="stable"
             fi
           else
-            # nightly branch push: 自动递增计数
-            # 版本形如 <package.json 版本>-nightly.N，N = 已有 nightly tag 最大值 + 1
-            BASE=$(node -p "require('./package.json').version")
-            LAST=$(git tag -l 'v*-nightly.*' | sed -E 's/.*-nightly\.([0-9]+)$/\1/' | sort -n | tail -1)
-            N=$(( ${LAST:-0} + 1 ))
-            VERSION="${BASE}-nightly.${N}"
+            # 分支发版：nightly / beta / stable 三渠道，版本号由 scripts/next-version.mjs 自动递增
+            #   nightly: base-nightly.N   beta: base-beta.N   stable: patch 顺延
+            CHANNEL="${GITHUB_REF_NAME}"
+            VERSION=$(node scripts/next-version.mjs "${CHANNEL}")
             TAG_NAME="v${VERSION}"
-            CHANNEL="nightly"
           fi
           # 含预发布分隔符 "-" 的一律标记为 prerelease
           if [[ "${VERSION}" == *"-"* ]]; then PRERELEASE=true; else PRERELEASE=false; fi

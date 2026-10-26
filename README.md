@@ -47,6 +47,19 @@ WorkMami 把散落在多个 WorkBuddy 账号里的额度、任务和签到，收
 
 > 不确定 Mac 芯片？点左上角  → "关于本机"：显示 **M 开头**选 Apple 芯片版，显示 **Intel** 选 Intel 版。
 
+## 发版流程（CI 自动发版）
+
+推送对应分支即触发 GitHub Actions 自动构建三平台安装包并发布 Release，**版本号自动递增，无需手动打 tag**（规则见 `scripts/next-version.mjs`）：
+
+| 推送分支 | 渠道 | 版本号规则 | 示例 |
+| --- | --- | --- | --- |
+| `nightly` | 每夜构建（prerelease） | `<package.json 版本>-nightly.N`，N 自增 | `0.6.0-nightly.1` → `0.6.0-nightly.2` |
+| `beta` | 公测（prerelease） | `<package.json 版本>-beta.N`，N 自增 | `0.6.0-beta.1` → `0.6.0-beta.2` |
+| `stable` | 正式版 | 若 `package.json` 版本领先于最新正式 tag 则直接发该版本，否则最新正式 tag patch +0.0.1 | `0.6.0` → `0.6.1` → `0.6.2` |
+
+- 想发下一个大版本：先把 `package.json` 的 `version` 改成目标版本（如 `0.7.0`）合并进 `stable`，再推送 `stable` 分支，即发 `0.7.0`。
+- 也可手动打 `v<版本号>` tag 发版（tag 名即版本号），适用于发历史版本等特殊场景。
+
 ## 安装注意事项
 
 ### macOS
