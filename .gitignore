@@ -16,8 +16,9 @@ src-tauri/gen/schemas/
 .vscode/
 .idea/
 
-# workbuddy artifacts
-.workbuddy/
+# workbuddy artifacts (track skills/, ignore runtime data)
+.workbuddy/*
+!.workbuddy/skills/
 .superpowers/
 .screenshots/
 docs/
