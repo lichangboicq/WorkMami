@@ -1,6 +1,6 @@
 [package]
 name = "workmami"
-version = "0.6.2"
+version = "0.6.3"
 description = "WorkBuddy 多账号管理与本地自定义模型辅助工具"
 authors = ["majiabin2020"]
 edition = "2021"
