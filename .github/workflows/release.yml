@@ -26,12 +26,12 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       # fetch-depth: 0 保证能拉到全部 tag，nightly 自增计数依赖 tag 历史
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: lts/*
 
