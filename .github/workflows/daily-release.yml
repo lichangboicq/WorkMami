@@ -3,6 +3,12 @@ name: Nightly/Beta/Release Pipeline (04:00 UTC+8)
 # 每天北京时间 04:00 自动发 nightly（patch +0.0.1）；满十个 nightly 自动进位为 beta（0.6.9 → 0.7.0）。
 # nightly 禁止手动触发；手动触发仅允许 beta（minor +0.1.0）与 stable（major +1.0.0）。
 # 版本号提交 main，tag 与 GitHub Release 由 tauri-action 自动创建，零人工。
+#
+# 注意：本工作流固定使用 actions/checkout@v5 与 actions/setup-node@v5（均运行于 node24 运行时）。
+# 设计如此——v4 运行于已被 GitHub 弃用的 node20，会触发两条无害但扰人的 WARN：
+#   1) "Node.js 20 is deprecated"（runner 强制以 node24 运行 v4 action）
+#   2) setup-node@v4 解析 lts/* 别名时其内部 require 了已弃用的内置 punycode 模块（DEP0040）
+# 升级到 v5 即可一并消除，无需改动业务逻辑。
 on:
   schedule:
     # 北京时间 04:00 = UTC 前一天 20:00
@@ -30,11 +36,11 @@ jobs:
       channel: ${{ steps.ver.outputs.channel }}
       prerelease: ${{ steps.ver.outputs.prerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
 
@@ -101,11 +107,11 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: lts/*
 
@@ -140,7 +146,7 @@ jobs:
     needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: main

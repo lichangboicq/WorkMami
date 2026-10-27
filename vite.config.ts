@@ -16,5 +16,17 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
     sourcemap: !!process.env.TAURI_DEBUG,
     outDir: "dist",
+    // 设计如此：单包体积较大属预期（含 Tauri 运行时 + 全部前端依赖），
+    // 关闭 Vite 默认 500kB chunk 体积 WARN，避免 nightly 构建误报。
+    chunkSizeWarningLimit: 3000,
+    rollupOptions: {
+      output: {
+        // 设计如此：将 @tauri-apps 运行时依赖集中到独立 chunk，
+        // 消除 "@tauri-apps/api/core.js 同时被动态/静态 import" 的冲突告警。
+        manualChunks(id) {
+          if (id.includes("@tauri-apps")) return "tauri-runtime";
+        },
+      },
+    },
   },
 });
