@@ -36,6 +36,8 @@ jobs:
       channel: ${{ steps.ver.outputs.channel }}
       prerelease: ${{ steps.ver.outputs.prerelease }}
     steps:
+      - name: Suppress git defaultBranch hint
+        run: git config --global init.defaultBranch main
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -107,6 +109,8 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.platform }}
     steps:
+      - name: Suppress git defaultBranch hint
+        run: git config --global init.defaultBranch main
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -146,6 +150,8 @@ jobs:
     needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
+      - name: Suppress git defaultBranch hint
+        run: git config --global init.defaultBranch main
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0

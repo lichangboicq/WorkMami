@@ -26,6 +26,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       # fetch-depth: 0 保证能拉到全部 tag，nightly 自增计数依赖 tag 历史
+      - name: Suppress git defaultBranch hint
+        run: git config --global init.defaultBranch main
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
