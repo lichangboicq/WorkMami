@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "WorkMami",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "identifier": "com.berlin.workmami",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -43,7 +43,9 @@
     "longDescription": "WorkBuddy 多账号管理、本地自定义模型、数据管理与批量签到",
     "windows": {
       "nsis": {
-        "languages": ["SimpChinese"],
+        "languages": [
+          "SimpChinese"
+        ],
         "displayLanguageSelector": false,
         "installMode": "perMachine",
         "template": "installer.nsi"
