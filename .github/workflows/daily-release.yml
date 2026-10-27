@@ -14,6 +14,7 @@ on:
         type: choice
         default: beta
         options:
+          - nightly
           - beta
           - stable
 
@@ -44,13 +45,14 @@ jobs:
           INPUT="${{ github.event.inputs.channel || '' }}"
           BASE=$(node -p "require('./package.json').version")
           if [[ -n "$INPUT" ]]; then
-            # 手动触发：nightly 禁止手动，仅允许 beta / stable
+            # 临时验证：允许手动 nightly 走与定时相同的自动链路
             if [[ "$INPUT" == "nightly" ]]; then
-              echo "::error::nightly 禁止手动触发，只能由每日定时自动发布"
-              exit 1
+              CHANNEL="nightly"
+              VERSION=$(node scripts/next-version.mjs nightly "$BASE")
+            else
+              CHANNEL="$INPUT"
+              VERSION=$(node scripts/next-version.mjs "$CHANNEL" "$BASE")
             fi
-            CHANNEL="$INPUT"
-            VERSION=$(node scripts/next-version.mjs "$CHANNEL" "$BASE")
           else
             # 定时自动：nightly patch +0.0.1；满十个（base patch=9 进位 X.Y.0）自动转为 beta
             VERSION=$(node scripts/next-version.mjs nightly "$BASE")
