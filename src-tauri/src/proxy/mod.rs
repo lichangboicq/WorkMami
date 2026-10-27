@@ -46,6 +46,7 @@ pub async fn start(state: Arc<AppState>) -> bool {
     }
     let ps = state.proxy_settings();
     let bind = format!("{}:{}", ps.host, ps.port);
+    tracing::info!("自定义模型启动，绑定地址 {bind}");
 
     // 先真正绑定端口再置 running，避免"乐观置位"导致状态与实际不符。
     // 带少量重试：重启时上一个实例的优雅关闭可能尚未释放端口。
@@ -57,8 +58,12 @@ pub async fn start(state: Arc<AppState>) -> bool {
                 break;
             }
             Err(e) => {
+                // 首次失败就记一笔：DNS 解析失败（自定义网关/MagicDNS）与端口占用必须能区分
+                if attempt == 0 || attempt == 19 {
+                    tracing::warn!("自定义模型绑定 {bind} 失败(第{}次): {e}", attempt + 1);
+                }
                 if attempt == 19 {
-                    tracing::error!("自定义模型绑定 {bind} 失败: {e}");
+                    *state.proxy_error.lock().unwrap() = Some(describe_bind_error(&ps.host, ps.port, &e));
                     return false;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(50)).await;
@@ -69,6 +74,11 @@ pub async fn start(state: Arc<AppState>) -> bool {
         Some(l) => l,
         None => return false,
     };
+    match listener.local_addr() {
+        Ok(a) => tracing::info!("自定义模型已监听 {a}"),
+        Err(e) => tracing::warn!("自定义模型读取本地地址失败: {e}"),
+    }
+    *state.proxy_error.lock().unwrap() = None;
 
     let notify = Arc::new(Notify::new());
     // 自定义模型启动即自动同步所有已注册 IDE 配置。阻塞 I/O → blocking 线程
@@ -93,6 +103,7 @@ pub async fn start(state: Arc<AppState>) -> bool {
             .with_graceful_shutdown(async move { notify.notified().await });
         if let Err(e) = serve.await {
             tracing::error!("自定义模型退出: {e}");
+            *st.proxy_error.lock().unwrap() = Some("自定义模型服务已意外退出，请重新启用".into());
         }
         // 仅当自己仍是当前活动代次时才清除 running，避免旧实例退出把新实例状态覆盖为 false。
         if *st.proxy_gen.lock().unwrap() == my_gen {
@@ -103,12 +114,28 @@ pub async fn start(state: Arc<AppState>) -> bool {
     true
 }
 
+/// 把绑定失败的原始错误翻译成用户能理解的提示（原始错误仍完整写入运行日志）。
+fn describe_bind_error(host: &str, port: u16, e: &std::io::Error) -> String {
+    let raw = e.to_string().to_lowercase();
+    if raw.contains("lookup") || raw.contains("resolve") || raw.contains("not known") || raw.contains("name or service") {
+        format!("无法解析监听地址 {host}，请检查 DNS 后重试")
+    } else if raw.contains("in use") || raw.contains("10048") {
+        format!("端口 {port} 已被占用，请更换端口")
+    } else if raw.contains("requested address") || e.kind() == std::io::ErrorKind::AddrNotAvailable {
+        format!("监听地址 {host} 当前不可用")
+    } else {
+        format!("无法监听 {host}:{port}")
+    }
+}
+
 pub fn stop(state: &Arc<AppState>) {
+    tracing::info!("自定义模型停止");
     // 用 notify_one（会保留一个许可）而非 notify_waiters，避免"尚无等待者"时关闭信号丢失、端口不释放。
     if let Some(n) = state.proxy_shutdown.lock().unwrap().take() {
         n.notify_one();
     }
     *state.proxy_running.lock().unwrap() = false;
+    *state.proxy_error.lock().unwrap() = None;
 }
 
 fn build_router(state: Arc<AppState>) -> Router {
@@ -578,6 +605,9 @@ async fn forward_once(
     let status = resp.status();
     let code = status.as_u16();
     let headers = resp.headers().clone();
+    if !status.is_success() {
+        tracing::warn!("上游返回 {code} url={url} uid={} model={model}", acc.uid);
+    }
 
     // 401：刷新一次重试；429/积分耗尽：冷却并换号
     if code == 401 {

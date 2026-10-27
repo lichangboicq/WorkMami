@@ -12,6 +12,7 @@ use serde_json::Value;
 use crate::error::WmError;
 use crate::state::{AppState, ProxySettings};
 
+pub mod trae;
 pub mod workbuddy;
 
 pub type R<T> = Result<T, WmError>;
@@ -56,7 +57,7 @@ pub trait IdeSyncTarget: Send + Sync {
 }
 
 pub fn all_targets() -> Vec<Box<dyn IdeSyncTarget>> {
-    vec![Box::new(workbuddy::WorkBuddyTarget)]
+    vec![Box::new(workbuddy::WorkBuddyTarget), Box::new(trae::TraeTarget)]
 }
 
 pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {

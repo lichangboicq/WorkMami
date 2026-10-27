@@ -267,11 +267,12 @@ FunctionEnd
 ; ----------------------------------------------------------------------------
 ; Auto start checkbox on the finish page ("打开 WorkMami" step).
 ;
-; Offers to register ${PRODUCTNAME} in the current user's Run key so it
-; launches at login. The registry write matches exactly what
-; `tauri-plugin-autostart` (via the `auto-launch` crate) does from inside
-; the app, so this checkbox and the in-app switch control the very same
-; registry value. Default state is off.
+; Registers exactly ONE machine-wide (HKLM) Run entry so the app launches at
+; login. Before writing it, remove ALL legacy per-user startup entries left by
+; older versions (HKCU Run, HKCU StartupApproved\Run and the per-user Startup
+; folder shortcut) — if both an HKCU and an HKLM entry exist, Windows launches
+; the app twice. The `--hidden` argument matches the in-app autostart switch
+; (tray only, no main window at boot). Default state is checked.
 ; ----------------------------------------------------------------------------
 Function FinishPageShow
   ; Placed right below the run checkbox (top 90u) and the desktop shortcut
@@ -285,16 +286,22 @@ FunctionEnd
 
 Function FinishPageLeave
   ${NSD_GetState} $AutoStartCheckbox $AutoStartState
+  ; 1) Legacy cleanup first: per-user entries from older versions.
+  SetShellVarContext current
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
+  Delete "$SMSTARTUP\${PRODUCTNAME}.lnk"
   ${If} $AutoStartState = 1
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe"
+    ; 2) Then set the single machine-wide (HKLM) entry. Requires elevation:
+    ;    perMachine installs always run elevated.
+    WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" --hidden"
     ; StartupApproved override: 12-byte enabled marker, keeps Task Manager's
     ; "Startup" list showing the entry as Enabled.
-    WriteRegBin HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}" "020000000000000000000000"
+    WriteRegBin HKLM "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}" "020000000000000000000000"
   ${Else}
-    ; Unchecked: clear any previous autostart entry (same behavior as the
-    ; MSI installer when the checkbox is left unchecked).
-    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
-    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
+    ; Unchecked: clear both hives so no autostart entry remains.
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
   ${EndIf}
 FunctionEnd
 
@@ -796,13 +803,18 @@ Section Uninstall
     DeleteRegKey HKCU "${UNINSTKEY}"
   !endif
 
-  ; Removes the Autostart entry for ${PRODUCTNAME} from the HKCU Run key if it exists.
-  ; This ensures the program does not launch automatically after uninstallation if it exists.
-  ; If it doesn't exist, it does nothing.
-  ; We do this when not updating (to preserve the registry value on updates)
+  ; Removes the Autostart entries for ${PRODUCTNAME} from ALL locations
+  ; (HKCU Run, HKLM Run and the per-user Startup folder shortcut) if they
+  ; exist. This ensures the program does not launch automatically after
+  ; uninstallation. We do this when not updating (to preserve the registry
+  ; value on updates)
   ${If} $UpdateMode <> 1
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" "${PRODUCTNAME}"
+    SetShellVarContext current
+    Delete "$SMSTARTUP\${PRODUCTNAME}.lnk"
   ${EndIf}
 
   ; Delete app data if the checkbox is selected

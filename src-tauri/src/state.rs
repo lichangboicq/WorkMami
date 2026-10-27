@@ -148,6 +148,8 @@ pub struct AppState {
     /// 自定义模型运行控制
     pub proxy_shutdown: Mutex<Option<Arc<Notify>>>,
     pub proxy_running: Mutex<bool>,
+    /// 自定义模型启动失败原因（如监听地址无法解析/端口被占用）。供界面显著提示，成功启动或停止后清空。
+    pub proxy_error: Mutex<Option<String>>,
     /// 自定义模型实例代次：每次 start 递增。serve 任务退出时仅当自己仍是当前代次才清除 running，
     /// 避免旧实例优雅关闭退出时把新实例的运行状态误覆盖为 false。
     pub proxy_gen: Mutex<u64>,
@@ -187,6 +189,7 @@ impl AppState {
             pool_rr: Mutex::new(HashMap::new()),
             proxy_shutdown: Mutex::new(None),
             proxy_running: Mutex::new(false),
+            proxy_error: Mutex::new(None),
             proxy_gen: Mutex::new(0),
             balance_history: Mutex::new(balance_history),
             models_cache: Mutex::new(Vec::new()),

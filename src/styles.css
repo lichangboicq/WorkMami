@@ -181,6 +181,24 @@ body {
   transition: opacity 0.2s ease, color 0.2s ease;
 }
 .wm-run-state.is-live { color: #52c41a; opacity: 1; }
+/* 启动失败：与保存失败同一套红色警示语言，点击重试 */
+.wm-run-state.is-error {
+  color: #ff4d4f;
+  opacity: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.wm-run-state.is-error::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+  animation: wm-dot-blink 1.2s ease-in-out infinite;
+}
 
 /* 字段网格 */
 .wm-field-grid {

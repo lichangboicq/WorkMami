@@ -72,6 +72,10 @@ pub struct Account {
     pub today_checked_in: bool,
     #[serde(default)]
     pub streak_days: i64,
+    /// 独立浏览器 profile 目录名（browser-profiles/<name>）。
+    /// 登录/首次使用时一次性分配并固定，此后不再改动。
+    #[serde(default)]
+    pub profile: Option<String>,
     /// token 是否可本机解密获得（否则需重新授权）
     pub has_local_token: bool,
     pub created_at: DateTime<Utc>,
@@ -195,6 +199,28 @@ impl AccountStore {
         }
         self.persist()
     }
+
+    /// 该账号已固定的 profile 目录名；从未登录/记忆过返回 None。
+    pub fn profile_name(&self, uid: &str) -> Option<String> {
+        self.inner
+            .read()
+            .unwrap()
+            .iter()
+            .find(|a| a.uid == uid)?
+            .profile
+            .clone()
+    }
+
+    /// 记录账号与 profile 目录名的对应关系（只写一次，之后不再变）。
+    pub fn bind_profile(&self, uid: &str, dir_name: &str) -> WmResult<()> {
+        {
+            let mut guard = self.inner.write().unwrap();
+            if let Some(a) = guard.iter_mut().find(|a| a.uid == uid) {
+                a.profile = Some(dir_name.to_string());
+            }
+        }
+        self.persist()
+    }
 }
 
 /// 保存 token 到加密 vault。
@@ -232,6 +258,7 @@ pub fn upsert_from_oauth(
         last_used_at: None,
         today_checked_in: false,
         streak_days: 0,
+        profile: None,
         has_local_token: true,
         created_at: Utc::now(),
     });

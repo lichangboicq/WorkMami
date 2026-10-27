@@ -57,6 +57,11 @@ export const api = {
     invoke<void>("save_settings", { settings }),
   proxyStatus: () => invoke<ProxyStatus>("proxy_status"),
 
+  // 开机自启动（统一走 HKLM 机器级启动项；enable/disable 会先清理历史 HKCU 入口）
+  autostartStatus: () => invoke<boolean>("autostart_status"),
+  autostartEnable: () => invoke<void>("autostart_enable"),
+  autostartDisable: () => invoke<void>("autostart_disable"),
+
   // 账号
   listAccounts: () => invoke<Account[]>("list_accounts"),
   credentialStatus: (uid: string) =>

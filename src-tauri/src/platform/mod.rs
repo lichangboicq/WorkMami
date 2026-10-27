@@ -78,6 +78,25 @@ pub fn init_paths() {
     let _ = workbuddy_paths();
 }
 
+/// 初始化运行日志：追加写入 `<root>/logs/workmami.log`（启动时超过 5MB 轮转一份 .old）。
+/// 此前 tracing 宏没有任何 sink，日志全部丢弃，网络/代理类问题无法事后追溯。
+pub fn init_logging() {
+    let dir = workmami_paths().logs_dir.clone();
+    let path = dir.join("workmami.log");
+    let _ = std::fs::create_dir_all(&dir);
+    if std::fs::metadata(&path).map(|m| m.len() > 5 * 1024 * 1024).unwrap_or(false) {
+        let _ = std::fs::rename(&path, dir.join("workmami.old.log"));
+    }
+    let Ok(file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) else {
+        return;
+    };
+    let _ = tracing_subscriber::fmt()
+        .with_writer(std::sync::Mutex::new(file))
+        .with_ansi(false)
+        .with_max_level(tracing::Level::INFO)
+        .try_init();
+}
+
 pub fn workmami_paths() -> &'static WorkmamiPaths {
     WM_PATHS.get_or_init(|| {
         let root = app_support_base().join("WorkMami");

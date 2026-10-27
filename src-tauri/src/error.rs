@@ -71,9 +71,23 @@ macro_rules! impl_from {
 impl_from!(Io, std::io::Error);
 impl_from!(Json, serde_json::Error);
 impl_from!(Db, rusqlite::Error);
-impl_from!(Http, reqwest::Error);
 impl_from!(Keyring, keyring::Error);
 impl_from!(Zip, zip::result::ZipError);
+
+/// reqwest 网络层失败统一在这里落日志：连接/DNS/超时问题只在这一层能拿到原始原因。
+impl From<reqwest::Error> for WmError {
+    fn from(e: reqwest::Error) -> Self {
+        tracing::warn!(
+            "网络请求失败 url={:?} connect={} timeout={} request={} err={}",
+            e.url().map(|u| u.to_string()),
+            e.is_connect(),
+            e.is_timeout(),
+            e.is_request(),
+            e
+        );
+        WmError::Http(e)
+    }
+}
 
 /// reqwest 错误转中文友好提示：连接层失败（请求没发出去/超时）直接透传
 /// "error sending request for url(...)" 英文原文会让用户误以为程序坏了，其实是网络抖动。

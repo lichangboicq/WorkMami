@@ -7,6 +7,7 @@
 
 mod accounts;
 mod api;
+mod autostart;
 mod browser;
 mod commands;
 #[cfg(debug_assertions)]
@@ -31,6 +32,8 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    platform::init_paths();
+    platform::init_logging();
     let mut builder = tauri::Builder::default();
 
     // 单实例：二次启动（如再次双击桌面图标）时呼出已有主窗口，不重复启动第二个进程
@@ -45,13 +48,10 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_notification::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            // 开机自启动时携带 --hidden：仅进托盘，不展示主界面；
-            // 桌面快捷方式手动启动不带此参数，正常展示主界面。
-            Some(vec!["--hidden"]),
-        ));
+        .plugin(tauri_plugin_dialog::init());
+    // 自启动不再使用 tauri-plugin-autostart（它写 HKCU，会与安装程序的 HKLM
+    // 启动项并存导致开机拉起两个进程）。改由 autostart 模块统一管理：
+    // 先清理历史 HKCU / Startup 文件夹入口，再写唯一的 HKLM 机器级启动项。
 
     // 主窗口点 X 不退出：隐藏至托盘（托盘菜单“退出”才是真正退出）。
     // OAuth 登录已改为外部独立浏览器 profile（无 Tauri 登录窗），无需窗口事件清理。
@@ -85,8 +85,9 @@ pub fn run() {
         }
     
         // 账号统一通过"网页授权"添加（扫描无法取得可用 token，已退役）。
-        // 登录在**外部浏览器的独立 profile**（browser-profiles/pending-<session>）中完成，
-        // 多账号会话天然隔离；登录成功后目录别名到 uid（见 oauth::begin / browser::bind_profile）。
+        // 登录在**外部浏览器的独立 profile**（browser-profiles/profile-<uuid>）中完成，
+        // 多账号会话天然隔离；目录名创建即固定、永不改名，uid 与目录名的映射存账号表
+        // （见 oauth::begin / accounts::bind_profile）。
     
         // 启动自定义模型（若配置为启用）
         if app_state.proxy_settings().enabled {
@@ -98,8 +99,9 @@ pub fn run() {
     
         // 启动调度器（传 AppHandle 用于旅行自动领取通知）
         let handle = app.handle().clone();
+        let sched_state = app_state.clone();
         tauri::async_runtime::spawn(async move {
-            match scheduler::start(handle, app_state.clone()).await {
+            match scheduler::start(handle, sched_state).await {
                 Ok(sched) => {
                     // 持有 scheduler 防止被 drop
                     use std::sync::OnceLock;
@@ -109,6 +111,23 @@ pub fn run() {
                 Err(e) => tracing::error!("调度器启动失败: {e}"),
             }
         });
+
+        // 闲置回收：应用运行期每 5 分钟清理一次遗留 profile 目录（启动时不执行）
+        {
+            let st = app_state.clone();
+            tauri::async_runtime::spawn(async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+                    let known: Vec<String> = st
+                        .accounts
+                        .all()
+                        .iter()
+                        .filter_map(|a| a.profile.clone())
+                        .collect();
+                    browser::cleanup_idle_profile_dirs(&known, &oauth::active_profile_dirs());
+                }
+            });
+        }
     
         // 托盘图标：左键点击显示主界面；右键菜单含“显示主界面 / 退出”
         {
@@ -174,6 +193,9 @@ pub fn run() {
         commands::get_settings,
         commands::save_settings,
         commands::proxy_status,
+        autostart::autostart_status,
+        autostart::autostart_enable,
+        autostart::autostart_disable,
         commands::list_accounts,
         commands::credential_status,
         commands::set_account_enabled,

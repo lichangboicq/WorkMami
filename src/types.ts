@@ -144,6 +144,8 @@ export interface AppSettings {
 export interface ProxyStatus {
   running: boolean;
   enabled: boolean;
+  /** 启动失败原因（监听地址无法解析/端口被占用等），正常时为 null */
+  error?: string | null;
   host: string;
   port: number;
   baseUrl: string;

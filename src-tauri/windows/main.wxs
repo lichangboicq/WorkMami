@@ -20,9 +20,12 @@
           controls to a stock dialog of the WixUIExtension, the
           WixUI_InstallDir dialog set is re-declared below as
           `WixUI_InstallDirCustom` together with our own ExitDialog.
-       2. The autostart choice writes the same registry values the app itself
-          writes via `tauri-plugin-autostart` (auto-launch crate), so the
+       2. The autostart choice writes the SAME machine-wide (HKLM) Run value
+          the app itself writes (see src-tauri/src/autostart.rs), so the
           installer checkbox and the in-app switch control the same entry.
+          Legacy per-user entries (HKCU Run / StartupApproved and the
+          Startup-folder shortcut from older versions) are removed so exactly
+          one startup entry remains.
        3. The autostart checkbox defaults to the CURRENT system state: if the
           app is already registered to run at login (e.g. by a previous NSIS
           install or by the app itself), the checkbox starts checked. -->
@@ -151,6 +154,9 @@
                 <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
             </Directory>
             <Directory Id="ProgramMenuFolder"/>
+            <!-- Per-user Startup folder: used by LegacyStartupLnkCleanup to
+                 remove the WorkMami.lnk left by older versions. -->
+            <Directory Id="StartupFolder" Name="Startup"/>
         </Directory>
 
         <DirectoryRef Id="INSTALLDIR">
@@ -172,19 +178,34 @@
                 </RegistryKey>
                 {{/each~}}
             </Component>
-            <!-- Launch-at-startup entry, mirrored from `tauri-plugin-autostart`
-                 (auto-launch crate): HKCU Run value named after the product and
-                 a StartupApproved "enabled" marker. Installed only when the
-                 exit dialog checkbox (AUTOSTART_ENABLED) is set; removed again
-                 on uninstall or when the checkbox is left unchecked. -->
+            <!-- Launch-at-startup entry: exactly ONE machine-wide (HKLM) Run
+                 value named after the product, plus a StartupApproved
+                 "enabled" marker. Older versions wrote per-user (HKCU)
+                 entries and a Startup-folder shortcut — when those coexist
+                 with the HKLM entry, Windows launches the app twice. Legacy
+                 entries are removed by LegacyAutoStartCleanup below; the
+                 in-app switch manages the same HKLM value. Installed only
+                 when the exit dialog checkbox (AUTOSTART_ENABLED) is set;
+                 removed again on uninstall or when the checkbox is left
+                 unchecked. -->
             <Component Id="AutoStartRegistry" Guid="*">
                 <Condition>AUTOSTART_ENABLED</Condition>
-                <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run">
-                    <RegistryValue Name="{{product_name}}" Type="string" Value="[!Path]" KeyPath="yes" />
+                <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run">
+                    <RegistryValue Name="{{product_name}}" Type="string" Value="&quot;[!Path]&quot; --hidden" KeyPath="yes" />
                 </RegistryKey>
-                <RegistryKey Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run">
+                <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run">
                     <RegistryValue Name="{{product_name}}" Type="binary" Value="020000000000000000000000" />
                 </RegistryKey>
+            </Component>
+            <!-- Cleanup of legacy per-user autostart entries (HKCU Run /
+                 StartupApproved and the per-user Startup folder shortcut)
+                 left by older versions. Runs on every install regardless of
+                 the AUTOSTART_ENABLED checkbox, so exactly one entry remains. -->
+            <Component Id="LegacyAutoStartCleanup" Guid="*">
+                <RemoveRegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="{{product_name}}" />
+                <RemoveRegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run" Name="{{product_name}}" />
+                <RegistryValue Root="HKCU" Key="Software\{{manufacturer}}\{{product_name}}" Name="LegacyAutoStartCleanup" Type="integer" Value="1" KeyPath="yes" />
+                <Condition>NOT Installed</Condition>
             </Component>
             <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{main_binary_path}}" KeyPath="yes" Checksum="yes"/>
@@ -263,6 +284,17 @@
            </Component>
         </DirectoryRef>
 
+        <!-- Legacy per-user Startup folder shortcut cleanup (see
+             LegacyAutoStartCleanup). Removes WorkMami.lnk on install and
+             uninstall; it is no longer created by this installer. -->
+        <DirectoryRef Id="StartupFolder">
+            <Component Id="LegacyStartupLnkCleanup" Guid="*">
+                <RemoveFile Id="RemoveLegacyStartupLnk" Name="{{product_name}}.lnk" On="both" />
+                <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="StartupLnkCleanup" Type="integer" Value="1" KeyPath="yes" />
+                <Condition>NOT Installed</Condition>
+            </Component>
+        </DirectoryRef>
+
         {{#each merge_modules as |msm| ~}}
         <DirectoryRef Id="TARGETDIR">
             <Merge Id="{{ msm.name }}" SourceFile="{{ msm.path }}" DiskId="1" Language="!(loc.TauriLanguage)" />
@@ -285,6 +317,8 @@
 
             <ComponentRef Id="RegistryEntries"/>
             <ComponentRef Id="AutoStartRegistry"/>
+            <ComponentRef Id="LegacyAutoStartCleanup"/>
+            <ComponentRef Id="LegacyStartupLnkCleanup"/>
             <ComponentRef Id="NsisCleanup"/>
 
             {{#each resource_file_ids as |resource_file_id| ~}}

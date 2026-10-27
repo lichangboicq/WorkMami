@@ -41,8 +41,8 @@ struct Capture {
     captured: Option<Captured>,
     /// 本次登录用的独立浏览器子进程（外部浏览器，非 Tauri WebView）。
     child: Option<std::process::Child>,
-    /// 临时 profile 目录名（pending-<session>），登录成功后别名到 uid。
-    temp: String,
+    /// 本次登录所在的 profile 目录名（创建即定名，登录成功后写入账号表）。
+    dir_name: String,
 }
 
 static CAPTURES: OnceLock<Mutex<HashMap<String, Capture>>> = OnceLock::new();
@@ -60,9 +60,9 @@ pub enum PollOutcome {
 ///
 /// 不再使用 Tauri WebView 登录窗：所有窗口共享同一 WebView2 存储，多账号会话互相污染，
 /// 以前靠「整库清除 + sleep 赌异步清理完成」规避，竞态脆弱（清晚会抹掉本次登录会话）。
-/// 现在每次登录分配独立临时 profile（browser-profiles/pending-<session>），在真实浏览器里
-/// 扫码，登录态天然落在该 profile 内；拿到 uid 后立即把目录别名到该账号
-/// （browser::bind_profile），一次扫码同时完成 token 入库 + 成长计划登录态记忆。
+/// 现在每次登录分配独立 profile（browser-profiles/profile-<uuid>），在真实浏览器里
+/// 扫码，登录态天然落在该 profile 内；目录名创建即固定、永不改名，拿到 uid 后只把
+/// 「uid → 目录名」写进账号表（browser::ensure_profile_dir / accounts::bind_profile）。
 pub async fn begin(api: Arc<ApiClient>) -> WmResult<String> {
     let (state_token, auth_url) = api.oauth_state().await?;
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -70,8 +70,9 @@ pub async fn begin(api: Arc<ApiClient>) -> WmResult<String> {
     let (_label, exe) = crate::browser::detect().ok_or_else(|| {
         WmError::Other("未找到可用浏览器（Microsoft Edge 或 Google Chrome），请安装其一后重试".into())
     })?;
-    let temp_dir = crate::browser::temp_profile_dir(&session_id);
-    let child = crate::browser::launch_child(&exe, &temp_dir, &auth_url)?;
+    let dir_name = crate::browser::new_profile_name();
+    let dir = crate::browser::profiles_root().join(&dir_name);
+    let child = crate::browser::launch_child(&exe, &dir, &auth_url)?;
 
     caps().lock().unwrap().insert(
         session_id.clone(),
@@ -81,7 +82,7 @@ pub async fn begin(api: Arc<ApiClient>) -> WmResult<String> {
             done: false,
             captured: None,
             child: Some(child),
-            temp: crate::browser::temp_profile_name(&session_id),
+            dir_name,
         },
     );
 
@@ -155,21 +156,13 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
     }));
 
     if let Some((access, refresh, domain, uid, nickname, etype, expires_at)) = captured {
-        // 立刻记忆 profile 位置：登录态所在的临时目录别名到该 uid。
-        // 此后点击「成长计划」按钮，直接从该目录（--user-data-dir）启动浏览器即带登录态。
-        let temp_name = {
-            let mut m = caps().lock().unwrap();
-            let t = m.get(session_id).map(|c| c.temp.clone()).unwrap_or_default();
-            if let Some(c) = m.get_mut(session_id) {
-                c.child = None; // 句柄移交完毕；浏览器窗口留给用户继续使用
-            }
-            t
-        };
-        if !temp_name.is_empty() && !uid.is_empty() {
-            crate::browser::bind_profile(&uid, &temp_name);
-            // 衔接体验：同一 profile 里打开成长计划（浏览器若仍开着则新开标签页）
-            let _ = crate::browser::open_growth_in(&crate::browser::profile_dir(&uid));
-        }
+        // 目录名创建时就已固定，这里只把「uid → 目录名」写进账号表（不改名、不迁移）。
+        let dir_name = caps()
+            .lock()
+            .unwrap()
+            .get(session_id)
+            .map(|c| c.dir_name.clone())
+            .unwrap_or_default();
         let tokens = AuthTokens {
             access_token: access,
             refresh_token: refresh,
@@ -181,17 +174,23 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
             uid: uid.clone(),
         };
         let acc = accounts::upsert_from_oauth(&state.accounts, &uid, &nickname, &etype, tokens)?;
+        if !dir_name.is_empty() {
+            state.accounts.bind_profile(&uid, &dir_name)?;
+            // 衔接体验：同一 profile 里打开成长计划（浏览器若仍开着则新开标签页）
+            let _ = crate::browser::open_growth_in(&crate::browser::profiles_root().join(&dir_name));
+        }
         // 清理，避免重复入库
         let mut m = caps().lock().unwrap();
         if let Some(c) = m.get_mut(session_id) {
             c.done = true;
             c.captured = None;
+            c.child = None; // 句柄移交完毕；浏览器窗口留给用户继续使用
         }
         return Ok(PollOutcome::Authorized(Box::new(acc)));
     }
 
-    // 会话过期：若登录浏览器已被用户关闭，顺手清掉无登录态的临时 profile；
-    // 浏览器还开着则保留（避免删运行中目录），残留目录不影响后续会话。
+    // 会话失败/过期：若登录浏览器已被用户关闭，顺手清掉这次没用上的 profile 目录；
+    // 浏览器还开着则保留（避免删运行中目录），交给后台闲置回收在浏览器退出后处理。
     {
         let expired = {
             let m = caps().lock().unwrap();
@@ -202,18 +201,37 @@ pub async fn poll(state: &Arc<AppState>, session_id: &str) -> WmResult<PollOutco
         if expired {
             let mut m = caps().lock().unwrap();
             if let Some(c) = m.get_mut(session_id) {
+                c.done = true;
                 let exited = match c.child.as_mut() {
                     Some(child) => child.try_wait().map(|s| s.is_some()).unwrap_or(false),
                     None => true,
                 };
                 if exited {
                     c.child = None;
-                    let dir = crate::browser::temp_profile_dir(session_id);
-                    let _ = std::fs::remove_dir_all(&dir);
+                    // 已写入账号表的目录属于正式 profile，绝不回收
+                    let bound = state
+                        .accounts
+                        .all()
+                        .iter()
+                        .any(|a| a.profile.as_deref() == Some(c.dir_name.as_str()));
+                    if !bound {
+                        let _ = std::fs::remove_dir_all(crate::browser::profiles_root().join(&c.dir_name));
+                    }
                 }
             }
             return Ok(PollOutcome::Expired);
         }
     }
     Ok(PollOutcome::Pending)
+}
+
+/// 仍在进行中的登录 profile 目录名，供后台闲置回收避让。
+pub fn active_profile_dirs() -> Vec<String> {
+    caps()
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|(_, c)| !c.done)
+        .map(|(_, c)| c.dir_name.clone())
+        .collect()
 }

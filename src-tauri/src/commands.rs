@@ -79,6 +79,7 @@ pub fn proxy_status(state: State<'_, Arc<AppState>>) -> R<Value> {
     Ok(serde_json::json!({
         "running": running,
         "enabled": ps.enabled,
+        "error": state.proxy_error.lock().unwrap().clone(),
         "host": ps.host,
         "port": ps.port,
         "baseUrl": format!("http://{}:{}/v1", ps.host, ps.port),
@@ -351,7 +352,7 @@ pub fn open_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Val
     if state.accounts.get(&uid).is_none() {
         return Err(WmError::NotFound("账号不存在".into()));
     }
-    crate::browser::open_growth_center(&uid)
+    crate::browser::open_growth_center(&state.accounts, &uid)
 }
 
 /// 登录/记忆成长计划：拉起独立浏览器窗口供扫码建立网页登录态
@@ -361,7 +362,7 @@ pub fn bind_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Val
     if state.accounts.get(&uid).is_none() {
         return Err(WmError::NotFound("账号不存在".into()));
     }
-    crate::browser::bind_growth_center(&uid)
+    crate::browser::bind_growth_center(&state.accounts, &uid)
 }
 
 /// 批量返回各账号是否已在独立目录记忆网页登录态：{uid: bool}，供卡片展示状态。
@@ -369,7 +370,10 @@ pub fn bind_growth_center(state: State<'_, Arc<AppState>>, uid: String) -> R<Val
 pub fn growth_bound_all(state: State<'_, Arc<AppState>>) -> R<Value> {
     let mut map = serde_json::Map::new();
     for acc in state.accounts.all() {
-        map.insert(acc.uid.clone(), serde_json::json!(crate::browser::is_bound(&acc.uid)));
+        map.insert(
+            acc.uid.clone(),
+            serde_json::json!(crate::browser::is_bound(&state.accounts, &acc.uid)),
+        );
     }
     Ok(serde_json::Value::Object(map))
 }

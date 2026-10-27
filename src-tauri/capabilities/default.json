@@ -8,9 +8,6 @@
     "shell:allow-open",
     "opener:default",
     "notification:default",
-    "dialog:allow-open",
-    "autostart:allow-enable",
-    "autostart:allow-disable",
-    "autostart:allow-is-enabled"
+    "dialog:allow-open"
   ]
 }

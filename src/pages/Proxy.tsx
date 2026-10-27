@@ -194,6 +194,18 @@ export default function Proxy() {
     await persistSettings(merged);
   };
 
+  // —— 启动失败（异常红点）时点击重试：重存同一份配置以触发 stop + start ——
+  const retryStart = async () => {
+    try {
+      await saveSettings(settingsRef.current);
+      const err = useStore.getState().proxy?.error;
+      if (err) message.error(err);
+      else message.success("已重新启动");
+    } catch (e) {
+      message.error(errText(e) || "启动失败");
+    }
+  };
+
   // —— 模型池：即时保存（更新本地 pools → 既有 save_settings 自动持久化 + 重启代理 + 同步）——
   const savePools = async (next: ModelPool[]) => {
     const nextProxy: PS = { ...formValuesRef.current, pools: next };
@@ -292,11 +304,17 @@ export default function Proxy() {
                 onChange={onToggleEnabled}
               />
               {dirtyDot("enabled")}
-              {(running || enabled) && (
-                <span className={`wm-run-state${running ? " is-live" : ""}`}>
-                  {running ? "运行中" : "待启动"}
-                </span>
-              )}
+              {running ? (
+                <span className="wm-run-state is-live">运行中</span>
+              ) : enabled && proxy?.error ? (
+                <Tooltip title={`${proxy.error}（点击重试）`}>
+                  <span className="wm-run-state is-error" onClick={retryStart}>
+                    异常
+                  </span>
+                </Tooltip>
+              ) : enabled ? (
+                <span className="wm-run-state">待启动</span>
+              ) : null}
             </div>
             {/* 保存状态徽章 */}
             {saveStatusBadge}

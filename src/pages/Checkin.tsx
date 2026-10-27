@@ -13,7 +13,6 @@ import {
   message,
 } from "antd";
 import { GiftOutlined } from "@ant-design/icons";
-import { enable as enableAutoStart, disable as disableAutoStart, isEnabled as isAutoStartEnabled } from "@tauri-apps/plugin-autostart";
 import { api, errText } from "../api";
 import { useStore } from "../store";
 import type { CheckinResult } from "../types";
@@ -29,14 +28,14 @@ export default function Checkin() {
   const [autostartLoading, setAutostartLoading] = useState(false);
 
   useEffect(() => {
-    isAutoStartEnabled().then(setAutostart).catch(() => {});
+    api.autostartStatus().then(setAutostart).catch(() => {});
   }, []);
 
   const toggleAutostart = async (v: boolean) => {
     setAutostartLoading(true);
     try {
-      if (v) await enableAutoStart();
-      else await disableAutoStart();
+      if (v) await api.autostartEnable();
+      else await api.autostartDisable();
       setAutostart(v);
       message.success(v ? "已开启开机自启" : "已关闭开机自启");
     } catch (e) {
