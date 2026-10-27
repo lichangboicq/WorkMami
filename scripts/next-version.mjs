@@ -1,22 +1,19 @@
 #!/usr/bin/env node
 /**
- * 发版版本号计算：stable / beta / nightly 三渠道自动递增。
+ * 发版版本号计算：纯十进制 X.Y.Z，无后缀计数器，不依赖 git tag。
  *
  * 用法：
- *   node scripts/next-version.mjs <stable|beta|nightly> [baseVersion]
+ *   node scripts/next-version.mjs <nightly|beta|stable> [baseVersion]
  *   baseVersion 缺省取 package.json 的 version 字段
  *
  * 规则（base = 目标分支 package.json 的 version）：
- *   stable : max(base, 仓库中最新 stable tag vX.Y.Z)；
- *            若该值已作为 stable tag 发过，则 patch +0.0.1
- *            （例：base=0.6.0、已有 v0.6.0 → 0.6.1；base=0.7.0、最新 tag 0.6.0 → 0.7.0）
- *   beta   : base-beta.N，N = 已有 *-beta.N tag 最大值 + 1（无则 1）
- *   nightly: base-nightly.N，N = 已有 *-nightly.N tag 最大值 + 1（无则 1）
+ *   nightly: patch +0.0.1；patch 满 10 十进制进位到 minor（0.6.9 → 0.7.0）
+ *   beta   : minor +0.1.0，patch 归零（nightly 计数归零）
+ *   stable : major +1.0.0，minor/patch 全归零（beta 与 nightly 计数归零）
  *
  * 输出：纯版本号字符串到 stdout，供 CI 的 GITHUB_OUTPUT 使用。
  */
 import { readFileSync } from "node:fs";
-import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -35,31 +32,15 @@ if (!/^\d+\.\d+\.\d+$/.test(base)) {
   process.exit(1);
 }
 
-const tags = execSync("git tag -l", { cwd: root }).toString().trim().split("\n").filter(Boolean);
+const [maj, min, pat] = base.split(".").map(Number);
 
-const parse = (v) => v.split(".").map(Number);
-const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
-
+let next;
 if (channel === "stable") {
-  // 只认纯 stable tag（vX.Y.Z，不带 -beta./-nightly. 后缀）
-  let latest = [0, 0, 0];
-  for (const t of tags) {
-    const m = t.match(/^v(\d+)\.(\d+)\.(\d+)$/);
-    if (m) {
-      const v = [+m[1], +m[2], +m[3]];
-      if (cmp(v, latest) > 0) latest = v;
-    }
-  }
-  // base 领先于最新 stable tag → 直接发 base；否则从最新 tag 顺延 patch
-  const next = cmp(parse(base), latest) > 0 ? parse(base) : [latest[0], latest[1], latest[2] + 1];
-  console.log(next.join("."));
+  next = [maj + 1, 0, 0];
+} else if (channel === "beta") {
+  next = [maj, min + 1, 0];
 } else {
-  // beta / nightly：各自渠道的构建计数 +1
-  let last = 0;
-  const re = new RegExp(`-${channel}\\.(\\d+)$`);
-  for (const t of tags) {
-    const m = t.match(re);
-    if (m) last = Math.max(last, Number(m[1]));
-  }
-  console.log(`${base}-${channel}.${last + 1}`);
+  // nightly：patch 十进制递增，满 10 进位到 minor
+  next = pat + 1 >= 10 ? [maj, min + 1, 0] : [maj, min, pat + 1];
 }
+console.log(next.join("."));

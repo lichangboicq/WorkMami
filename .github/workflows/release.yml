@@ -62,7 +62,7 @@ jobs:
             fi
           else
             # 分支发版：nightly / beta / stable 三渠道，版本号由 scripts/next-version.mjs 自动递增
-            #   nightly: base-nightly.N   beta: base-beta.N   stable: patch 顺延
+            #   nightly: patch +0.0.1（满 10 进位 minor）  beta: minor +0.1.0  stable: major +1.0.0
             CHANNEL="${GITHUB_REF_NAME}"
             VERSION=$(node scripts/next-version.mjs "${CHANNEL}")
             TAG_NAME="v${VERSION}"

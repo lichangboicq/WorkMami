@@ -1,11 +1,21 @@
-name: Daily Release (04:00 UTC+8)
+name: Nightly/Beta/Release Pipeline (04:00 UTC+8)
 
-# 每天北京时间 04:00 自动发版：patch +0.0.1 → 编译出包 → 打 tag → 推送
+# 每天北京时间 04:00 自动发 nightly（patch +0.0.1）；满十个 nightly 自动进位为 beta（0.6.9 → 0.7.0）。
+# nightly 禁止手动触发；手动触发仅允许 beta（minor +0.1.0）与 stable（major +1.0.0）。
+# 版本号提交 main，tag 与 GitHub Release 由 tauri-action 自动创建，零人工。
 on:
   schedule:
     # 北京时间 04:00 = UTC 前一天 20:00
     - cron: "0 20 * * *"
-  workflow_dispatch: # 允许手动触发，便于先验证
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: "发布渠道（nightly 禁止手动，仅定时自动）"
+        type: choice
+        default: beta
+        options:
+          - beta
+          - stable
 
 permissions:
   contents: write # 需要推送版本提交与 tag
@@ -17,6 +27,8 @@ jobs:
     outputs:
       version: ${{ steps.ver.outputs.version }}
       tag_name: ${{ steps.ver.outputs.tag_name }}
+      channel: ${{ steps.ver.outputs.channel }}
+      prerelease: ${{ steps.ver.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,26 +38,53 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Determine next stable version (patch +0.0.1)
+      - name: Determine next version (auto nightly / manual beta+stable)
         id: ver
         run: |
-          VERSION=$(node scripts/next-version.mjs stable)
+          INPUT="${{ github.event.inputs.channel || '' }}"
+          BASE=$(node -p "require('./package.json').version")
+          if [[ -n "$INPUT" ]]; then
+            # 手动触发：nightly 禁止手动，仅允许 beta / stable
+            if [[ "$INPUT" == "nightly" ]]; then
+              echo "::error::nightly 禁止手动触发，只能由每日定时自动发布"
+              exit 1
+            fi
+            CHANNEL="$INPUT"
+            VERSION=$(node scripts/next-version.mjs "$CHANNEL" "$BASE")
+          else
+            # 定时自动：nightly patch +0.0.1；满十个（base patch=9 进位 X.Y.0）自动转为 beta
+            VERSION=$(node scripts/next-version.mjs nightly "$BASE")
+            if [[ "$VERSION" =~ \.0$ && "$BASE" =~ \.9$ ]]; then
+              CHANNEL="beta"
+            else
+              CHANNEL="nightly"
+            fi
+          fi
+          # nightly/beta 为预发布，stable 为正式版
+          if [[ "$CHANNEL" == "stable" ]]; then PRERELEASE=false; else PRERELEASE=true; fi
+          echo "channel=${CHANNEL}" >> "$GITHUB_OUTPUT"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag_name=v${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Next version: ${VERSION}"
+          echo "prerelease=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "Channel: ${CHANNEL}, Next version: ${VERSION}, Prerelease: ${PRERELEASE}"
 
       - name: Bump version in package.json / tauri.conf.json / Cargo.toml
         run: |
           npm version "$VERSION" --no-git-tag-version
           node scripts/sync-version.mjs
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
 
       - name: Commit & push version bump to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
-          git commit -m "chore(release): v$VERSION [skip ci]" || echo "nothing to commit"
+          git commit -m "chore(release): v$VERSION [$CHANNEL] [skip ci]" || echo "nothing to commit"
           git push origin HEAD:main
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          CHANNEL: ${{ steps.ver.outputs.channel }}
 
   # 多平台打包，依赖 prepare 算出的版本号
   build:
@@ -87,11 +126,10 @@ jobs:
           tagName: ${{ needs.prepare.outputs.tag_name }}
           releaseName: 'WorkMami ${{ needs.prepare.outputs.version }}'
           releaseBody: |
-            **Channel**: daily-stable
+            **Channel**: ${{ needs.prepare.outputs.channel }}
             **Version**: ${{ needs.prepare.outputs.version }}
-            Auto-released daily at 04:00 (UTC+8).
           releaseDraft: false
-          prerelease: false
+          prerelease: ${{ needs.prepare.outputs.prerelease == 'true' }}
           args: --target ${{ matrix.target }}
 
   # 把 main 分支 + 新 tag 同步镜像到 Gitee
