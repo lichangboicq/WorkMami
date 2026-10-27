@@ -385,7 +385,7 @@ function PoolCard({
   const rateTip = (
     <>
       <div style={{ fontWeight: 600, marginBottom: 2 }}>
-        首选模型若被限流，将启用次选模型
+        首选模型若被限流，启用备选的概率
       </div>
       <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 1 }}>
         {composite.details.map((d, i) => (

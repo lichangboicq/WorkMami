@@ -221,6 +221,43 @@ body {
   .wm-field-grid__wide { grid-column: 1 / -1; }
 }
 
+/* 字段单行排布（方案 A）：API Key + 监听地址 + 端口 按 5:3:2 一行 */
+.wm-field-grid--row {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
+}
+.wm-field-grid--row > .wm-field-grid__wide { grid-column: auto; }
+@media (max-width: 720px) {
+  .wm-field-grid--row { grid-template-columns: 1fr; }
+}
+
+/* 模型池工具栏：标题 + 积分调度策略（下移至模型池区域） */
+.wm-pool-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 10px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+}
+.wm-pool-toolbar__title {
+  font-size: 13.5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  opacity: 0.92;
+}
+.wm-pool-toolbar__strategy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  letter-spacing: 0.2px;
+  opacity: 0.92;
+}
+[data-theme="dark"] .wm-pool-toolbar { border-color: rgba(255, 255, 255, 0.18); }
+
 /* 全局卡片皮肤 —— 边框 + 双层阴影 + hover 品牌色呼吸 + 16px 圆角
    body 加 overflow hidden：所有子元素 hover 背景必须被卡片圆角裁切，
    避免 table-row / list-item / tabs-tab 等 antd 组件的方角 hover 越界
@@ -309,6 +346,246 @@ body {
   display: block;
   max-width: min(480px, 60vw);
   max-height: 320px;
+}
+
+/* TRAE 手动配置入口：可点击标签 */
+.wm-ide-chip.is-manual {
+  cursor: pointer;
+  opacity: 0.85;
+  color: var(--wm-brand);
+}
+.wm-ide-chip.is-manual .wm-ide-chip__dot { background: var(--wm-brand); }
+.wm-ide-chip.is-manual .wm-ide-chip__arrow { font-size: 9px; opacity: 0.6; }
+.wm-ide-chip.is-manual:hover { opacity: 1; }
+
+/* ============================================================
+   TRAE 自定义模型 · 配置指导页（所见即所得复刻）
+   固定浅色视觉：复刻对象是 TRAE 的界面截图，不随应用主题切换。
+   ============================================================ */
+.wm-trae-guide-empty {
+  font-size: 13px; color: #faad14; margin-bottom: 10px;
+}
+
+.wm-trae-guide {
+  /* TRAE 界面色板（取自截图） */
+  --tg-bg: #ffffff;
+  --tg-side-bg: #f7f7f8;
+  --tg-field-bg: #f5f5f6;
+  --tg-border: #ececed;
+  --tg-active: #e9e9ea;
+  --tg-text: #1f2329;
+  --tg-text-2: #8a8f99;
+  --tg-danger: #ff4d4f;
+  --tg-dark: #2b2f36;
+  display: flex;
+  border: 1px solid var(--tg-border);
+  border-radius: 10px;
+  overflow: hidden;
+  height: 652px;
+  user-select: none;
+}
+
+/* —— 左侧导航 —— */
+.wm-trae-guide__side {
+  width: 158px;
+  flex-shrink: 0;
+  background: var(--tg-side-bg);
+  border-right: 1px solid var(--tg-border);
+  padding: 12px 8px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+.wm-trae-guide__search {
+  background: #ebebec;
+  color: #b0b4ba;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+.wm-trae-guide__nav {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--tg-text);
+  padding: 7px 10px;
+  border-radius: 7px;
+  margin-bottom: 2px;
+  white-space: nowrap;
+}
+.wm-trae-guide__nav-icon { font-size: 14px; color: #6c7078; display: inline-flex; }
+.wm-trae-guide__nav.is-active {
+  background: var(--tg-active);
+  font-weight: 600;
+}
+
+/* —— 右侧弹窗 —— */
+.wm-trae-guide__panel {
+  flex: 1;
+  min-width: 0;
+  background: var(--tg-bg);
+  display: flex;
+  flex-direction: column;
+}
+.wm-trae-guide__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px 10px;
+  border-bottom: 1px solid var(--tg-border);
+}
+.wm-trae-guide__back { font-size: 12px; color: var(--tg-text); }
+.wm-trae-guide__title { font-size: 15px; font-weight: 600; color: var(--tg-text); }
+.wm-trae-guide__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 22px 16px;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+
+/* 字段标签：红星 + 标题；行内变体放「完整 URL」开关 */
+.wm-trae-guide__label {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tg-text);
+  margin: 14px 0 6px;
+}
+.wm-trae-guide__label:first-child { margin-top: 2px; }
+.wm-trae-guide__label i { font-style: normal; color: var(--tg-danger); }
+.wm-trae-guide__label--row {
+  justify-content: space-between;
+  font-weight: 400;
+}
+.wm-trae-guide__label--row > span:first-child {
+  display: flex; align-items: center; gap: 3px;
+  font-weight: 600;
+}
+.wm-trae-guide__fullurl {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--tg-text-2); font-weight: 400;
+}
+.wm-trae-guide__switch {
+  width: 26px; height: 15px; border-radius: 8px;
+  background: #c9cdd4;
+  position: relative;
+}
+.wm-trae-guide__switch::after {
+  content: "";
+  position: absolute; left: 2px; top: 2px;
+  width: 11px; height: 11px; border-radius: 50%;
+  background: #fff;
+}
+
+.wm-trae-guide__hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--tg-text-2);
+}
+
+/* 输入框复刻：可点击复制 */
+.wm-trae-guide__input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--tg-field-bg);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--tg-text);
+  cursor: default;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.wm-trae-guide__input.is-copyable { cursor: pointer; }
+.wm-trae-guide__input.is-copyable:hover {
+  border-color: var(--wm-brand-soft);
+  background: #fdf2f8;
+}
+.wm-trae-guide__input > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wm-trae-guide__copy { color: #9ca1a9; font-size: 13px; flex-shrink: 0; }
+.wm-trae-guide__input.is-copyable:hover .wm-trae-guide__copy { color: var(--wm-brand); }
+
+/* 模型 ID 下拉框（嵌在复刻输入框内的无边框 Select） */
+.wm-trae-guide__input.is-select { padding: 0 4px; }
+.wm-trae-guide__input.is-select:hover { border-color: transparent; background: var(--tg-field-bg); }
+.wm-trae-guide__pool-select { flex: 1; min-width: 0; }
+.wm-trae-guide__pool-select .ant-select-selector {
+  padding: 0 8px !important;
+  background: transparent !important;
+  font-size: 13px;
+}
+.wm-trae-guide__pool-select .ant-select-arrow { color: #9ca1a9; right: 10px; }
+.wm-trae-guide__eye { color: #9ca1a9; font-size: 13px; flex-shrink: 0; display: inline-flex; }
+.wm-trae-guide__counter { font-size: 12px; color: #b0b4ba; flex-shrink: 0; }
+
+/* API 格式（静态下拉框复刻） */
+.wm-trae-guide__select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--tg-field-bg);
+  border-radius: 8px;
+  height: 38px;
+  padding: 0 12px;
+  font-size: 13px;
+  color: var(--tg-text);
+}
+
+/* 高级配置行 */
+.wm-trae-guide__advanced {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tg-text);
+  margin-top: 16px;
+  padding: 4px 0;
+}
+
+/* 底部：提示 + 按钮 */
+.wm-trae-guide__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tg-border);
+}
+.wm-trae-guide__note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--tg-text-2);
+}
+.wm-trae-guide__btns { display: inline-flex; gap: 8px; flex-shrink: 0; }
+.wm-trae-guide__btn {
+  font-size: 13px;
+  padding: 5px 14px;
+  border-radius: 7px;
+  background: var(--tg-field-bg);
+  color: var(--tg-text);
+  border: 1px solid var(--tg-border);
+}
+.wm-trae-guide__btn.is-primary {
+  background: var(--tg-dark);
+  color: #fff;
+  border-color: var(--tg-dark);
 }
 
 /* 账号卡专属 */

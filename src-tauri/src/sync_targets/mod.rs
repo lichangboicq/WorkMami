@@ -2,6 +2,7 @@
 //! - 每个 IDE 实现 IdeSyncTarget trait（detect + sync + manual_guide 可选）
 //! - sync_all(state) 统一执行，供自定义模型启动 / 模型刷新 / settings 保存 / 前端按钮四处调用
 //! - 防污染：各 target 只动自己 managedBy 标记的条目
+//! - TRAE 已改为手动配置（前端可点击 TRAE 标签查看配置指导页），不再自动写入
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -12,7 +13,6 @@ use serde_json::Value;
 use crate::error::WmError;
 use crate::state::{AppState, ProxySettings};
 
-pub mod trae;
 pub mod workbuddy;
 
 pub type R<T> = Result<T, WmError>;
@@ -57,7 +57,7 @@ pub trait IdeSyncTarget: Send + Sync {
 }
 
 pub fn all_targets() -> Vec<Box<dyn IdeSyncTarget>> {
-    vec![Box::new(workbuddy::WorkBuddyTarget), Box::new(trae::TraeTarget)]
+    vec![Box::new(workbuddy::WorkBuddyTarget)]
 }
 
 pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {

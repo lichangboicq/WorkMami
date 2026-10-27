@@ -538,7 +538,7 @@ function AccountCard({
                       }}
                       onClick={() => setOpen((v) => !v)}
                     >
-                      {open ? "收起" : `展开更多可用积分（${activeResources.length - 1}）`}
+                      {open ? "收起" : `展开更多可用积分（${activeResources.length - 1}笔）`}
                     </a>
                   )}
                   {(open ? activeResources : activeResources.slice(0, 1)).map(

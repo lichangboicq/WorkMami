@@ -10,10 +10,11 @@ import {
   Tooltip,
   message,
 } from "antd";
-import { CopyOutlined, ReloadOutlined } from "@ant-design/icons";
+import { CopyOutlined, ReloadOutlined, RightOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
 import ModelPoolBoard from "../components/ModelPoolBoard";
+import TraeGuideModal from "../components/TraeGuideModal";
 import type { ModelInfo, ModelPool, ProxySettings as PS } from "../types";
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
@@ -67,6 +68,9 @@ export default function Proxy() {
 
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
+
+  // TRAE 已改为手动配置：点击 TRAE 标签弹出所见即所得的配置指导页
+  const [traeGuideOpen, setTraeGuideOpen] = useState(false);
 
   // 防抖队列 + 写入中集合
   const writeQueueRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -321,8 +325,8 @@ export default function Proxy() {
           </div>
         }
       >
-        {/* 字段网格 */}
-        <div className="wm-field-grid">
+        {/* 字段行：API Key + 监听地址 + 端口 同行排布（5:3:2） */}
+        <div className="wm-field-grid wm-field-grid--row">
           {/* API Key */}
           <div className="wm-field-grid__wide">
             <label className="wm-field-label">
@@ -350,25 +354,6 @@ export default function Proxy() {
                 />
               </Tooltip>
             </Space.Compact>
-          </div>
-
-          {/* 积分调度策略 */}
-          <div>
-            <label className="wm-field-label">
-              <span className="wm-field-label__text">{FIELD_LABELS.strategy}</span>
-              {dirtyDot("strategy")}
-            </label>
-            <Select
-              style={{ width: "100%" }}
-              value={formValues.strategy}
-              options={[
-                { value: "expiring-first", label: "先消耗临近到期的积分" },
-                { value: "smart", label: "先消耗余额多的账号" },
-                { value: "drain", label: "先消耗余额少的账号" },
-                { value: "round-robin", label: "各账号平均消耗" },
-              ]}
-              onChange={(v) => onFieldChange("strategy", v as PS["strategy"])}
-            />
           </div>
 
           {/* 监听地址 */}
@@ -450,6 +435,17 @@ export default function Proxy() {
                   </Tooltip>
                 );
               })}
+              {/* TRAE：不再自动写入，点击打开手动配置指导页 */}
+              <Tooltip title="点击查看 TRAE 手动配置指导">
+                <span
+                  className="wm-ide-chip is-manual"
+                  onClick={() => setTraeGuideOpen(true)}
+                >
+                  <span className="wm-ide-chip__dot" />
+                  TRAE
+                  <RightOutlined className="wm-ide-chip__arrow" />
+                </span>
+              </Tooltip>
             </div>
             <Tooltip title="自动配置所有IDE">
               <ReloadOutlined
@@ -467,9 +463,24 @@ export default function Proxy() {
           </div>
         }
       >
-        {/* 支持的模型 —— 模型池看板 */}
-        <div className="wm-field-label">
-          <span className="wm-field-label__text">模型池</span>
+        {/* 模型池工具栏：标题 + 积分调度策略（与看板平级，同方案 A） */}
+        <div className="wm-pool-toolbar">
+          <span className="wm-pool-toolbar__title">模型池</span>
+          <div className="wm-pool-toolbar__strategy">
+            <span>{FIELD_LABELS.strategy}</span>
+            {dirtyDot("strategy")}
+            <Select
+              style={{ minWidth: 200 }}
+              value={formValues.strategy}
+              options={[
+                { value: "expiring-first", label: "先消耗临近到期的积分" },
+                { value: "smart", label: "先消耗余额多的账号" },
+                { value: "drain", label: "先消耗余额少的账号" },
+                { value: "round-robin", label: "各账号平均消耗" },
+              ]}
+              onChange={(v) => onFieldChange("strategy", v as PS["strategy"])}
+            />
+          </div>
         </div>
 
         {/* 模型池看板（池卡片横向排序 + 池内模型行纵向 = 优先级） */}
@@ -479,6 +490,16 @@ export default function Proxy() {
           <ModelPoolBoard pools={pools} models={models} accountCount={accounts.length} onChange={savePools} />
         )}
       </Card>
+
+      {/* TRAE 手动配置指导页（所见即所得复刻 TRAE「自定义模型」弹窗） */}
+      <TraeGuideModal
+        open={traeGuideOpen}
+        onClose={() => setTraeGuideOpen(false)}
+        host={formValues.host}
+        port={formValues.port}
+        apiKey={apiKey}
+        pools={pools}
+      />
     </div>
   );
 }
