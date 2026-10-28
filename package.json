@@ -5,7 +5,7 @@
   "type": "module",
   "description": "WorkBuddy 多账号管理与本地自定义模型辅助工具",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --config vite.config.preview.ts",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

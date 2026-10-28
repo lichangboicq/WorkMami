@@ -865,6 +865,7 @@ body {
   justify-content: center;
   border: 1px dashed var(--pool-border);
   border-radius: 12px;
+  transition: border-color 0.15s ease;
 }
 .wm-pool-new-btn {
   height: auto;
@@ -885,6 +886,8 @@ body {
   letter-spacing: 1px;
 }
 .wm-pool-new-btn:hover { color: var(--wm-brand) !important; }
+/* hover 边框点亮：与「+ 添加模型」(.wm-pool-add-row:hover) 一致 */
+.wm-pool-new-col:hover { border-color: rgba(var(--wm-brand-rgb), 0.45); }
 
 .wm-model-gallery-loading {
   font-size: 13px;

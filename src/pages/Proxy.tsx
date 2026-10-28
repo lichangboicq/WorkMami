@@ -394,59 +394,65 @@ export default function Proxy() {
         className="wm-proxy-card"
         title={
           <div className="wm-card-title">
-            {/* IDE 自动配置状态：轻量示状态 */}
-            <div className="wm-ide-row">
-              {ideCards.map((ide) => {
-                const statusText = ide.error
-                  ? ide.error
-                  : !ide.detected
-                  ? "未检测到安装目录"
-                  : ide.synced
-                  ? "已自动配置"
-                  : "待配置";
-                const demoGif = IDE_DEMO_GIFS[ide.id];
-                const cls = ide.error
-                  ? "is-error"
-                  : !ide.detected
-                  ? "is-missing"
-                  : ide.synced
-                  ? "is-ok"
-                  : "is-pending";
-                return (
-                  <Tooltip
-                    key={ide.id}
-                    title={
-                      demoGif ? (
-                        <img
-                          className="wm-ide-demo-gif"
-                          src={demoGif}
-                          alt={`${ide.label} 自动配置演示`}
-                        />
-                      ) : (
-                        statusText
-                      )
-                    }
-                    classNames={demoGif ? { root: "wm-ide-gif-tooltip" } : undefined}
-                  >
-                    <span className={`wm-ide-chip ${cls}`}>
-                      <span className="wm-ide-chip__dot" />
-                      {ide.label}
-                    </span>
-                  </Tooltip>
-                );
-              })}
-              {/* TRAE：不再自动写入，点击打开手动配置指导页 */}
-              <Tooltip title="点击查看 TRAE 手动配置指导">
-                <span
-                  className="wm-ide-chip is-manual"
-                  onClick={() => setTraeGuideOpen(true)}
+            {/* 模型池：从工具栏上移为卡片标题 */}
+            <span className="wm-pool-toolbar__title">模型池</span>
+          </div>
+        }
+      >
+        {/* IDE 自动配置状态：从卡片标题下移为模型池区域工具栏（左：WorkBuddy/TRAE，右：积分调度策略） */}
+        <div className="wm-pool-toolbar">
+          <div className="wm-ide-row">
+            {ideCards.map((ide) => {
+              const statusText = ide.error
+                ? ide.error
+                : !ide.detected
+                ? "未检测到安装目录"
+                : ide.synced
+                ? "已自动配置"
+                : "待配置";
+              const demoGif = IDE_DEMO_GIFS[ide.id];
+              const cls = ide.error
+                ? "is-error"
+                : !ide.detected
+                ? "is-missing"
+                : ide.synced
+                ? "is-ok"
+                : "is-pending";
+              return (
+                <Tooltip
+                  key={ide.id}
+                  title={
+                    demoGif ? (
+                      <img
+                        className="wm-ide-demo-gif"
+                        src={demoGif}
+                        alt={`${ide.label} 自动配置演示`}
+                      />
+                    ) : (
+                      statusText
+                    )
+                  }
+                  classNames={demoGif ? { root: "wm-ide-gif-tooltip" } : undefined}
                 >
-                  <span className="wm-ide-chip__dot" />
-                  TRAE
-                  <RightOutlined className="wm-ide-chip__arrow" />
-                </span>
-              </Tooltip>
-            </div>
+                  <span className={`wm-ide-chip ${cls}`}>
+                    <span className="wm-ide-chip__dot" />
+                    {ide.label}
+                  </span>
+                </Tooltip>
+              );
+            })}
+            {/* TRAE：不再自动写入，点击打开手动配置指导页 */}
+            <Tooltip title="点击查看 TRAE 手动配置指导">
+              <span
+                className="wm-ide-chip is-manual"
+                onClick={() => setTraeGuideOpen(true)}
+              >
+                <span className="wm-ide-chip__dot" />
+                TRAE
+                <RightOutlined className="wm-ide-chip__arrow" />
+              </span>
+            </Tooltip>
+            {/* 自动配置所有 IDE */}
             <Tooltip title="自动配置所有IDE">
               <ReloadOutlined
                 className="wm-pool-refresh"
@@ -461,11 +467,6 @@ export default function Proxy() {
               />
             </Tooltip>
           </div>
-        }
-      >
-        {/* 模型池工具栏：标题 + 积分调度策略（与看板平级，同方案 A） */}
-        <div className="wm-pool-toolbar">
-          <span className="wm-pool-toolbar__title">模型池</span>
           <div className="wm-pool-toolbar__strategy">
             <span>{FIELD_LABELS.strategy}</span>
             {dirtyDot("strategy")}

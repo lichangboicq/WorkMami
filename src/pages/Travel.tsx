@@ -36,12 +36,15 @@ function formatCountdown(arriveAt: number, serverNow: number): string {
   return `${s}秒`;
 }
 
-function statusTag(state: string) {
+// 卡片右上角状态标签：idle 且服务端判定今日次数用完时，如实显示「明天再来」，而非「待出行」。
+function statusTag(state: string, dailyLimitReached = false) {
   switch (state) {
     case "traveling":
       return <Tag color="processing">旅行中</Tag>;
     case "arrived":
       return <Tag color="success">可领取</Tag>;
+    case "idle":
+      return dailyLimitReached ? <Tag color="warning">明天再来</Tag> : <Tag>待出行</Tag>;
     default:
       return <Tag>待出行</Tag>;
   }
@@ -260,7 +263,9 @@ export default function Travel() {
                     <span>{item.nickname || item.uid.slice(0, 8)}</span>
                   </Space>
                 }
-                extra={isError ? <Tag color="error">查询失败</Tag> : statusTag(st.state)}
+                extra={
+                  isError ? <Tag color="error">查询失败</Tag> : statusTag(st.state, st.dailyLimitReached)
+                }
                 size="small"
               >
                 {isError ? (
