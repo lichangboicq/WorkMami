@@ -16,11 +16,10 @@ on:
   workflow_dispatch:
     inputs:
       channel:
-        description: "发布渠道（nightly 临时开放手动触发，验证后回滚）"
+        description: "发布渠道（nightly 禁止手动，仅定时自动）"
         type: choice
         default: beta
         options:
-          - nightly
           - beta
           - stable
 
@@ -57,7 +56,11 @@ jobs:
           INPUT="${{ github.event.inputs.channel || '' }}"
           BASE=$(node -p "require('./package.json').version")
           if [[ -n "$INPUT" ]]; then
-            # 临时开放 nightly 手动触发，用于验证 tag 与产物版本号一致性（验证后回滚）
+            # 手动触发：nightly 禁止手动，仅允许 beta / stable
+            if [[ "$INPUT" == "nightly" ]]; then
+              echo "::error::nightly 禁止手动触发，只能由每日定时自动发布"
+              exit 1
+            fi
             CHANNEL="$INPUT"
             VERSION=$(node scripts/next-version.mjs "$CHANNEL" "$BASE")
           else
