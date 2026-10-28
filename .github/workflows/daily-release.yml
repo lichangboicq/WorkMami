@@ -2,7 +2,8 @@ name: Nightly/Beta/Release Pipeline (04:00 UTC+8)
 
 # 每天北京时间 04:00 自动发 nightly（patch +0.0.1）；满十个 nightly 自动进位为 beta（0.6.9 → 0.7.0）。
 # nightly 禁止手动触发；手动触发仅允许 beta（minor +0.1.0）与 stable（major +1.0.0）。
-# 版本号提交 main，tag 与 GitHub Release 由 tauri-action 自动创建，零人工。
+# 版本号提交 main，tag 打在版本 bump commit 上（保证 tag → 源码版本号 → 编译产物一致），
+# GitHub Release 由 tauri-action 创建，零人工。
 #
 # 注意：本工作流固定使用 actions/checkout@v5 与 actions/setup-node@v5（均运行于 node24 运行时）。
 # 设计如此——v4 运行于已被 GitHub 弃用的 node20，会触发两条无害但扰人的 WARN：
@@ -27,7 +28,9 @@ permissions:
   contents: write # 需要推送版本提交与 tag
 
 jobs:
-  # 单跑一次：算版本号 + 改文件 + 提交 + 推送到 main（不推 tag，避免重复触发 release.yml）
+  # 单跑一次：算版本号 + 改文件 + 提交 + 推送到 main + 在 bump commit 上打 tag
+  # （tag 打在此处而非交给 tauri-action，否则 tag 会指向触发时刻的旧 commit，
+  #   那里的源码版本号比 tag 落后 0.0.1；release.yml 有 bot actor 守卫，不会回环触发）
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -96,9 +99,18 @@ jobs:
           git commit -m "chore(release): v$VERSION [$CHANNEL] [skip ci]" || echo "nothing to commit"
           git push origin HEAD:main
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          # tag 直接打在版本 bump commit 上：tag 指向的源码版本号 == tag 版本号 == 产物版本号。
+          # tauri-action 发现 tag 已存在时只在其上建 Release，不会移动 tag。
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$TAG_NAME" >/dev/null; then
+            git tag "$TAG_NAME" HEAD
+            git push origin "refs/tags/$TAG_NAME"
+          else
+            echo "tag $TAG_NAME already exists, skip"
+          fi
         env:
           VERSION: ${{ steps.ver.outputs.version }}
           CHANNEL: ${{ steps.ver.outputs.channel }}
+          TAG_NAME: ${{ steps.ver.outputs.tag_name }}
 
   # 多平台打包，依赖 prepare 算出的版本号
   build:
