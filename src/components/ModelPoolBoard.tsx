@@ -1,7 +1,7 @@
 // 模型池看板：池卡片横向排序（dnd-kit）+ 池内模型行纵向排序（自上而下 = 调度优先级）。
 // 池名铅笔行内更名；悬停垃圾桶删除（Modal 二次确认 + 可撤销）；池级思考档位三选一（fast/medium/deep）。
 // 所有变更通过 onChange(next) 上抛，由 Proxy.tsx 落盘（既有 save_settings 自动持久化 + 重启代理 + 同步）。
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -29,6 +29,70 @@ const THINKING_OPTIONS = [
   { value: "斟酌", label: "斟酌" },
   { value: "精算", label: "精算" },
 ];
+
+// —— 池级忙闲筛选：五星评分式交互（与后端 /v2/chat/busy 的 busy_level 枚举对齐）——
+// 「不可用」不对用户开放：后端查到明确不可用即硬性避开
+
+// 官方「极度拥堵」图标（三个小人，暗红），取自官方模型选择器 cr-model-selector
+function CongestedIcon() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 14 14"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        fill="#B42C3F"
+        transform="matrix(1 0 0 1 2.5 0.372669)"
+        d="M2.4385 12.3505C2.2516 12.3467 2.0647 12.3505 1.8721 12.3505C1.8627 12.2939 1.8532 12.258 1.8532 12.2221C1.8532 10.7175 1.8513 9.2129 1.8551 7.7083C1.8551 7.6516 1.874 7.578 1.9136 7.5402C2.1704 7.2873 2.244 6.972 2.244 6.6265C2.2421 5.9091 2.2459 5.1917 2.2421 4.4743C2.2402 4.1779 2.2516 3.8815 2.2214 3.5889C2.1572 2.9754 1.6682 2.6148 0.9829 2.6544C0.4336 2.6865 0.005 3.1358 0.0031 3.706C-0.0025 4.733 0.0012 5.7581 0.0012 6.7851C0.0012 7.0399 0.0749 7.2759 0.2523 7.459C0.3562 7.5667 0.3826 7.6743 0.3807 7.8121C0.3769 9.481 0.3788 11.1479 0.3788 12.8168C0.3788 13.0622 0.4562 13.1661 0.6714 13.1699C1.2699 13.1774 1.8683 13.1774 2.4649 13.1661C2.7217 13.1604 2.8916 12.9716 2.884 12.7489C2.8746 12.5148 2.6952 12.3543 2.4385 12.3505ZM9.3594 12.3505C9.1725 12.3467 8.9856 12.3505 8.7911 12.3505C8.7855 12.2939 8.7779 12.2561 8.7779 12.2202C8.7779 10.7156 8.776 9.211 8.7817 7.7064C8.7817 7.6346 8.8251 7.5516 8.8742 7.4968C9.0441 7.3061 9.1517 7.0834 9.1536 6.8323C9.1612 5.7751 9.1649 4.716 9.1536 3.6588C9.148 3.1056 8.6817 2.6639 8.1285 2.6525C7.447 2.6374 6.9467 3.0131 6.9354 3.6135C6.9127 4.6896 6.9278 5.7656 6.9278 6.8417C6.9278 7.0928 7.043 7.2967 7.1902 7.493C7.2525 7.5742 7.2997 7.6894 7.2997 7.7894C7.3073 9.4696 7.3035 11.1517 7.3054 12.8319C7.3054 13.066 7.3771 13.1623 7.5905 13.1661C8.1889 13.1736 8.7874 13.1736 9.3839 13.1623C9.6388 13.1566 9.8087 12.9697 9.8011 12.7451C9.7955 12.5167 9.6161 12.3543 9.3594 12.3505ZM5.897 12.3505C5.7101 12.3467 5.5214 12.3505 5.3194 12.3505C5.3137 12.2977 5.3099 12.2731 5.3099 12.2486C5.3099 10.7383 5.308 9.228 5.3137 7.7177C5.3137 7.6516 5.3496 7.5723 5.3949 7.5233C5.578 7.3175 5.6932 7.0853 5.6931 6.8096C5.695 5.7656 5.695 4.7198 5.6931 3.6758C5.6932 3.1604 5.2457 2.6204 4.5302 2.6507C3.9318 2.6752 3.4636 3.1037 3.4598 3.6946C3.4541 4.7273 3.456 5.76 3.4598 6.7907C3.4598 7.0588 3.5636 7.2873 3.7336 7.4968C3.794 7.5704 3.8336 7.6818 3.8336 7.7762C3.8393 9.4696 3.8355 11.163 3.8374 12.8565C3.8374 13.0641 3.928 13.1661 4.1338 13.168C4.7322 13.1736 5.3288 13.1755 5.9272 13.1642C6.1934 13.1585 6.3426 12.9886 6.3369 12.7451C6.3294 12.5053 6.1613 12.3543 5.897 12.3505ZM4.568 2.19C5.1702 2.1957 5.6611 1.7105 5.6686 1.1045C5.6762 0.5023 5.1891 0.0057 4.5869 0.0001C3.9846 -0.0056 3.4919 0.4815 3.4881 1.0856C3.4862 1.6954 3.9639 2.1843 4.568 2.19ZM8.0341 2.19C8.6307 2.1938 9.1272 1.7029 9.131 1.1045C9.1366 0.5041 8.6514 0.0076 8.053 0.0001C7.4508 -0.0075 6.941 0.4947 6.941 1.0951C6.941 1.6897 7.4375 2.1862 8.0341 2.19ZM1.1038 2.19C1.7003 2.1976 2.2044 1.7029 2.2101 1.1064C2.2138 0.5041 1.7267 0.0076 1.1264 0.0001C0.5298 -0.0075 0.0277 0.4853 0.0201 1.0856C0.0126 1.6803 0.5034 2.1825 1.1038 2.19Z"
+      />
+    </svg>
+  );
+}
+
+const BUSY_LEVELS: { value: string; label: string; icon: ReactNode }[] = [
+  { value: "idle", label: "空闲", icon: "🟢" },
+  { value: "normal", label: "正常", icon: "🟡" },
+  { value: "busy", label: "繁忙", icon: "🟠" },
+  { value: "congested", label: "拥堵", icon: <CongestedIcon /> },
+];
+
+const BUSY_TIP = (
+  <div className="wm-thinking-tip">
+    <div>忙闲筛选（星级式）：点第 N 档，左侧全亮 = 接受「空闲」到该档的所有级别</div>
+    <div>再点当前最高亮档 = 清除筛选（不筛选，也不发起忙闲查询）</div>
+    <div>「不可用」不可选：查询明确返回不可用的成员必定避开</div>
+    <div>忙闲查询失败/未知级别 = 视为模型正常（fail-open）</div>
+  </div>
+);
+
+// —— 池上下文窗口（只读标签）：孰低原则 ——
+// 与后端 pool_context_window 同规则：各成员 contextWindow 的最小值；
+// 任一成员未知/窗口 ≤ 0（含缓存未就绪、池内无成员）→ 回落 131072（128K）。
+const CTX_FALLBACK_TOKENS = 131072;
+
+function poolContextTokens(pool: ModelPool, models: ModelInfo[]): { tokens: number; fallback: boolean } {
+  const byId = new Map(models.map((m) => [m.id, m.contextWindow]));
+  let min = 0;
+  for (const m of pool.models) {
+    const id = m.id.trim();
+    if (!id) continue;
+    const w = byId.get(id);
+    if (!w || w <= 0) return { tokens: CTX_FALLBACK_TOKENS, fallback: true };
+    min = min === 0 ? w : Math.min(min, w);
+  }
+  if (min === 0) return { tokens: CTX_FALLBACK_TOKENS, fallback: true };
+  return { tokens: min, fallback: false };
+}
+
+// tokens → K 单位（1024 进制，与业界惯例一致）：131072 → "128K"；非整 K 保留一位小数
+function fmtCtxK(tokens: number): string {
+  const k = tokens / 1024;
+  return Number.isInteger(k) ? `${k}K` : `${k.toFixed(1)}K`;
+}
 
 // 计划 §6.1 固定 tooltip 文案（深色浮层）
 const THINKING_TIP = (
@@ -112,7 +176,6 @@ interface BoardProps {
 export default function ModelPoolBoard({ pools, models, accountCount, onChange }: BoardProps) {
   const [modal, modalContextHolder] = Modal.useModal();
   const [addPoolId, setAddPoolId] = useState<string | null>(null);
-  const [addSelection, setAddSelection] = useState<string[]>([]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -241,6 +304,23 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
     onChange(pools.map((p) => (p.id === poolId ? { ...p, thinking: tier } : p)));
   };
 
+  const setBusyFilter = (poolId: string, levels: string[]) => {
+    onChange(pools.map((p) => (p.id === poolId ? { ...p, busyFilter: levels } : p)));
+  };
+
+  const setSchedule = (poolId: string, modelId: string, schedule: string) => {
+    onChange(
+      pools.map((p) =>
+        p.id === poolId
+          ? {
+              ...p,
+              models: p.models.map((m) => (m.id === modelId ? { ...m, schedule } : m)),
+            }
+          : p,
+      ),
+    );
+  };
+
   const createPool = () => {
     const ids = new Set(pools.map((p) => p.id));
     let id = "";
@@ -267,19 +347,13 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
     return map;
   }, [pools, memberName, memberCredits, accountCount]);
 
-  const commitAdd = () => {
-    if (!addPool) return;
-    const inPool = new Set(addPool.models.map((m) => m.id));
-    const additions = addSelection
-      .filter((id) => !inPool.has(id))
-      .map((id) => ({ id, name: nameMap.get(id)?.name || id }));
-    if (additions.length > 0) {
-      onChange(
-        pools.map((p) => (p.id === addPool.id ? { ...p, models: [...p.models, ...additions] } : p)),
-      );
-    }
-    setAddPoolId(null);
-    setAddSelection([]);
+  // 关联菜单式添加：点击模型 chip 立即入池（可连续点击添加多个）
+  const addModelToPool = (poolId: string, m: ModelInfo) => {
+    onChange(
+      pools.map((p) =>
+        p.id === poolId ? { ...p, models: [...p.models, { id: m.id, name: m.name }] } : p,
+      ),
+    );
   };
 
   return (
@@ -292,17 +366,19 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
               <PoolCard
                 key={pool.id}
                 pool={pool}
+                models={models}
                 memberName={memberName}
                 memberCredits={memberCredits}
                 composite={compositeMap.get(pool.id) || { rate: 0, details: [] }}
                 accountCount={accountCount}
                 onRename={renamePool}
                 onThinking={setThinking}
+                onBusy={setBusyFilter}
+                onSchedule={setSchedule}
                 onDeletePool={confirmDeletePool}
                 onDeleteModel={confirmDeleteModel}
                 onAdd={(p) => {
                   setAddPoolId(p.id);
-                  setAddSelection([]);
                 }}
               />
             ))}
@@ -322,23 +398,55 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
       <Modal
         title={addPool ? `添加模型到「${addPool.name}」` : "添加模型"}
         open={addPool != null}
-        onOk={commitAdd}
         onCancel={() => setAddPoolId(null)}
-        okText="添加"
-        cancelText="取消"
-        okButtonProps={{ disabled: addSelection.length === 0 }}
-        width={440}
+        width={560}
+        footer={
+          <Button key="done" type="primary" onClick={() => setAddPoolId(null)}>
+            完成
+          </Button>
+        }
       >
-        <Select
-          mode="multiple"
-          style={{ width: "100%", marginTop: 8 }}
-          placeholder="搜索并选择本机模型"
-          value={addSelection}
-          onChange={setAddSelection}
-          options={candidates.map((m) => ({ value: m.id, label: m.name }))}
-          optionFilterProp="label"
-          notFoundContent="暂无可添加的模型"
-        />
+        <div className="wm-add-hint">点击模型立即加入，可连续点击添加多个</div>
+        {candidates.length === 0 ? (
+          <div className="wm-add-grid__empty">本机模型已全部在池内</div>
+        ) : (
+          <div className="wm-add-grid">
+            {candidates.map((m) => {
+              const badges = (m.tags || [])
+                .filter((t) => t.startsWith("badge:"))
+                .map((t) => {
+                  const mm = t.match(/^badge:([^:#]+)(?::(#[0-9a-fA-F]{3,8}))?$/);
+                  return mm
+                    ? { name: mm[1], color: mm[2] || "#8a8f98" }
+                    : { name: t.slice(6), color: "#8a8f98" };
+                });
+              const credits = (m.credits || "").match(/x[\d.]+/)?.[0] || "";
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="wm-add-chip"
+                  title={`${m.name}${credits ? ` · ${credits}` : ""}`}
+                  onClick={() => addModelToPool(addPool!.id, m)}
+                >
+                  <span className="wm-add-chip__name">{m.name}</span>
+                  <span className="wm-add-chip__meta">
+                    {badges.map((b) => (
+                      <span
+                        key={b.name}
+                        className="wm-add-chip__badge"
+                        style={{ color: b.color, borderColor: b.color }}
+                      >
+                        {b.name}
+                      </span>
+                    ))}
+                    {credits && <span className="wm-add-chip__credits">{credits}</span>}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Modal>
     </>
   );
@@ -346,12 +454,15 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
 
 interface PoolCardProps {
   pool: ModelPool;
+  models: ModelInfo[];
   memberName: (m: PoolMember) => string;
   memberCredits: (id: string) => string;
   composite: { rate: number; details: WeightedMember[] };
   accountCount: number;
   onRename: (poolId: string, name: string) => void;
   onThinking: (poolId: string, tier: string) => void;
+  onBusy: (poolId: string, levels: string[]) => void;
+  onSchedule: (poolId: string, modelId: string, schedule: string) => void;
   onDeletePool: (pool: ModelPool) => void;
   onDeleteModel: (pool: ModelPool, m: PoolMember) => void;
   onAdd: (pool: ModelPool) => void;
@@ -365,12 +476,15 @@ function fmtPct(p: number): string {
 
 function PoolCard({
   pool,
+  models,
   memberName,
   memberCredits,
   composite,
   accountCount,
   onRename,
   onThinking,
+  onBusy,
+  onSchedule,
   onDeletePool,
   onDeleteModel,
   onAdd,
@@ -380,6 +494,30 @@ function PoolCard({
     id: pool.id,
     data: { type: "pool" },
   });
+
+  // —— 上下文窗口标签（只读）：孰低原则，与后端 pool_context_window 同规则 ——
+  const ctx = useMemo(() => poolContextTokens(pool, models), [pool, models]);
+  const ctxTip = useMemo(() => {
+    const winById = new Map(models.map((m) => [m.id, m.contextWindow]));
+    const members = pool.models
+      .filter((m) => m.id.trim())
+      .map((m) => {
+        const w = winById.get(m.id);
+        return `${memberName(m)}：${w && w > 0 ? fmtCtxK(w) : "未知"}`;
+      });
+    return (
+      <div className="wm-thinking-tip">
+        <div>上下文窗口（孰低原则，只读）</div>
+        {members.length > 0 ? (
+          members.map((line) => <div key={line}>· {line}</div>)
+        ) : (
+          <div>· 池内暂无成员</div>
+        )}
+        <div>池上限 = min(各成员) = {fmtCtxK(ctx.tokens)}，切到任一成员都不会超限</div>
+        {ctx.fallback && <div>有成员窗口未知 → 回落 {fmtCtxK(CTX_FALLBACK_TOKENS)}</div>}
+      </div>
+    );
+  }, [pool, models, ctx, memberName]);
 
   // 动态组合倍率 Tooltip：模型名（左） · 倍率（紧跟模型名后） — 概率（右）
   const rateTip = (
@@ -425,7 +563,7 @@ function PoolCard({
       className={`wm-pool-card${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* 头部：拖拽手柄 | 池名 | 倍率 | 思考档位 | 删除 */}
+      {/* 头部第一行：拖拽手柄 | 池名 | 删除（悬停显现） */}
       <div className="wm-pool-card__head">
         <span
           className="wm-pool-drag-handle"
@@ -447,6 +585,7 @@ function PoolCard({
               setEditing(false);
             }}
             onKeyDown={(e) => {
+              e.stopPropagation();
               if (e.key === "Escape") e.currentTarget.blur();
             }}
           />
@@ -462,8 +601,23 @@ function PoolCard({
             {pool.name}
           </span>
         )}
+        <Tooltip title="删除整个模型池">
+          <span
+            className="wm-pool-icon-btn"
+            onClick={() => onDeletePool(pool)}
+          >
+            <DeleteOutlined />
+          </span>
+        </Tooltip>
+      </div>
+
+      {/* 头部第二行：上下文 | 倍率 | 思考档位 | 忙闲评分（flex-wrap，宽度不够自动换行） */}
+      <div className="wm-pool-card__meta">
         <Tooltip title={rateTip} placement="top">
           <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
+        </Tooltip>
+        <Tooltip title={ctxTip} placement="top">
+          <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
         </Tooltip>
         <Tooltip title={THINKING_TIP} placement="top">
           <Select
@@ -476,14 +630,7 @@ function PoolCard({
             popupMatchSelectWidth={false}
           />
         </Tooltip>
-        <Tooltip title="删除整个模型池">
-          <span
-            className="wm-pool-icon-btn"
-            onClick={() => onDeletePool(pool)}
-          >
-            <DeleteOutlined />
-          </span>
-        </Tooltip>
+        <BusyRating value={pool.busyFilter ?? []} onChange={(v) => onBusy(pool.id, v)} />
       </div>
 
       {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
@@ -499,6 +646,7 @@ function PoolCard({
               member={m}
               name={memberName(m)}
               credits={memberCredits(m.id)}
+              onSchedule={(schedule) => onSchedule(pool.id, m.id, schedule)}
               onDelete={() => onDeleteModel(pool, m)}
             />
           ))}
@@ -523,10 +671,11 @@ interface ModelRowProps {
   member: PoolMember;
   name: string;
   credits: string;
+  onSchedule: (schedule: string) => void;
   onDelete: () => void;
 }
 
-function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
+function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: ModelRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: rowKey(poolId, member.id),
     data: { type: "model", poolId },
@@ -549,6 +698,7 @@ function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
         {name}
       </span>
       {credits && <span className="wm-pool-row__credits">{credits}</span>}
+      <ScheduleSelect schedule={member.schedule ?? ""} onChange={onSchedule} />
       <Tooltip title="移除">
         <span
           className="wm-pool-icon-btn"
@@ -558,5 +708,90 @@ function ModelRow({ poolId, member, name, credits, onDelete }: ModelRowProps) {
         </span>
       </Tooltip>
     </div>
+  );
+}
+
+// —— 成员级启用时段（三选一，一次点击）——
+const SCHEDULE_OPTIONS = [
+  { value: "全天", label: "全天" },
+  { value: "夜间", label: "夜间（23:00–08:00）" },
+  { value: "避开高峰", label: "避开高峰（工作日 9–12 / 14–18 禁用，周末全天）" },
+];
+
+// 旧版 "HH:mm-HH:mm" 自定义窗口仍兼容评估，下拉里原样显示；选任意预设即覆盖
+function scheduleLabel(s: string | undefined): string {
+  const v = (s ?? "").trim();
+  if (!v) return "全天";
+  return v;
+}
+
+function ScheduleSelect({
+  schedule,
+  onChange,
+}: {
+  schedule: string;
+  onChange: (schedule: string) => void;
+}) {
+  const value = scheduleLabel(schedule);
+  return (
+    <Tooltip title="启用时段（三选一）：全天 / 夜间（23:00–08:00）/ 避开高峰（工作日 09:00–12:00、14:00–18:00 之外 + 周末全天）">
+      <Select
+        size="small"
+        variant="borderless"
+        value={value}
+        options={SCHEDULE_OPTIONS}
+        onChange={(v) => onChange(v === "全天" ? "" : v)}
+        popupMatchSelectWidth={false}
+        className={`wm-pool-row__schedule-select${value === "全天" ? "" : " is-active"}`}
+        onClick={(e) => e.stopPropagation()}
+      />
+    </Tooltip>
+  );
+}
+
+// —— 池级忙闲筛选：五星评分式交互 ——
+// 点第 N 档 → 左侧 1..N 档全亮（接受到该档为止）；再点当前最高亮档 → 清除（不筛选）。
+// 兼容旧多选数据：阈值取白名单中出现的最高档位，点击后才规整为前缀集合。
+function BusyRating({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (levels: string[]) => void;
+}) {
+  let threshold = -1;
+  BUSY_LEVELS.forEach((l, i) => {
+    if (value.includes(l.value)) threshold = Math.max(threshold, i);
+  });
+  const click = (i: number) => {
+    if (i === threshold) {
+      onChange([]);
+    } else {
+      onChange(BUSY_LEVELS.slice(0, i + 1).map((l) => l.value));
+    }
+  };
+  // 每档独立 tooltip：按当前亮灭状态给出不同文案
+  const segTip = (i: number): string => {
+    const l = BUSY_LEVELS[i];
+    if (i === threshold) return `${l.label}：再点清除筛选（不筛选）`;
+    if (i < threshold) return `${l.label}：已接受到「${BUSY_LEVELS[threshold].label}」`;
+    return `${l.label}：点击接受到该档`;
+  };
+  return (
+    <span className="wm-busy-rating" onClick={(e) => e.stopPropagation()}>
+      <Tooltip title={BUSY_TIP} placement="top">
+        <span className="wm-busy-rating__label">忙闲</span>
+      </Tooltip>
+      {BUSY_LEVELS.map((l, i) => (
+        <Tooltip key={l.value} title={segTip(i)} placement="top">
+          <span
+            className={`wm-busy-rating__seg${i <= threshold ? " is-lit" : ""}`}
+            onClick={() => click(i)}
+          >
+            {l.icon}
+          </span>
+        </Tooltip>
+      ))}
+    </span>
   );
 }

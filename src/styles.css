@@ -732,6 +732,17 @@ body {
 }
 .wm-pool-name-input { flex: 1; min-width: 0; }
 
+/* 头部第二行：上下文 | 倍率 | 思考档位 | 忙闲评分；宽度不够时自动换行 */
+.wm-pool-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: 24px; /* 与池名左缘对齐（拖拽柄 20px + 间距 4px） */
+}
+.wm-pool-card__meta .wm-thinking-select { min-width: 0; }
+
 .wm-pool-rate {
   display: inline-flex;
   align-items: center;
@@ -753,6 +764,27 @@ body {
   border-color: var(--wm-brand);
   box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
 }
+
+/* 池上下文窗口标签（只读，孰低原则）：与倍率同款 chip，弱化显示 */
+.wm-pool-ctx {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--wm-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--pool-text-secondary);
+  background: var(--pool-chip-bg);
+  border-radius: 8px;
+  padding: 0 6px;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: help;
+  opacity: 0.9;
+  border: 1px solid transparent;
+}
+.wm-pool-ctx:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
 
 /* 动态组合倍率 Tooltip 辅助样式（已内联，以下留作占位以便后续扩展） */
 
@@ -797,6 +829,144 @@ body {
 /* 思考档位 tooltip（深色浮层内容） */
 .wm-thinking-tip { font-size: 12.5px; line-height: 1.7; letter-spacing: 0.2px; }
 .wm-thinking-tip__title { font-weight: 600; margin-bottom: 2px; }
+
+/* 池级忙闲筛选：五星评分式交互（点第 N 档左侧全亮，灭档 = 超出容忍） */
+.wm-busy-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  background: var(--pool-chip-bg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: default;
+  transition: border-color 0.2s ease;
+}
+.wm-busy-rating:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
+.wm-busy-rating__label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--pool-text-secondary);
+  opacity: 0.65;
+  margin-right: 2px;
+  user-select: none;
+}
+.wm-busy-rating__seg {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  filter: grayscale(1);
+  opacity: 0.28;
+  transition: filter 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
+}
+.wm-busy-rating__seg svg { display: block; }
+.wm-busy-rating__seg:hover { opacity: 0.85; transform: scale(1.2); }
+.wm-busy-rating__seg.is-lit { filter: none; opacity: 1; }
+.wm-busy-rating__seg.is-lit:hover { transform: scale(1.2); }
+
+/* ============ 添加模型弹窗：chip 关联网格（点击即加入） ============ */
+.wm-add-hint {
+  font-size: 12px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+  margin-bottom: 10px;
+}
+.wm-add-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+  padding: 2px;
+}
+.wm-add-grid__empty {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+}
+/* chip：名称 + 彩色 badge 标签 + credits 价格（复刻旧「支持的模型」体验） */
+.wm-add-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, border-color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+[data-theme="dark"] .wm-add-chip {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+.wm-add-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(var(--wm-brand-rgb), 0.5);
+  background: rgba(var(--wm-brand-rgb), 0.06);
+  box-shadow: 0 4px 12px rgba(var(--wm-brand-rgb), 0.14);
+}
+.wm-add-chip:active { transform: translateY(0); }
+.wm-add-chip__name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 17px;
+  letter-spacing: 0.2px;
+  color: var(--ant-color-text, rgba(0, 0, 0, 0.88));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.wm-add-chip__meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  flex-wrap: wrap;
+}
+.wm-add-chip__badge {
+  font-family: var(--wm-mono);
+  font-size: 11px;
+  line-height: 15px;
+  padding: 0 5px;
+  border-radius: 4px;
+  border: 1px solid;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.wm-add-chip__credits {
+  font-family: var(--wm-mono);
+  font-size: 11.5px;
+  line-height: 15px;
+  font-weight: 600;
+  color: var(--ant-color-text-tertiary, #8c8c8c);
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+
+/* 模型行启用时段下拉（三选一）：默认弱化，非全天时高亮 */.wm-pool-row__schedule-select {
+  min-width: 56px;
+  max-width: 180px;
+  flex-shrink: 0;
+  font-size: 11.5px;
+}
+.wm-pool-row__schedule-select.ant-select {
+  color: var(--pool-text-secondary);
+  opacity: 0.55;
+}
+.wm-pool-row__schedule-select.ant-select .ant-select-selection-item { font-family: var(--wm-mono); }
+.wm-pool-row:hover .wm-pool-row__schedule-select.ant-select,
+.wm-pool-row__schedule-select.ant-select:focus { opacity: 1; }
+.wm-pool-row__schedule-select.ant-select:hover,
+.wm-pool-row__schedule-select.is-active { opacity: 1; color: var(--wm-brand); }
 
 /* 池内模型行：纵向全宽，自上而下 = 优先级 */
 .wm-pool-rows {

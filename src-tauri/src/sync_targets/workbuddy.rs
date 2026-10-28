@@ -33,7 +33,8 @@ impl IdeSyncTarget for WorkBuddyTarget {
 
         // 同步策略（已拍板）：只把模型池虚拟条目导入 WorkBuddy，
         // 真实模型不再原样写入 models.json，客户端只见池名、不见真实模型名。
-        let ours: Vec<Value> = crate::proxy::pools::pool_entries(ps, &url, &ps.api_key);
+        // _models 为 models_cache 快照，用于动态计算池条目 supportsImages。
+        let ours: Vec<Value> = crate::proxy::pools::pool_entries(ps, &url, &ps.api_key, _models);
 
         let path = crate::platform::workbuddy_paths().home.join("models.json");
         let existing: Vec<Value> = std::fs::read(&path)

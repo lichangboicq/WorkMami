@@ -43,6 +43,9 @@ pub struct ModelPool {
     pub rate: f64,
     /// 池级思考档位（三选一）：「快闪」/「斟酌」/「精算」
     pub thinking: String,
+    /// 池级繁忙程度筛选（可接受级别白名单）：idle/normal/busy/congested/unavailable。
+    /// 空 = 不筛选。成员的 busy_level 不在白名单内时视同 429 无效，找次选成员。
+    pub busy_filter: Vec<String>,
     /// 池内成员，自上而下 = 调度优先级
     pub models: Vec<PoolMember>,
 }
@@ -55,6 +58,10 @@ pub struct PoolMember {
     pub id: String,
     /// 展示名（可选，缺省用真实模型展示名）
     pub name: String,
+    /// 成员级启用时段（三选一预设）：""/"全天" = 全天候；"夜间" = 23:00–次日 08:00；
+    /// "避开高峰" = 周一至周五 09:00–12:00、14:00–18:00 之外（周末全天）。
+    /// 旧版自定义窗口 "HH:mm-HH:mm" 仍兼容评估；时段外该成员本轮调度视同无效，找次选成员。
+    pub schedule: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,6 +164,9 @@ pub struct AppState {
     pub balance_history: Mutex<Vec<BalancePoint>>,
     /// WorkBuddy 内置模型列表缓存（序列化的 ModelInfo，供自定义模型 /v1/models 复用）。
     pub models_cache: Mutex<Vec<serde_json::Value>>,
+    /// 模型繁忙程度缓存（model id → (到期 unix ms, busy_level)），
+    /// 供池调度繁忙筛选复用，TTL 内不重复请求 /v2/chat/busy。
+    pub busy_cache: Mutex<HashMap<String, (i64, String)>>,
     /// 本次运行会话内曾观测到"旅行中"的账号：用于区分"开着时到点→自动领"与"关着时到点→下次打开提醒"。
     pub travel_seen_traveling: Mutex<HashSet<String>>,
     /// 已就"离线期间到达"提醒过的账号，避免每轮重复弹提醒。
@@ -193,6 +203,7 @@ impl AppState {
             proxy_gen: Mutex::new(0),
             balance_history: Mutex::new(balance_history),
             models_cache: Mutex::new(Vec::new()),
+            busy_cache: Mutex::new(HashMap::new()),
             travel_seen_traveling: Mutex::new(HashSet::new()),
             travel_reminded: Mutex::new(HashSet::new()),
             travel_rotate: Mutex::new(HashMap::new()),

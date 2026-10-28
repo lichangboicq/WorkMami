@@ -103,6 +103,8 @@ export type Strategy = "round-robin" | "smart" | "drain" | "expiring-first";
 export interface PoolMember {
   id: string;
   name: string;
+  /** 成员级启用时段（三选一）："" = 全天；"夜间" = 23:00–次日 08:00；"避开高峰" = 工作日 09:00–12:00、14:00–18:00 之外（周末全天）。旧版 "HH:mm-HH:mm" 自定义窗口仍兼容评估 */
+  schedule?: string;
 }
 
 export interface ModelPool {
@@ -110,6 +112,8 @@ export interface ModelPool {
   name: string; // 展示名（与 id 同步）
   rate: number; // 倍率，如 0.00 / 0.05 / 0.85
   thinking: string; // 思考档位三选一：「快闪」/「斟酌」/「精算」
+  /** 池级忙闲筛选（星级式阈值）：前端点第 N 档存前缀集合（idle/normal/busy/congested）；空 = 不筛选。「不可用」不对用户开放，后端查到即硬性避开；查询失败/未知 = fail-open 视为正常 */
+  busyFilter?: string[];
   models: PoolMember[]; // 池内成员，自上而下 = 调度优先级
 }
 

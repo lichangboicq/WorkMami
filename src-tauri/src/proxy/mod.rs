@@ -196,7 +196,9 @@ async fn list_models(State(state): State<Arc<AppState>>) -> Json<Value> {
     // 同步策略（已拍板）：只暴露模型池，不把真实模型列表原样返回给客户端。
     let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
     let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
-    let pool_models = pools::pool_entries(&ps, &url, &ps.api_key);
+    // 池条目 supportsImages 按成员真实能力动态计算（models_cache 快照）
+    let cache_snapshot: Vec<Value> = state.models_cache.lock().unwrap().clone();
+    let pool_models = pools::pool_entries(&ps, &url, &ps.api_key, &cache_snapshot);
     if !pool_models.is_empty() {
         return Json(json!({"object": "list", "data": pool_models}));
     }
@@ -254,8 +256,10 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
         &ps,
         if requested_raw.is_empty() { ps.default_model.as_str() } else { &requested_raw },
     );
+    // 图片路由前置判定：带图消息只在池内挑选支持图片的成员。
+    let has_images = pools::request_has_images(&req);
     let requested = match pool {
-        Some(p) => match pools::pick_pool_member(&state, ps.strategy, p) {
+        Some(p) => match pools::pick_pool_member(&state, ps.strategy, p, has_images).await {
             Some(real) => real,
             None => {
                 tracing::warn!("模型池 {:?} 无可用成员，回落默认模型 {:?}", p.id, ps.default_model);
