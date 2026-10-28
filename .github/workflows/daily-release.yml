@@ -35,6 +35,10 @@ jobs:
       tag_name: ${{ steps.ver.outputs.tag_name }}
       channel: ${{ steps.ver.outputs.channel }}
       prerelease: ${{ steps.ver.outputs.prerelease }}
+      # 版本 bump 提交的 SHA：build 必须显式 checkout 这个 commit，
+      # 否则定时触发时 checkout 会落在触发时刻的旧 HEAD（版本尚未 bump），
+      # 导致 tag 用新版本号、编译产物用旧版本号，恒差 0.0.1
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - name: Suppress git defaultBranch hint
         run: git config --global init.defaultBranch main
@@ -84,12 +88,14 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
 
       - name: Commit & push version bump to main
+        id: commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
           git commit -m "chore(release): v$VERSION [$CHANNEL] [skip ci]" || echo "nothing to commit"
           git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
         env:
           VERSION: ${{ steps.ver.outputs.version }}
           CHANNEL: ${{ steps.ver.outputs.channel }}
@@ -114,6 +120,9 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # 显式 checkout prepare 刚 push 的版本 bump commit，
+          # 保证 tauri.conf.json / Cargo.toml 的版本号与 tag 一致
+          ref: ${{ needs.prepare.outputs.sha }}
 
       - uses: actions/setup-node@v5
         with:
