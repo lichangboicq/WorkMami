@@ -258,6 +258,26 @@ body {
 }
 [data-theme="dark"] .wm-pool-toolbar { border-color: rgba(255, 255, 255, 0.18); }
 
+/* 工具栏移入卡片标题栏：去掉边框内边距，紧凑排布（模型池 | IDE 状态 | 积分调度策略靠右） */
+.wm-pool-toolbar--in-title {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  justify-content: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+.wm-pool-toolbar--in-title .wm-pool-toolbar__strategy {
+  margin-left: auto;
+  font-size: 12.5px;
+}
+.wm-pool-toolbar--in-title .wm-ide-row { gap: 6px; }
+.wm-pool-toolbar--in-title .wm-pool-toolbar__title {
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
 /* 全局卡片皮肤 —— 边框 + 双层阴影 + hover 品牌色呼吸 + 16px 圆角
    body 加 overflow hidden：所有子元素 hover 背景必须被卡片圆角裁切，
    避免 table-row / list-item / tabs-tab 等 antd 组件的方角 hover 越界
@@ -527,7 +547,29 @@ body {
   background: transparent !important;
   font-size: 13px;
 }
+/* 复刻面板固定亮色（不随 darkmode）：选中项文字强制深色，避免暗色主题下浅字不可读 */
+.wm-trae-guide__pool-select .ant-select-selection-item {
+  color: var(--tg-text) !important;
+}
 .wm-trae-guide__pool-select .ant-select-arrow { color: #9ca1a9; right: 10px; }
+/* 下拉浮层同样固定亮色，与复刻面板一致 */
+.wm-trae-guide__pool-dropdown.ant-select-dropdown {
+  padding-top: 4px;
+  background: #fff !important;
+  border-radius: 8px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+.wm-trae-guide__pool-dropdown .ant-select-item {
+  color: var(--tg-text) !important;
+  background: transparent;
+}
+.wm-trae-guide__pool-dropdown .ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: var(--tg-active) !important;
+  font-weight: 600;
+}
+.wm-trae-guide__pool-dropdown .ant-select-item-option-active:not(.ant-select-item-option-disabled) {
+  background: #f0f0f1 !important;
+}
 .wm-trae-guide__eye { color: #9ca1a9; font-size: 13px; flex-shrink: 0; display: inline-flex; }
 .wm-trae-guide__counter { font-size: 12px; color: #b0b4ba; flex-shrink: 0; }
 
@@ -712,16 +754,17 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* 头部：拖拽柄 | 池名/铅笔 | 倍率 | 思考档位 | 悬停垃圾桶 */
+/* 头部：拖拽柄 | 池名/铅笔 | 倍率 | 上下文 | 悬停垃圾桶；标题过长或池太窄时自动换行 */
 .wm-pool-card__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   min-width: 0;
 }
 .wm-pool-card__name {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: 6em;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: 0.2px;
@@ -730,9 +773,21 @@ body {
   text-overflow: ellipsis;
   cursor: text;
 }
-.wm-pool-name-input { flex: 1; min-width: 0; }
+.wm-pool-name-input {
+  flex: 1;
+  min-width: 0;
+}
+/* 池名编辑框：与全局编辑框一致的品牌色 hover 边框 + focus 外阴影 */
+.wm-pool-name-input .ant-input:hover {
+  border-color: var(--wm-brand);
+}
+.wm-pool-name-input .ant-input:focus,
+.wm-pool-name-input .ant-input-focused {
+  border-color: var(--wm-brand);
+  box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
+}
 
-/* 头部第二行：上下文 | 倍率 | 思考档位 | 忙闲评分；宽度不够时自动换行 */
+/* 头部第二行：思考档位 | 忙闲评分；宽度不够时自动换行 */
 .wm-pool-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -742,6 +797,15 @@ body {
   padding-left: 24px; /* 与池名左缘对齐（拖拽柄 20px + 间距 4px） */
 }
 .wm-pool-card__meta .wm-thinking-select { min-width: 0; }
+
+/* 标题栏内的价格/上下文 chip：与删除按钮等高（20px） */
+.wm-pool-card__head .wm-pool-rate,
+.wm-pool-card__head .wm-pool-ctx {
+  margin-left: 2px;
+  height: 20px;
+  box-sizing: border-box;
+}
+.wm-pool-card__head .wm-pool-icon-btn { height: 20px; }
 
 .wm-pool-rate {
   display: inline-flex;
@@ -811,6 +875,7 @@ body {
   background: var(--pool-chip-bg) !important;
   border: 1px solid transparent !important;
   padding: 0 8px !important;
+  height: 26px !important; /* 与忙闲选择器外框等高 */
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .wm-thinking-select:hover .ant-select-selector,
@@ -823,6 +888,7 @@ body {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--pool-text);
+  line-height: 24px !important;
 }
 .wm-thinking-select .ant-select-arrow { color: var(--pool-text-secondary); }
 
@@ -836,7 +902,9 @@ body {
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
-  padding: 2px 8px;
+  height: 26px; /* 与思考档位 chip 外框等高 */
+  box-sizing: border-box;
+  padding: 0 8px;
   background: var(--pool-chip-bg);
   border: 1px solid transparent;
   border-radius: 6px;
@@ -844,14 +912,6 @@ body {
   transition: border-color 0.2s ease;
 }
 .wm-busy-rating:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
-.wm-busy-rating__label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--pool-text-secondary);
-  opacity: 0.65;
-  margin-right: 2px;
-  user-select: none;
-}
 .wm-busy-rating__seg {
   display: inline-flex;
   align-items: center;
@@ -864,6 +924,13 @@ body {
   transition: filter 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
 }
 .wm-busy-rating__seg svg { display: block; }
+/* 档位圆点图标 */
+.wm-busy-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  display: inline-block;
+}
 .wm-busy-rating__seg:hover { opacity: 0.85; transform: scale(1.2); }
 .wm-busy-rating__seg.is-lit { filter: none; opacity: 1; }
 .wm-busy-rating__seg.is-lit:hover { transform: scale(1.2); }
@@ -952,17 +1019,18 @@ body {
   letter-spacing: -0.2px;
 }
 
-/* 模型行启用时段下拉（三选一）：默认弱化，非全天时高亮 */.wm-pool-row__schedule-select {
+/* 模型行启用时段下拉（三选一）：文本样式与模型名一致，默认弱化，非全天时高亮 */
+.wm-pool-row__schedule-select {
   min-width: 56px;
   max-width: 180px;
   flex-shrink: 0;
-  font-size: 11.5px;
+  font-size: 13px;
 }
 .wm-pool-row__schedule-select.ant-select {
-  color: var(--pool-text-secondary);
+  color: var(--pool-text);
   opacity: 0.55;
 }
-.wm-pool-row__schedule-select.ant-select .ant-select-selection-item { font-family: var(--wm-mono); }
+.wm-pool-row__schedule-select.ant-select .ant-select-selection-item { font-family: inherit; }
 .wm-pool-row:hover .wm-pool-row__schedule-select.ant-select,
 .wm-pool-row__schedule-select.ant-select:focus { opacity: 1; }
 .wm-pool-row__schedule-select.ant-select:hover,

@@ -393,15 +393,10 @@ export default function Proxy() {
         size="small"
         className="wm-proxy-card"
         title={
-          <div className="wm-card-title">
-            {/* 模型池：从工具栏上移为卡片标题 */}
+          <div className="wm-card-title wm-pool-toolbar wm-pool-toolbar--in-title">
             <span className="wm-pool-toolbar__title">模型池</span>
-          </div>
-        }
-      >
-        {/* IDE 自动配置状态：从卡片标题下移为模型池区域工具栏（左：WorkBuddy/TRAE，右：积分调度策略） */}
-        <div className="wm-pool-toolbar">
-          <div className="wm-ide-row">
+            {/* IDE 自动配置状态：从卡片标题下移为模型池区域工具栏（左：WorkBuddy/TRAE，右：积分调度策略） */}
+            <div className="wm-ide-row">
             {ideCards.map((ide) => {
               const statusText = ide.error
                 ? ide.error
@@ -482,7 +477,9 @@ export default function Proxy() {
               onChange={(v) => onFieldChange("strategy", v as PS["strategy"])}
             />
           </div>
-        </div>
+          </div>
+        }
+      >
 
         {/* 模型池看板（池卡片横向排序 + 池内模型行纵向 = 优先级） */}
         {modelsLoading ? (

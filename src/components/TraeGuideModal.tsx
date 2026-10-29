@@ -198,6 +198,7 @@ export default function TraeGuideModal({
                       copyText(String(v), `已复制模型 ID「${v}」，去 TRAE 粘贴`);
                     }}
                     popupMatchSelectWidth={false}
+                    popupClassName="wm-trae-guide__pool-dropdown"
                   />
                 </div>
               </Tooltip>

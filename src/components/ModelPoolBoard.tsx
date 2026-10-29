@@ -53,21 +53,17 @@ function CongestedIcon() {
   );
 }
 
-const BUSY_LEVELS: { value: string; label: string; icon: ReactNode }[] = [
-  { value: "idle", label: "空闲", icon: "🟢" },
-  { value: "normal", label: "正常", icon: "🟡" },
-  { value: "busy", label: "繁忙", icon: "🟠" },
-  { value: "congested", label: "拥堵", icon: <CongestedIcon /> },
-];
+// 档位圆点图标（指定颜色）
+function BusyDot({ color }: { color: string }) {
+  return <span className="wm-busy-dot" style={{ background: color }} />;
+}
 
-const BUSY_TIP = (
-  <div className="wm-thinking-tip">
-    <div>忙闲筛选（星级式）：点第 N 档，左侧全亮 = 接受「空闲」到该档的所有级别</div>
-    <div>再点当前最高亮档 = 清除筛选（不筛选，也不发起忙闲查询）</div>
-    <div>「不可用」不可选：查询明确返回不可用的成员必定避开</div>
-    <div>忙闲查询失败/未知级别 = 视为模型正常（fail-open）</div>
-  </div>
-);
+const BUSY_LEVELS: { value: string; label: string; icon: ReactNode }[] = [
+  { value: "idle", label: "空闲", icon: <BusyDot color="#16C162" /> },
+  { value: "normal", label: "正常", icon: <BusyDot color="#2F9BFF" /> },
+  { value: "busy", label: "轻微拥堵", icon: <BusyDot color="#FFD21E" /> },
+  { value: "congested", label: "极度拥堵", icon: <CongestedIcon /> },
+];
 
 // —— 池上下文窗口（只读标签）：孰低原则 ——
 // 与后端 pool_context_window 同规则：各成员 contextWindow 的最小值；
@@ -513,7 +509,6 @@ function PoolCard({
         ) : (
           <div>· 池内暂无成员</div>
         )}
-        <div>池上限 = min(各成员) = {fmtCtxK(ctx.tokens)}，切到任一成员都不会超限</div>
         {ctx.fallback && <div>有成员窗口未知 → 回落 {fmtCtxK(CTX_FALLBACK_TOKENS)}</div>}
       </div>
     );
@@ -601,6 +596,12 @@ function PoolCard({
             {pool.name}
           </span>
         )}
+        <Tooltip title={rateTip} placement="top">
+          <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
+        </Tooltip>
+        <Tooltip title={ctxTip} placement="top">
+          <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
+        </Tooltip>
         <Tooltip title="删除整个模型池">
           <span
             className="wm-pool-icon-btn"
@@ -611,14 +612,8 @@ function PoolCard({
         </Tooltip>
       </div>
 
-      {/* 头部第二行：上下文 | 倍率 | 思考档位 | 忙闲评分（flex-wrap，宽度不够自动换行） */}
+      {/* 头部第二行：思考档位 | 忙闲评分（价格/上下文已上移进标题栏） */}
       <div className="wm-pool-card__meta">
-        <Tooltip title={rateTip} placement="top">
-          <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
-        </Tooltip>
-        <Tooltip title={ctxTip} placement="top">
-          <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
-        </Tooltip>
         <Tooltip title={THINKING_TIP} placement="top">
           <Select
             className="wm-thinking-select"
@@ -698,7 +693,7 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
         {name}
       </span>
       {credits && <span className="wm-pool-row__credits">{credits}</span>}
-      <ScheduleSelect schedule={member.schedule ?? ""} onChange={onSchedule} />
+      <ScheduleSelect schedule={member.schedule ?? ""} modelName={name} onChange={onSchedule} />
       <Tooltip title="移除">
         <span
           className="wm-pool-icon-btn"
@@ -712,10 +707,11 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
 }
 
 // —— 成员级启用时段（三选一，一次点击）——
+// 下拉显示短名，解释语放各选项 tooltip；value 沿用旧值，兼容既有数据
 const SCHEDULE_OPTIONS = [
-  { value: "全天", label: "全天" },
-  { value: "夜间", label: "夜间（23:00–08:00）" },
-  { value: "避开高峰", label: "避开高峰（工作日 9–12 / 14–18 禁用，周末全天）" },
+  { value: "全天", label: "全天", tip: "任何时间都启用" },
+  { value: "夜间", label: "夜间", tip: "仅 23:00–08:00 启用" },
+  { value: "避开高峰", label: "闲时", tip: "周一至五 9–12、14–18 属高峰，高峰不启用；周末全天启用" },
 ];
 
 // 旧版 "HH:mm-HH:mm" 自定义窗口仍兼容评估，下拉里原样显示；选任意预设即覆盖
@@ -727,19 +723,26 @@ function scheduleLabel(s: string | undefined): string {
 
 function ScheduleSelect({
   schedule,
+  modelName,
   onChange,
 }: {
   schedule: string;
+  modelName: string;
   onChange: (schedule: string) => void;
 }) {
   const value = scheduleLabel(schedule);
   return (
-    <Tooltip title="启用时段（三选一）：全天 / 夜间（23:00–08:00）/ 避开高峰（工作日 09:00–12:00、14:00–18:00 之外 + 周末全天）">
+    <Tooltip title={`选择${modelName}的生效时间`}>
       <Select
         size="small"
         variant="borderless"
         value={value}
         options={SCHEDULE_OPTIONS}
+        optionRender={(o) => (
+          <Tooltip title={(o as unknown as { tip?: string }).tip} placement="right">
+            <span>{o.label}</span>
+          </Tooltip>
+        )}
         onChange={(v) => onChange(v === "全天" ? "" : v)}
         popupMatchSelectWidth={false}
         className={`wm-pool-row__schedule-select${value === "全天" ? "" : " is-active"}`}
@@ -750,7 +753,7 @@ function ScheduleSelect({
 }
 
 // —— 池级忙闲筛选：五星评分式交互 ——
-// 点第 N 档 → 左侧 1..N 档全亮（接受到该档为止）；再点当前最高亮档 → 清除（不筛选）。
+// 点第 N 档 → 左侧 1..N 档全亮（接受到该档为止），右侧档位不接受；重复点击结果不变。
 // 兼容旧多选数据：阈值取白名单中出现的最高档位，点击后才规整为前缀集合。
 function BusyRating({
   value,
@@ -764,29 +767,15 @@ function BusyRating({
     if (value.includes(l.value)) threshold = Math.max(threshold, i);
   });
   const click = (i: number) => {
-    if (i === threshold) {
-      onChange([]);
-    } else {
-      onChange(BUSY_LEVELS.slice(0, i + 1).map((l) => l.value));
-    }
-  };
-  // 每档独立 tooltip：按当前亮灭状态给出不同文案
-  const segTip = (i: number): string => {
-    const l = BUSY_LEVELS[i];
-    if (i === threshold) return `${l.label}：再点清除筛选（不筛选）`;
-    if (i < threshold) return `${l.label}：已接受到「${BUSY_LEVELS[threshold].label}」`;
-    return `${l.label}：点击接受到该档`;
+    onChange(BUSY_LEVELS.slice(0, i + 1).map((l) => l.value));
   };
   return (
     <span className="wm-busy-rating" onClick={(e) => e.stopPropagation()}>
-      <Tooltip title={BUSY_TIP} placement="top">
-        <span className="wm-busy-rating__label">忙闲</span>
-      </Tooltip>
-      {BUSY_LEVELS.map((l, i) => (
-        <Tooltip key={l.value} title={segTip(i)} placement="top">
+      {BUSY_LEVELS.map((l) => (
+        <Tooltip key={l.value} title={`愿接受[${l.label}]`} placement="top">
           <span
-            className={`wm-busy-rating__seg${i <= threshold ? " is-lit" : ""}`}
-            onClick={() => click(i)}
+            className={`wm-busy-rating__seg${BUSY_LEVELS.indexOf(l) <= threshold ? " is-lit" : ""}`}
+            onClick={() => click(BUSY_LEVELS.indexOf(l))}
           >
             {l.icon}
           </span>
