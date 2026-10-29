@@ -289,8 +289,12 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
 
     let is_stream = req.get("stream").and_then(|s| s.as_bool()).unwrap_or(false);
 
-    // 候选账号池（策略排序 + 冷却/零积分过滤）
-    let candidates = select_candidates(&state);
+    // 会话粘性窗口（分钟）：窗口内同一会话固定同一账号，避免频繁换号导致封号风险。
+    const STICKY_TTL_MIN: u32 = 30;
+    let session_hash = session_key(&req, &headers);
+
+    // 候选账号池（策略排序 + 粘性置顶 + 冷却/零积分过滤）
+    let candidates = select_candidates(&state, &session_hash);
     if candidates.is_empty() {
         // 全部账号处于频控冷却：把 429 原样抛回客户端，并附预计恢复时刻
         if let Some(retry_at) = state.earliest_recovery_ms() {
@@ -310,7 +314,11 @@ async fn chat_completions(State(state): State<Arc<AppState>>, headers: HeaderMap
     let total = candidates.len();
     for (i, acc) in candidates.iter().enumerate() {
         match forward_once(&state, acc, req.clone(), is_stream, &ua, &requested).await {
-            Ok(resp) => return resp,
+            Ok(resp) => {
+                // 成功接棒 → 绑定会话并续期粘性窗口
+                state.set_sticky(&session_hash, &acc.uid, STICKY_TTL_MIN);
+                return resp;
+            }
             Err(e) => {
                 failures += 1;
                 if let FwdErr::RateLimited { retry_at, raw } = &e {
@@ -448,9 +456,9 @@ fn resolve_model_id(state: &Arc<AppState>, requested: &str) -> Option<String> {
 }
 
 // ---------- 调度 ----------
-/// 选出当前可用账号池：按策略排序；冷却中、零余量积分的账号直接出局。
+/// 选出当前可用账号池：粘性账号置顶 + 按策略排序；冷却中、零余量积分的账号直接出局。
 /// 池空时由上层区分处理：全频控 → 429 原样抛回；无账号/无积分 → 503。
-fn select_candidates(state: &Arc<AppState>) -> Vec<Account> {
+fn select_candidates(state: &Arc<AppState>, session_hash: &str) -> Vec<Account> {
     let ps = state.proxy_settings();
     let mut enabled: Vec<Account> = state
         .accounts
@@ -469,25 +477,23 @@ fn select_candidates(state: &Arc<AppState>) -> Vec<Account> {
         return Vec::new();
     }
 
+    // 会话粘性：窗口内的绑定账号（须在可用池中）
+    let sticky_uid = state.sticky_account(session_hash);
     match ps.strategy {
         Strategy::RoundRobin => {
             let mut c = state.rr_cursor.lock().unwrap();
             let n = enabled.len().max(1);
             let start = *c % n;
             *c = c.wrapping_add(1);
-            let mut v = enabled.clone();
-            v.rotate_left(start);
-            v
+            enabled.rotate_left(start);
         }
         Strategy::Drain => {
             // 集中消耗余额最少的
             enabled.sort_by(|a, b| remaining(a).partial_cmp(&remaining(b)).unwrap_or(std::cmp::Ordering::Equal));
-            enabled
         }
         Strategy::Smart => {
             // 余额多的优先
             enabled.sort_by(|a, b| remaining(b).partial_cmp(&remaining(a)).unwrap_or(std::cmp::Ordering::Equal));
-            enabled
         }
         Strategy::ExpiringFirst => {
             // 临期优先：优先消耗最早到期（且仍有余量）的账号。
@@ -503,13 +509,42 @@ fn select_candidates(state: &Arc<AppState>) -> Vec<Account> {
                     .partial_cmp(&remaining(a))
                     .unwrap_or(std::cmp::Ordering::Equal),
             });
-            enabled
         }
     }
+    // 策略排序完成后粘性账号置顶：窗口内同一会话固定同一账号，不随策略轮转
+    if let Some(uid) = sticky_uid {
+        if let Some(pos) = enabled.iter().position(|a| a.uid == uid) {
+            let acc = enabled.remove(pos);
+            enabled.insert(0, acc);
+        }
+    }
+    enabled
 }
 
 fn remaining(a: &Account) -> f64 {
     a.quota.as_ref().map(|q| q.remaining).unwrap_or(f64::MAX)
+}
+
+/// 会话键：优先 x-session-id 请求头，缺省时哈希首条 user 消息内容。
+/// 同一会话首条消息不变 → 键稳定，粘性窗口内固定同一账号。
+fn session_key(req: &Value, headers: &HeaderMap) -> String {
+    use sha2::{Digest, Sha256};
+    let mut h = Sha256::new();
+    if let Some(sid) = headers.get("x-session-id").and_then(|v| v.to_str().ok()) {
+        h.update(sid.as_bytes());
+    } else if let Some(msgs) = req.get("messages").and_then(|m| m.as_array()) {
+        // 首条 user 内容
+        for m in msgs {
+            if m.get("role").and_then(|r| r.as_str()) == Some("user") {
+                if let Some(c) = m.get("content") {
+                    h.update(c.to_string().as_bytes());
+                }
+                break;
+            }
+        }
+    }
+    let digest = h.finalize();
+    hex::encode(&digest[..12])
 }
 
 /// 账号级“最近到期时间”（毫秒）：余量 > 0 的资源中最早到期的那个。

@@ -148,6 +148,8 @@ pub struct AppState {
     pub settings: RwLock<AppSettings>,
     /// 账号冷却到期时间（unix ms）
     pub cooldown: Mutex<HashMap<String, i64>>,
+    /// 会话粘性：session_hash -> (uid, 到期 unix ms)。窗口内同会话固定用同一账号，避免频繁换号。
+    pub sticky: Mutex<HashMap<String, (String, i64)>>,
     /// 轮询游标
     pub rr_cursor: Mutex<usize>,
     /// 模型池 RoundRobin 轮转游标（pool.id -> 下次应选成员下标）
@@ -195,6 +197,7 @@ impl AppState {
             api: Arc::new(ApiClient::new()),
             settings: RwLock::new(settings),
             cooldown: Mutex::new(HashMap::new()),
+            sticky: Mutex::new(HashMap::new()),
             rr_cursor: Mutex::new(0),
             pool_rr: Mutex::new(HashMap::new()),
             proxy_shutdown: Mutex::new(None),
@@ -276,6 +279,26 @@ impl AppState {
         let now = Utc::now().timestamp_millis();
         let c = self.cooldown.lock().unwrap();
         c.get(uid).map(|t| *t > now).unwrap_or(false)
+    }
+
+    /// 会话粘性：窗口内且账号未冷却/未出局时返回绑定的 uid。
+    pub fn sticky_account(&self, hash: &str) -> Option<String> {
+        let now = Utc::now().timestamp_millis();
+        let uid = {
+            let m = self.sticky.lock().unwrap();
+            m.get(hash).filter(|(_, exp)| *exp > now).map(|(u, _)| u.clone())?
+        };
+        // 已冷却或积分耗尽 → 粘性失效，交回正常调度
+        (!self.is_cooling(&uid)).then_some(uid)
+    }
+
+    /// 绑定会话到账号，续期粘性窗口。
+    pub fn set_sticky(&self, hash: &str, uid: &str, ttl_min: u32) {
+        let now = Utc::now().timestamp_millis();
+        self.sticky
+            .lock()
+            .unwrap()
+            .insert(hash.to_string(), (uid.to_string(), now + ttl_min as i64 * 60_000));
     }
 
     pub fn cool_down(&self, uid: &str, ms: i64) {
