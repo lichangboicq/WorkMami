@@ -1,7 +1,7 @@
 // 模型池看板：池卡片横向排序（dnd-kit）+ 池内模型行纵向排序（自上而下 = 调度优先级）。
 // 池名铅笔行内更名；悬停垃圾桶删除（Modal 二次确认 + 可撤销）；池级思考档位三选一（fast/medium/deep）。
 // 所有变更通过 onChange(next) 上抛，由 Proxy.tsx 落盘（既有 save_settings 自动持久化 + 重启代理 + 同步）。
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -499,13 +499,18 @@ function PoolCard({
       .filter((m) => m.id.trim())
       .map((m) => {
         const w = winById.get(m.id);
-        return `${memberName(m)}：${w && w > 0 ? fmtCtxK(w) : "未知"}`;
+        return [memberName(m), w && w > 0 ? fmtCtxK(w) : "未知"] as const;
       });
     return (
       <div className="wm-thinking-tip">
-        <div>上下文窗口（孰低原则，只读）</div>
+        <div>上下文窗口（孰低原则）</div>
         {members.length > 0 ? (
-          members.map((line) => <div key={line}>· {line}</div>)
+          members.map(([name, w]) => (
+            <div key={name} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+              <span>· {name}</span>
+              <span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.75 }}>{w}</span>
+            </div>
+          ))
         ) : (
           <div>· 池内暂无成员</div>
         )}
@@ -711,7 +716,7 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
 const SCHEDULE_OPTIONS = [
   { value: "全天", label: "全天", tip: "任何时间都启用" },
   { value: "夜间", label: "夜间", tip: "仅 23:00–08:00 启用" },
-  { value: "避开高峰", label: "闲时", tip: "周一至五 9–12、14–18 属高峰，高峰不启用；周末全天启用" },
+  { value: "避开高峰", label: "闲时", tip: "避开高峰：周一至五 9–12、14–18 属高峰" },
 ];
 
 // 旧版 "HH:mm-HH:mm" 自定义窗口仍兼容评估，下拉里原样显示；选任意预设即覆盖
@@ -731,6 +736,14 @@ function ScheduleSelect({
   onChange: (schedule: string) => void;
 }) {
   const value = scheduleLabel(schedule);
+  // 选项 tooltip 受控实现：悬停选项 400ms 后打开锚在该选项上的 Tooltip，离开/关下拉即关闭
+  const [tipLabel, setTipLabel] = useState<string | null>(null);
+  const tipTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(tipTimer.current), []);
+  const clearTipTimer = () => {
+    window.clearTimeout(tipTimer.current);
+    tipTimer.current = undefined;
+  };
   return (
     <Tooltip title={`选择${modelName}的生效时间`}>
       <Select
@@ -738,11 +751,32 @@ function ScheduleSelect({
         variant="borderless"
         value={value}
         options={SCHEDULE_OPTIONS}
-        optionRender={(o) => (
-          <Tooltip title={(o as unknown as { tip?: string }).tip} placement="right">
-            <span>{o.label}</span>
-          </Tooltip>
-        )}
+        onDropdownVisibleChange={(open) => {
+          if (!open) {
+            clearTipTimer();
+            setTipLabel(null);
+          }
+        }}
+        optionRender={(o) => {
+          const tip = (o as unknown as { tip?: string }).tip;
+          return (
+            <Tooltip title={tip} open={tipLabel === o.label} placement="right">
+              <span
+                style={{ display: "block" }}
+                onMouseEnter={() => {
+                  clearTipTimer();
+                  tipTimer.current = window.setTimeout(() => setTipLabel(String(o.label)), 400);
+                }}
+                onMouseLeave={() => {
+                  clearTipTimer();
+                  setTipLabel(null);
+                }}
+              >
+                {o.label}
+              </span>
+            </Tooltip>
+          );
+        }}
         onChange={(v) => onChange(v === "全天" ? "" : v)}
         popupMatchSelectWidth={false}
         className={`wm-pool-row__schedule-select${value === "全天" ? "" : " is-active"}`}
@@ -762,6 +796,8 @@ function BusyRating({
   value: string[];
   onChange: (levels: string[]) => void;
 }) {
+  // hover 预览：悬停第 N 档时 1..N 档先半亮，点击才落定（星级评分惯例）
+  const [hoverIdx, setHoverIdx] = useState(-1);
   let threshold = -1;
   BUSY_LEVELS.forEach((l, i) => {
     if (value.includes(l.value)) threshold = Math.max(threshold, i);
@@ -770,17 +806,32 @@ function BusyRating({
     onChange(BUSY_LEVELS.slice(0, i + 1).map((l) => l.value));
   };
   return (
-    <span className="wm-busy-rating" onClick={(e) => e.stopPropagation()}>
-      {BUSY_LEVELS.map((l) => (
-        <Tooltip key={l.value} title={`愿接受[${l.label}]`} placement="top">
-          <span
-            className={`wm-busy-rating__seg${BUSY_LEVELS.indexOf(l) <= threshold ? " is-lit" : ""}`}
-            onClick={() => click(BUSY_LEVELS.indexOf(l))}
-          >
-            {l.icon}
-          </span>
-        </Tooltip>
-      ))}
+    <span
+      className="wm-busy-rating"
+      onClick={(e) => e.stopPropagation()}
+      onMouseLeave={() => setHoverIdx(-1)}
+    >
+      {BUSY_LEVELS.map((l, i) => {
+        const lit = i <= threshold;
+        const preview = !lit && hoverIdx >= 0 && i <= hoverIdx;
+        return (
+          <Tooltip key={l.value} title={`愿接受[${l.label}]`} placement="top">
+            <span
+              className={[
+                "wm-busy-rating__seg",
+                lit ? "is-lit" : "",
+                preview ? "is-preview" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() => click(i)}
+              onMouseEnter={() => setHoverIdx(i)}
+            >
+              {l.icon}
+            </span>
+          </Tooltip>
+        );
+      })}
     </span>
   );
 }

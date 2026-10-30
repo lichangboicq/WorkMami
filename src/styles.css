@@ -796,7 +796,7 @@ body {
   min-width: 0;
   padding-left: 24px; /* 与池名左缘对齐（拖拽柄 20px + 间距 4px） */
 }
-.wm-pool-card__meta .wm-thinking-select { min-width: 0; }
+.wm-pool-card__meta .wm-thinking-select { min-width: 0; height: 26px; } /* 与忙闲选择器等高，保证 Y 对齐 */
 
 /* 标题栏内的价格/上下文 chip：与删除按钮等高（20px） */
 .wm-pool-card__head .wm-pool-rate,
@@ -848,7 +848,10 @@ body {
   opacity: 0.9;
   border: 1px solid transparent;
 }
-.wm-pool-ctx:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
+.wm-pool-ctx:hover {
+  border-color: var(--wm-brand);
+  box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
+}
 
 /* 动态组合倍率 Tooltip 辅助样式（已内联，以下留作占位以便后续扩展） */
 
@@ -864,6 +867,10 @@ body {
   opacity: 0;
   transition: opacity 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  box-sizing: border-box;
+  border-radius: 4px;
 }
 .wm-pool-card:hover .wm-pool-icon-btn,
 .wm-pool-row:hover .wm-pool-icon-btn { opacity: 1; }
@@ -900,7 +907,7 @@ body {
 .wm-busy-rating {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 7px;
   flex-shrink: 0;
   height: 26px; /* 与思考档位 chip 外框等高 */
   box-sizing: border-box;
@@ -908,7 +915,7 @@ body {
   background: var(--pool-chip-bg);
   border: 1px solid transparent;
   border-radius: 6px;
-  cursor: default;
+  cursor: pointer; /* 外框可整体点按（悬停点亮），与内部档位一致 */
   transition: border-color 0.2s ease;
 }
 .wm-busy-rating:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
@@ -934,6 +941,8 @@ body {
 .wm-busy-rating__seg:hover { opacity: 0.85; transform: scale(1.2); }
 .wm-busy-rating__seg.is-lit { filter: none; opacity: 1; }
 .wm-busy-rating__seg.is-lit:hover { transform: scale(1.2); }
+/* hover 预览态：悬停第 N 档时 1..N 档半亮，点击才落定 */
+.wm-busy-rating__seg.is-preview { filter: none; opacity: 0.55; }
 
 /* ============ 添加模型弹窗：chip 关联网格（点击即加入） ============ */
 .wm-add-hint {
@@ -980,6 +989,11 @@ body {
   box-shadow: 0 4px 12px rgba(var(--wm-brand-rgb), 0.14);
 }
 .wm-add-chip:active { transform: translateY(0); }
+.wm-add-chip:focus-visible {
+  outline: none;
+  border-color: var(--wm-brand);
+  box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
+}
 .wm-add-chip__name {
   font-size: 13px;
   font-weight: 600;
@@ -1087,11 +1101,12 @@ body {
   border: 1px dashed var(--pool-border);
   border-radius: 8px;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .wm-pool-add-row:hover {
   color: var(--wm-brand);
   border-color: rgba(var(--wm-brand-rgb), 0.45);
+  box-shadow: 0 0 0 2px rgba(var(--wm-brand-rgb), 0.18);
 }
 
 /* 最右竖列「+ 新建模型池」：可被压缩，把空间优先让给池卡 */
@@ -1123,8 +1138,12 @@ body {
   text-orientation: upright;
   letter-spacing: 1px;
 }
-.wm-pool-new-btn:hover { color: var(--wm-brand) !important; }
-/* hover 边框点亮：与「+ 添加模型」(.wm-pool-add-row:hover) 一致 */
+/* hover 样式复用「+ 添加模型」(.wm-pool-add-row:hover)：品牌色文字 + 边框点亮，并去掉 antd text 按钮默认的灰色 hover 背景 */
+.wm-pool-new-btn:hover,
+.wm-pool-new-col:hover .wm-pool-new-btn {
+  color: var(--wm-brand) !important;
+  background: transparent !important;
+}
 .wm-pool-new-col:hover { border-color: rgba(var(--wm-brand-rgb), 0.45); }
 
 .wm-model-gallery-loading {
