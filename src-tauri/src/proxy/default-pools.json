@@ -4,7 +4,9 @@
     "name": "文员",
     "rate": 0.0,
     "thinking": "快闪",
+    "busyFilter": ["idle", "normal", "busy"],
     "models": [
+      { "id": "hy4-preview", "name": "Hy4 preview", "schedule": "夜间" },
       { "id": "hy3" }
     ]
   },
@@ -13,6 +15,7 @@
     "name": "程序员",
     "rate": 0.05,
     "thinking": "斟酌",
+    "busyFilter": ["idle", "normal", "busy"],
     "models": [
       { "id": "glm-5.3-flash" },
       { "id": "space-bunny" },
@@ -26,10 +29,11 @@
     "name": "架构师",
     "rate": 0.85,
     "thinking": "精算",
+    "busyFilter": ["idle", "normal", "busy", "congested"],
     "models": [
       { "id": "kimi-k3.1-pro" },
-      { "id": "kimi-k3" },
-      { "id": "glm-5.3" }
+      { "id": "glm-5.3" },
+      { "id": "kimi-k3-1", "name": "Kimi-K3" }
     ]
   }
 ]

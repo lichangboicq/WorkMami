@@ -747,8 +747,12 @@ mod tests {
         assert_eq!(pools[0].name, "文员");
         assert_eq!(pools[0].rate, 0.00);
         assert_eq!(pools[0].thinking, "快闪");
+        assert_eq!(pools[0].busy_filter, vec!["idle", "normal", "busy"]);
         let ids0: Vec<&str> = pools[0].models.iter().map(|m| m.id.as_str()).collect();
-        assert_eq!(ids0, vec!["hy3"]);
+        assert_eq!(ids0, vec!["hy4-preview", "hy3"]);
+        // 首位成员带展示名与夜间时段（与交付默认配置一致）
+        assert_eq!(pools[0].models[0].name, "Hy4 preview");
+        assert_eq!(pools[0].models[0].schedule, "夜间");
 
         assert_eq!(pools[1].id, "程序员");
         assert_eq!(pools[1].name, "程序员");
@@ -764,14 +768,19 @@ mod tests {
         assert_eq!(pools[2].name, "架构师");
         assert_eq!(pools[2].rate, 0.85);
         assert_eq!(pools[2].thinking, "精算");
+        assert_eq!(
+            pools[2].busy_filter,
+            vec!["idle", "normal", "busy", "congested"]
+        );
         let ids2: Vec<&str> = pools[2].models.iter().map(|m| m.id.as_str()).collect();
-        assert_eq!(ids2, vec!["kimi-k3.1-pro", "kimi-k3", "glm-5.3"]);
+        assert_eq!(ids2, vec!["kimi-k3.1-pro", "glm-5.3", "kimi-k3-1"]);
+        assert_eq!(pools[2].models[2].name, "Kimi-K3");
     }
 
     #[test]
     fn ensure_defaults_injects_and_filters_missing_members() {
         let mut ps = ProxySettings::default();
-        // 本机真实模型：默认池全体成员中仅 kimi-k3 缺失（对齐本机实测）
+        // 本机真实模型：默认池全体成员中 hy4-preview 与 kimi-k3-1 缺失（对齐本机实测）
         let real: HashSet<String> = [
             "hy3",
             "step-5-preview",
@@ -787,7 +796,10 @@ mod tests {
         .collect();
         ensure_default_pools_with(&mut ps, Some(&real));
         assert_eq!(ps.pools.len(), 3);
-        // 架构师池中 kimi-k3 本机缺失 → 被剔除
+        // 文员池中 hy4-preview 本机缺失 → 被剔除，仅剩 hy3
+        let clerk: Vec<&str> = ps.pools[0].models.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(clerk, vec!["hy3"]);
+        // 架构师池中 kimi-k3-1 本机缺失 → 被剔除
         let arch: Vec<&str> = ps.pools[2].models.iter().map(|m| m.id.as_str()).collect();
         assert_eq!(arch, vec!["kimi-k3.1-pro", "glm-5.3"]);
         // 其余成员保持原优先级（全部在本机真实列表中）
@@ -803,7 +815,7 @@ mod tests {
         let mut ps = ProxySettings::default();
         ensure_default_pools_with(&mut ps, None);
         assert_eq!(ps.pools.len(), 3);
-        assert_eq!(ps.pools[0].models.len(), 1);
+        assert_eq!(ps.pools[0].models.len(), 2);
         assert_eq!(ps.pools[1].models.len(), 5);
         assert_eq!(ps.pools[2].models.len(), 3);
     }
