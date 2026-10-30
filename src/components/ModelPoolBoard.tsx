@@ -395,7 +395,7 @@ export default function ModelPoolBoard({ pools, models, accountCount, onChange }
         title={addPool ? `添加模型到「${addPool.name}」` : "添加模型"}
         open={addPool != null}
         onCancel={() => setAddPoolId(null)}
-        width={560}
+        width={720}
         footer={
           <Button key="done" type="primary" onClick={() => setAddPoolId(null)}>
             完成
@@ -485,7 +485,6 @@ function PoolCard({
   onDeleteModel,
   onAdd,
 }: PoolCardProps) {
-  const [editing, setEditing] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: pool.id,
     data: { type: "pool" },
@@ -563,7 +562,7 @@ function PoolCard({
       className={`wm-pool-card${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* 头部第一行：拖拽手柄 | 池名 | 删除（悬停显现） */}
+      {/* 头部第一行：拖拽手柄 | 删除（永远首行，悬停显现）| 池名 | 倍率 | 上下文 */}
       <div className="wm-pool-card__head">
         <span
           className="wm-pool-drag-handle"
@@ -572,41 +571,6 @@ function PoolCard({
         >
           <HolderOutlined />
         </span>
-        {editing ? (
-          <Input
-            size="small"
-            autoFocus
-            defaultValue={pool.name}
-            maxLength={20}
-            className="wm-pool-name-input"
-            onPressEnter={(e) => e.currentTarget.blur()}
-            onBlur={(e) => {
-              onRename(pool.id, e.target.value);
-              setEditing(false);
-            }}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Escape") e.currentTarget.blur();
-            }}
-          />
-        ) : (
-          <span
-            className="wm-pool-card__name"
-            title="点击重命名"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
-            }}
-          >
-            {pool.name}
-          </span>
-        )}
-        <Tooltip title={rateTip} placement="top">
-          <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
-        </Tooltip>
-        <Tooltip title={ctxTip} placement="top">
-          <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
-        </Tooltip>
         <Tooltip title="删除整个模型池">
           <span
             className="wm-pool-icon-btn"
@@ -614,6 +578,24 @@ function PoolCard({
           >
             <DeleteOutlined />
           </span>
+        </Tooltip>
+        <Input
+          size="small"
+          defaultValue={pool.name}
+          maxLength={20}
+          className="wm-pool-name-input"
+          onPressEnter={(e) => e.currentTarget.blur()}
+          onBlur={(e) => onRename(pool.id, e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+            if (e.key === "Escape") e.currentTarget.blur();
+          }}
+        />
+        <Tooltip title={rateTip} placement="top">
+          <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
+        </Tooltip>
+        <Tooltip title={ctxTip} placement="top">
+          <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
         </Tooltip>
       </div>
 
@@ -694,11 +676,15 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
       >
         <HolderOutlined />
       </span>
+      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <span className="wm-pool-row__name" title={name}>
         {name}
       </span>
+      <span className="wm-pool-row__gap" aria-hidden="true" />
       {credits && <span className="wm-pool-row__credits">{credits}</span>}
+      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <ScheduleSelect schedule={member.schedule ?? ""} modelName={name} onChange={onSchedule} />
+      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <Tooltip title="移除">
         <span
           className="wm-pool-icon-btn"
