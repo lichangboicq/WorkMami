@@ -533,12 +533,12 @@ function PoolCard({
               display: "flex",
               justifyContent: "space-between",
               alignItems: "baseline",
-              fontSize: 13,
+              fontSize: "var(--wm-text-ui-size)",
             }}
           >
             <span style={{ whiteSpace: "nowrap" }}>
               <b style={{ opacity: 0.7 }}>{i + 1}.</b> {d.name}{" "}
-              <span style={{ fontSize: 12, opacity: 0.65 }}>· {formatRate(d.rate)}</span>
+              <span style={{ fontSize: "var(--wm-text-num-size)", opacity: 0.65 }}>· {formatRate(d.rate)}</span>
             </span>
             <span
               style={{

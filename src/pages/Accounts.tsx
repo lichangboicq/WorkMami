@@ -493,7 +493,7 @@ function AccountCard({
               </span>
               <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                 {q.updated_at && (
-                  <span className="wm-account-faint" style={{ fontSize: 12 }}>
+                  <span className="wm-account-faint" style={{ fontSize: "var(--wm-text-num-size)" }}>
                     {timeAgo(q.updated_at)}更新
                   </span>
                 )}
@@ -520,7 +520,7 @@ function AccountCard({
                       style={{
                         display: "block",
                         padding: "4px 8px",
-                        fontSize: 12,
+                        fontSize: "var(--wm-text-num-size)",
                         color: token.colorTextTertiary,
                         cursor: "pointer",
                         textAlign: "center",
@@ -547,7 +547,7 @@ function AccountCard({
                             justifyContent: "space-between",
                             alignItems: "center",
                             padding: "4px 8px",
-                            fontSize: 13,
+                            fontSize: "var(--wm-text-ui-size)",
                             gap: 8,
                           }}
                         >

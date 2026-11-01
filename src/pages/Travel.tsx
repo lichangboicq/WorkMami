@@ -89,7 +89,7 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
   const shown = rows.length ? rows : last ? [last] : [];
   return (
     <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed rgba(128,128,128,.3)" }}>
-      <Text strong style={{ fontSize: 13 }}>
+      <Text strong style={{ fontSize: "var(--wm-text-ui-size)" }}>
         {rows.length ? (
           <>
             今日旅行账单：{rows.length} 次 · 共 +{total} 分
@@ -104,20 +104,20 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
         )}
       </Text>
       {shown.length === 0 ? (
-        <Text type="secondary" style={{ display: "block", marginTop: 4, fontSize: 13 }}>
+        <Text type="secondary" style={{ display: "block", marginTop: 4, fontSize: "var(--wm-text-ui-size)" }}>
           还没有任何旅行记录。
         </Text>
       ) : (
         <div style={{ marginTop: 6 }}>
           {shown.map((r) => (
             <div key={r.recordId} style={{ padding: "2px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
-                <Text style={{ fontSize: 13 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--wm-text-ui-size)" }}>
+                <Text style={{ fontSize: "var(--wm-text-ui-size)" }}>
                   {r.travelDate !== today ? `${r.travelDate} · ` : ""}
                   {r.locationName}
                 </Text>
                 <span>
-                  <Text strong style={{ fontSize: 13 }}>+{r.rewardCredit} 分</Text>
+                  <Text strong style={{ fontSize: "var(--wm-text-ui-size)" }}>+{r.rewardCredit} 分</Text>
                   {r.claimedAt ? (
                     <Tag color="success" style={{ marginLeft: 6 }}>
                       已到账
@@ -129,7 +129,7 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
                   )}
                 </span>
               </div>
-              <div style={{ fontSize: 12, opacity: 0.85 }}>
+              <div style={{ fontSize: "var(--wm-text-num-size)", opacity: 0.85 }}>
                 派出于 {fmtClock(r.departAt)} ·{" "}
                 {r.claimedAt ? `奖励领于 ${fmtClock(r.claimedAt)}` : "奖励尚未领取"}
               </div>

@@ -54,32 +54,11 @@ body {
   font-weight: var(--wm-text-ui-weight);
 }
 
-/* 指标值（Dashboard 大数字） */
-.wm-metric-value {
-  font-family: var(--wm-mono);
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.5px;
-  font-variant-numeric: tabular-nums;
-  background: linear-gradient(90deg, var(--wm-brand) 0%, var(--wm-brand-soft) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.wm-metric-label {
-  font-size: 13px;
-  opacity: 0.75;
-  margin-top: 5px;
-  letter-spacing: 0.3px;
-}
-
 .wm-preview {
   white-space: pre-wrap;
   word-break: break-word;
   font-family: var(--wm-mono);
-  font-size: 13px;
+  font-size: var(--wm-text-ui-size);
   line-height: 1.65;
   letter-spacing: 0.1px;
   max-height: 60vh;
@@ -114,7 +93,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 13.5px;
+  font-size: var(--wm-text-ui-size);
   line-height: 1.4;
   font-weight: 500;
   letter-spacing: 0.2px;
@@ -138,7 +117,7 @@ body {
 
 /* 保存状态徽章（Card title 内） */
 .wm-save-status {
-  font-size: 12.5px;
+  font-size: var(--wm-text-num-size);
   font-weight: 500;
   letter-spacing: 0.3px;
   display: inline-flex;
@@ -353,7 +332,7 @@ body {
   margin-bottom: 12px;
 }
 .wm-pool-toolbar__title {
-  font-size: 13.5px;
+  font-size: var(--wm-text-ui-size);
   font-weight: 500;
   letter-spacing: 0.2px;
   opacity: 0.92;
@@ -362,7 +341,7 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13.5px;
+  font-size: var(--wm-text-ui-size);
   letter-spacing: 0.2px;
   opacity: 0.92;
 }
@@ -380,7 +359,7 @@ body {
 }
 .wm-pool-toolbar--in-title .wm-pool-toolbar__strategy {
   margin-left: auto;
-  font-size: 12.5px;
+  font-size: var(--wm-text-num-size);
 }
 .wm-pool-toolbar--in-title .wm-ide-row { gap: 6px; }
 .wm-pool-toolbar--in-title .wm-pool-toolbar__title {
@@ -493,7 +472,7 @@ body {
    固定浅色视觉：复刻对象是 TRAE 的界面截图，不随应用主题切换。
    ============================================================ */
 .wm-trae-guide-empty {
-  font-size: 13px; color: #faad14; margin-bottom: 10px;
+  font-size: var(--wm-text-ui-size); color: #faad14; margin-bottom: 10px;
 }
 
 .wm-trae-guide {
@@ -771,22 +750,12 @@ body {
   margin: 0;
   border-radius: 0;
 }
-.wm-account-total         { font-family: var(--wm-mono); font-size: 14px; font-weight: 600; opacity: 0.9; letter-spacing: 0.2px; }
+.wm-account-total         { font-family: var(--wm-mono); font-size: var(--wm-text-ui-size); font-weight: 600; opacity: 0.9; letter-spacing: 0.2px; }
 .wm-account-subtext       { font-size: var(--wm-text-ui-size); font-weight: var(--wm-text-ui-weight); opacity: 0.78; }
-.wm-account-faint         { font-size: 12px; opacity: 0.65; margin-top: 4px; letter-spacing: 0.2px; }
+.wm-account-faint         { font-size: var(--wm-text-num-size); opacity: 0.65; margin-top: 4px; letter-spacing: 0.2px; }
 .wm-account-resource-name { opacity: 0.85; }
 
 /* ============ 模型池看板（Card 2「支持的模型」原位替换 wm-model-gallery） ============ */
-.wm-pool-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 400;
-  letter-spacing: 0.2px;
-  color: var(--ant-color-text-tertiary, #8c8c8c);
-  user-select: none;
-}
 .wm-pool-refresh {
   cursor: pointer;
   font-size: 13px;
@@ -996,7 +965,7 @@ body {
 .wm-thinking-select .ant-select-arrow { color: var(--pool-text-secondary); }
 
 /* 思考档位 tooltip（深色浮层内容） */
-.wm-thinking-tip { font-size: 12.5px; line-height: 1.7; letter-spacing: 0.2px; }
+.wm-thinking-tip { font-size: var(--wm-text-num-size); line-height: 1.7; letter-spacing: 0.2px; }
 .wm-thinking-tip__title { font-weight: 600; margin-bottom: 2px; }
 
 /* 池级忙闲筛选：五星评分式交互（点第 N 档左侧全亮，灭档 = 超出容忍） */
@@ -1042,7 +1011,7 @@ body {
 
 /* ============ 添加模型弹窗：chip 关联网格（点击即加入） ============ */
 .wm-add-hint {
-  font-size: 12px;
+  font-size: var(--wm-text-num-size);
   color: var(--ant-color-text-tertiary, #8c8c8c);
   margin-bottom: 10px;
 }
@@ -1057,7 +1026,7 @@ body {
 .wm-add-grid__empty {
   padding: 24px 0;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--wm-text-ui-size);
   color: var(--ant-color-text-tertiary, #8c8c8c);
 }
 /* chip：单行 = 名称 + 彩色 badge 标签 + credits 价格（复刻旧「支持的模型」体验） */
@@ -1278,7 +1247,7 @@ body {
 .wm-pool-new-col:hover { border-color: rgba(var(--wm-brand-rgb), 0.45); }
 
 .wm-model-gallery-loading {
-  font-size: 13px;
+  font-size: var(--wm-text-ui-size);
   padding: 8px 0;
   text-align: center;
   letter-spacing: 0.2px;
@@ -1388,7 +1357,7 @@ button.ant-switch,
   font-weight: 600;
 }
 .wm-page .ant-table-tbody > tr > td.ant-table-cell {
-  font-size: 14px;
+  font-size: var(--wm-text-ui-size);
 }
 .wm-page .ant-empty .ant-empty-image {
   height: 96px;
@@ -1403,7 +1372,7 @@ button.ant-switch,
   border-radius: 6px;
   background: transparent;
   color: inherit;
-  font-size: 12px;
+  font-size: var(--wm-text-num-size);
   line-height: 1;
   height: var(--wm-control-h); /* 与 API Key 输入壳（.wm-input-shell）等高 */
   box-sizing: border-box;
@@ -1443,16 +1412,16 @@ button.ant-switch,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--wm-text-num-size);
 }
 .wm-pool-pop__quota {
-  font-size: 12px;
+  font-size: var(--wm-text-num-size);
   color: #999;
   white-space: nowrap;
 }
 .wm-pool-pop__empty {
   color: #999;
-  font-size: 12px;
+  font-size: var(--wm-text-num-size);
   padding: 4px 0;
 }
 [data-theme="dark"] .wm-pool-btn {

@@ -39,7 +39,7 @@ const usageColumns: ColumnsType<CreditUsageRow> = [
     dataIndex: "time",
     width: 180,
     render: (t: string) => (
-      <span style={{ fontSize: 13 }}>{t.replace("T", " ").slice(0, 19)}</span>
+      <span style={{ fontSize: "var(--wm-text-ui-size)" }}>{t.replace("T", " ").slice(0, 19)}</span>
     ),
   },
   {
@@ -48,7 +48,7 @@ const usageColumns: ColumnsType<CreditUsageRow> = [
     ellipsis: true,
     render: (v: string) => (
       <Tooltip title={v}>
-        <span style={{ fontSize: 13, fontFamily: "monospace" }}>
+        <span style={{ fontSize: "var(--wm-text-ui-size)", fontFamily: "monospace" }}>
           {v ? v.slice(0, 12) : "—"}
         </span>
       </Tooltip>
@@ -167,7 +167,7 @@ export default function CreditLedgerDrawer({
                       <span style={{ fontWeight: 600 }}>
                         {fmtNum(r.used)}/{fmtNum(r.total)}积分
                       </span>
-                      <span style={{ opacity: 0.7, fontSize: 13 }}>
+                      <span style={{ opacity: 0.7, fontSize: "var(--wm-text-ui-size)" }}>
                         {" "}
                         （已用/总量）
                       </span>
@@ -175,18 +175,18 @@ export default function CreditLedgerDrawer({
                         {r.status}
                       </Tag>
                     </span>
-                    <span style={{ opacity: 0.8, fontSize: 13 }}>
+                    <span style={{ opacity: 0.8, fontSize: "var(--wm-text-ui-size)" }}>
                       到期时间：{fmtExpire(r.expireAt)}
                     </span>
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, opacity: 0.78 }}>
+                  <div style={{ marginTop: 4, fontSize: "var(--wm-text-ui-size)", opacity: 0.78 }}>
                     {r.name}
                     {r.reason ? ` · 下发原因：${r.reason}` : ""}
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{ marginTop: 8, fontSize: 13, opacity: 0.85 }}>
+            <div style={{ marginTop: 8, fontSize: "var(--wm-text-ui-size)", opacity: 0.85 }}>
               可用{data?.rewardCount ?? 0}个 · 剩余
               {fmtNum(data?.rewardRemaining ?? 0)}积分
             </div>

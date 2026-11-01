@@ -71,10 +71,10 @@ function SiderFooter({ isDark }: { isDark: boolean }) {
           padding: 4,
         }}
       />
-      <div style={{ fontSize: 13, color: sub, marginBottom: 8 }}>
+      <div style={{ fontSize: "var(--wm-text-ui-size)", color: sub, marginBottom: 8 }}>
         扫一扫关注老马公众号
       </div>
-      <div style={{ fontSize: 13, color: sub, lineHeight: 1.7 }}>
+      <div style={{ fontSize: "var(--wm-text-ui-size)", color: sub, lineHeight: 1.7 }}>
         <div>个人博客：www.majiabin.com</div>
       </div>
       <div
@@ -82,7 +82,7 @@ function SiderFooter({ isDark }: { isDark: boolean }) {
           marginTop: 10,
           paddingTop: 10,
           borderTop: `1px solid ${divider}`,
-          fontSize: 12,
+          fontSize: "var(--wm-text-num-size)",
           color: faint,
           lineHeight: 1.6,
         }}
@@ -227,7 +227,7 @@ export default function App() {
               </div>
               <div
                 style={{
-                  fontSize: 12,
+                  fontSize: "var(--wm-text-num-size)",
                   color: subText,
                   marginTop: 2,
                   letterSpacing: 0.3,
@@ -262,12 +262,12 @@ export default function App() {
               borderBottom: `1px solid ${divider}`,
             }}
           >
-            <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.2 }}>
+            <span style={{ fontSize: "var(--wm-text-ui-size)", fontWeight: 600, letterSpacing: 0.2 }}>
               {MENU.find((m) => m.key === active)?.label}
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <span
-                style={{ fontSize: 13, color: subText, display: "inline-flex", alignItems: "center", gap: 6 }}
+                style={{ fontSize: "var(--wm-text-ui-size)", color: subText, display: "inline-flex", alignItems: "center", gap: 6 }}
                 title="开机后自动启动 WorkMami"
               >
                 开机自启动

@@ -442,7 +442,7 @@ export default function Dashboard() {
         title="各账号真实消耗（官方账单）"
         style={{ marginBottom: 16 }}
         extra={
-          <span style={{ fontSize: 13, opacity: 0.78 }}>
+          <span style={{ fontSize: "var(--wm-text-ui-size)", opacity: 0.78 }}>
             合计 {(billing?.total ?? 0).toFixed(1)} 积分 · 近 {billing?.days ?? "—"} 天
           </span>
         }
@@ -472,7 +472,7 @@ export default function Dashboard() {
             },
           ]}
         />
-        <div style={{ fontSize: 13, opacity: 0.72, marginTop: 8 }}>
+        <div style={{ fontSize: "var(--wm-text-ui-size)", opacity: 0.72, marginTop: 8 }}>
           取自 WorkBuddy 官方账单接口，为该账号区间内实际扣费（含 App
           端等全渠道），可与官方后台对账。
         </div>
