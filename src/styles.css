@@ -1441,3 +1441,10 @@ button.ant-switch,
 [data-theme="dark"] .wm-pool-pop__empty {
   color: #8b8594;
 }
+/* 猫猫旅行：账号卡片自适应网格，压到内容不截断的最小宽度才换行 */
+.wm-travel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: start;
+}

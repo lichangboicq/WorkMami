@@ -248,104 +248,103 @@ export default function Travel() {
         </Row>
       </Card>
 
-      {/* 各账号旅行卡片 */}
-      <Row gutter={[16, 16]}>
+      {/* 各账号旅行卡片：auto-fill 网格，压到内容不截断的最小宽度才换行 */}
+      <div className="wm-travel-grid">
         {data.accounts.map((item) => {
           const st = item.status as TravelStatus;
           const isError = "error" in item.status;
           return (
-            <Col key={item.uid} xs={24} md={12} lg={8}>
-              <Card
-                title={
-                  <Space>
-                    <CompassOutlined />
-                    <span>{item.nickname || item.uid.slice(0, 8)}</span>
-                  </Space>
-                }
-                extra={
-                  isError ? <Tag color="error">查询失败</Tag> : statusTag(st.state, st.dailyLimitReached)
-                }
-                size="small"
-              >
-                {isError ? (
-                  <Text type="danger">{(item.status as { error: string }).error}</Text>
-                ) : (
-                  <>
-                    {st.state === "traveling" && (
-                      <>
-                        <Title level={5} style={{ margin: "8px 0" }}>
-                          {st.locationName || "旅行中"}
-                        </Title>
-                        <Text type="secondary" style={{ display: "block" }}>
-                          出发时刻：{fmtClock(st.departAt)}
+            <Card
+              key={item.uid}
+              title={
+                <Space>
+                  <CompassOutlined />
+                  <span>{item.nickname || item.uid.slice(0, 8)}</span>
+                </Space>
+              }
+              extra={
+                isError ? <Tag color="error">查询失败</Tag> : statusTag(st.state, st.dailyLimitReached)
+              }
+              size="small"
+            >
+              {isError ? (
+                <Text type="danger">{(item.status as { error: string }).error}</Text>
+              ) : (
+                <>
+                  {st.state === "traveling" && (
+                    <>
+                      <Title level={5} style={{ margin: "8px 0" }}>
+                        {st.locationName || "旅行中"}
+                      </Title>
+                      <Text type="secondary" style={{ display: "block" }}>
+                        出发时刻：{fmtClock(st.departAt)}
+                      </Text>
+                      <Text type="secondary" style={{ display: "block" }}>
+                        预计到达：{fmtClock(st.arriveAt)}
+                      </Text>
+                      <Text strong style={{ display: "block", marginTop: 4 }}>
+                        还有 {formatCountdown(st.arriveAt, st.serverNow)} 到站
+                      </Text>
+                    </>
+                  )}
+                  {st.state === "arrived" && (
+                    <>
+                      <Title level={5} style={{ margin: "8px 0" }}>
+                        {st.locationName || "已到达"}
+                      </Title>
+                      <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
+                        到站时刻：{fmtClock(st.arriveAt)}
+                      </Text>
+                      {settings.travel.autoEnabled && (
+                        <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+                          托管将在下次巡检（≤ 10 分钟）自动领取，也可点下方按钮立即领取。
                         </Text>
-                        <Text type="secondary" style={{ display: "block" }}>
-                          预计到达：{fmtClock(st.arriveAt)}
-                        </Text>
-                        <Text strong style={{ display: "block", marginTop: 4 }}>
-                          还有 {formatCountdown(st.arriveAt, st.serverNow)} 到站
-                        </Text>
-                      </>
-                    )}
-                    {st.state === "arrived" && (
-                      <>
-                        <Title level={5} style={{ margin: "8px 0" }}>
-                          {st.locationName || "已到达"}
-                        </Title>
-                        <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
-                          到站时刻：{fmtClock(st.arriveAt)}
-                        </Text>
-                        {settings.travel.autoEnabled && (
-                          <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-                            托管将在下次巡检（≤ 10 分钟）自动领取，也可点下方按钮立即领取。
+                      )}
+                      <Button
+                        type="primary"
+                        icon={<GiftOutlined />}
+                        onClick={() => handleClaim(item.uid)}
+                      >
+                        立即领取
+                      </Button>
+                    </>
+                  )}
+                  {st.state === "idle" && (
+                    <>
+                      {st.dailyLimitReached ? (
+                        <Alert
+                          type="warning"
+                          showIcon
+                          style={{ marginBottom: 12 }}
+                          message="猫猫跑累了，明天再来"
+                        />
+                      ) : (
+                        <>
+                          <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
+                            {settings.travel.autoEnabled
+                              ? `将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
+                              : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
                           </Text>
-                        )}
-                        <Button
-                          type="primary"
-                          icon={<GiftOutlined />}
-                          onClick={() => handleClaim(item.uid)}
-                        >
-                          立即领取
-                        </Button>
-                      </>
-                    )}
-                    {st.state === "idle" && (
-                      <>
-                        {st.dailyLimitReached ? (
-                          <Alert
-                            type="warning"
-                            showIcon
-                            style={{ marginBottom: 12 }}
-                            message="猫猫跑累了，明天再来"
+                          <Select
+                            placeholder={settings.travel.autoEnabled ? "手动立即出发（可选）" : "选择目的地出发"}
+                            style={{ width: "100%", marginBottom: 8 }}
+                            onChange={(v: number) => handleDepart(item.uid, v)}
+                            options={data.config.map((loc: TravelLocation) => ({
+                              label: `${loc.name} (${loc.durationMinHours}-${loc.durationMaxHours}h)`,
+                              value: loc.id,
+                            }))}
                           />
-                        ) : (
-                          <>
-                            <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
-                              {settings.travel.autoEnabled
-                                ? `将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
-                                : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
-                            </Text>
-                            <Select
-                              placeholder={settings.travel.autoEnabled ? "手动立即出发（可选）" : "选择目的地出发"}
-                              style={{ width: "100%", marginBottom: 8 }}
-                              onChange={(v: number) => handleDepart(item.uid, v)}
-                              options={data.config.map((loc: TravelLocation) => ({
-                                label: `${loc.name} (${loc.durationMinHours}-${loc.durationMaxHours}h)`,
-                                value: loc.id,
-                              }))}
-                            />
-                          </>
-                        )}
-                      </>
-                    )}
-                    <TodayLedger records={item.records} />
-                  </>
-                )}
-              </Card>
-            </Col>
+                        </>
+                      )}
+                    </>
+                  )}
+                  <TodayLedger records={item.records} />
+                </>
+              )}
+            </Card>
           );
         })}
-      </Row>
+      </div>
     </div>
   );
 }
