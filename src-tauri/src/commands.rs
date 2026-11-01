@@ -100,7 +100,11 @@ pub fn credential_status(state: State<'_, Arc<AppState>>, uid: String) -> R<bool
 
 #[tauri::command]
 pub fn set_account_enabled(state: State<'_, Arc<AppState>>, uid: String, enabled: bool) -> R<()> {
-    state.accounts.set_enabled(&uid, enabled)
+    let r = state.accounts.set_enabled(&uid, enabled);
+    if r.is_ok() {
+        proxy::stop_if_pool_empty(state.inner());
+    }
+    r
 }
 
 #[tauri::command]
@@ -110,7 +114,11 @@ pub fn set_account_tags(state: State<'_, Arc<AppState>>, uid: String, tags: Vec<
 
 #[tauri::command]
 pub fn delete_account(state: State<'_, Arc<AppState>>, uid: String) -> R<()> {
-    state.accounts.remove(&uid)
+    let r = state.accounts.remove(&uid);
+    if r.is_ok() {
+        proxy::stop_if_pool_empty(state.inner());
+    }
+    r
 }
 
 #[tauri::command]

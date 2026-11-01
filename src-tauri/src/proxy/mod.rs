@@ -44,6 +44,11 @@ pub async fn start(state: Arc<AppState>) -> bool {
     if *state.proxy_running.lock().unwrap() {
         return true;
     }
+    // 账号池为空时不允许启动：没有任何在池账号参与积分支出
+    if state.accounts.enabled_accounts().is_empty() {
+        *state.proxy_error.lock().unwrap() = Some("账号池为空，请先启用至少一个账号".into());
+        return false;
+    }
     let ps = state.proxy_settings();
     let bind = format!("{}:{}", ps.host, ps.port);
     tracing::info!("自定义模型启动，绑定地址 {bind}");
@@ -136,6 +141,21 @@ pub fn stop(state: &Arc<AppState>) {
     }
     *state.proxy_running.lock().unwrap() = false;
     *state.proxy_error.lock().unwrap() = None;
+}
+
+/// 账号池被清空时强制停代理。不改 settings.proxy.enabled（用户意图保留），
+/// 重新开启走 start 的空池校验，即"池空不允许开启"。
+pub fn stop_if_pool_empty(state: &Arc<AppState>) {
+    if !*state.proxy_running.lock().unwrap() {
+        return;
+    }
+    if !state.accounts.enabled_accounts().is_empty() {
+        return;
+    }
+    tracing::info!("账号池为空，自动停止自定义模型");
+    stop(state);
+    // stop() 会清空 proxy_error，文案必须在其后再置
+    *state.proxy_error.lock().unwrap() = Some("账号池为空，代理已自动停止".into());
 }
 
 fn build_router(state: Arc<AppState>) -> Router {
