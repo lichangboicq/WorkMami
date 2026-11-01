@@ -1229,3 +1229,66 @@ body {
 .wm-page .ant-empty .ant-empty-image {
   height: 96px;
 }
+
+/* ===== 账号池入口（Proxy 标题行） ===== */
+.wm-pool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 8px;
+  cursor: pointer;
+  position: relative;
+}
+.wm-pool-btn:hover {
+  border-color: #1677ff;
+  color: #1677ff;
+}
+.wm-pool-btn.is-empty::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff4d4f;
+}
+.wm-pool-pop {
+  min-width: 220px;
+  max-height: 280px;
+  overflow: auto;
+}
+.wm-pool-pop__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.wm-pool-pop__name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.wm-pool-pop__quota {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+}
+.wm-pool-pop__warn {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.wm-pool-pop__empty {
+  color: #999;
+  font-size: 12px;
+  padding: 4px 0;
+}

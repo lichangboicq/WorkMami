@@ -15,6 +15,7 @@ import { api, errText } from "../api";
 import { useStore } from "../store";
 import ModelPoolBoard from "../components/ModelPoolBoard";
 import TraeGuideModal from "../components/TraeGuideModal";
+import AccountPoolControl from "../components/AccountPoolControl";
 import type { ModelInfo, ModelPool, ProxySettings as PS } from "../types";
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
@@ -244,6 +245,7 @@ export default function Proxy() {
   }, []);
 
   const enabled = formValues.enabled;
+  const poolEmpty = !accounts.some((a) => a.enabled);
   const apiKey = formValues.apiKey;
 
   const running = Boolean(proxy?.running);
@@ -301,12 +303,26 @@ export default function Proxy() {
           <div className="wm-card-title">
             {/* Switch 开关 + 运行状态，放标题行最左侧 */}
             <div className="wm-switch-row">
-              <Switch
-                checked={enabled}
-                checkedChildren="开"
-                unCheckedChildren="关"
-                onChange={onToggleEnabled}
-              />
+              {poolEmpty && !enabled ? (
+                <Tooltip title="账号池为空，无法开启">
+                  <span>
+                    <Switch
+                      checked={enabled}
+                      disabled
+                      checkedChildren="开"
+                      unCheckedChildren="关"
+                      onChange={onToggleEnabled}
+                    />
+                  </span>
+                </Tooltip>
+              ) : (
+                <Switch
+                  checked={enabled}
+                  checkedChildren="开"
+                  unCheckedChildren="关"
+                  onChange={onToggleEnabled}
+                />
+              )}
               {dirtyDot("enabled")}
               {running ? (
                 <span className="wm-run-state is-live">运行中</span>
@@ -316,9 +332,12 @@ export default function Proxy() {
                     异常
                   </span>
                 </Tooltip>
+              ) : poolEmpty ? (
+                <span className="wm-run-state is-error">池已空</span>
               ) : enabled ? (
                 <span className="wm-run-state">待启动</span>
               ) : null}
+              <AccountPoolControl />
             </div>
             {/* 保存状态徽章 */}
             {saveStatusBadge}
