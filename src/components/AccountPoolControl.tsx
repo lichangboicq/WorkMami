@@ -55,7 +55,6 @@ export default function AccountPoolControl() {
               />
             </div>
           ))}
-          {poolEmpty && <div className="wm-pool-pop__warn">账号池为空，代理已停止且无法开启</div>}
         </>
       )}
     </div>

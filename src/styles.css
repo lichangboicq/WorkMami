@@ -1284,11 +1284,6 @@ body {
   color: #999;
   white-space: nowrap;
 }
-.wm-pool-pop__warn {
-  color: #ff4d4f;
-  font-size: 12px;
-  margin-top: 6px;
-}
 .wm-pool-pop__empty {
   color: #999;
   font-size: 12px;

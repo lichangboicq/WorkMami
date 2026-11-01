@@ -304,11 +304,11 @@ export default function Proxy() {
           <div className="wm-card-title">
             {/* Switch 开关 + 运行状态，放标题行最左侧 */}
             <div className="wm-switch-row">
-              <Tooltip title={poolEmpty && !enabled ? "账号池为空，无法开启" : ""}>
+              <Tooltip title={poolEmpty ? "账号池为空，无法开启" : ""}>
                 <span>
                   <Switch
-                    checked={enabled}
-                    disabled={poolEmpty && !enabled}
+                    checked={enabled && !poolEmpty}
+                    disabled={poolEmpty}
                     checkedChildren="开"
                     unCheckedChildren="关"
                     onChange={onToggleEnabled}
@@ -318,14 +318,12 @@ export default function Proxy() {
               {dirtyDot("enabled")}
               {running ? (
                 <span className="wm-run-state is-live">运行中</span>
-              ) : enabled && proxy?.error ? (
+              ) : poolEmpty ? null : enabled && proxy?.error ? (
                 <Tooltip title={`${proxy.error}（点击重试）`}>
                   <span className="wm-run-state is-error" onClick={retryStart}>
                     异常
                   </span>
                 </Tooltip>
-              ) : poolEmpty ? (
-                <span className="wm-run-state is-error">池已空</span>
               ) : enabled ? (
                 <span className="wm-run-state">待启动</span>
               ) : null}
