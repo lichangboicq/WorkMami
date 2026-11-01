@@ -6,13 +6,11 @@ import {
   Card,
   Col,
   Empty,
-  Input,
   message,
   Modal,
   Progress,
   Row,
   Space,
-  Switch,
   Tag,
   theme as antdTheme,
   Tooltip,
@@ -27,6 +25,7 @@ import { api, errText } from "../api";
 import { useStore } from "../store";
 import type { Account } from "../types";
 import { BillIcon } from "../components/WBIcon";
+import { WmInput } from "../components/WmInput";
 import CreditLedgerDrawer from "./CreditLedgerDrawer";
 
 function fmtTime(s?: string | null): string {
@@ -267,7 +266,7 @@ export default function Accounts() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="多绑多赚：每个账号每天都能签到领积分"
+        message="多绑多赚：每个账号每天都能领积分"
       />
 
       <div className="wm-toolbar">
@@ -303,10 +302,6 @@ export default function Accounts() {
                 onLedger={() => {
                   setLedgerUid(a.uid);
                   setLedgerName(a.nickname);
-                }}
-                onToggle={async (v) => {
-                  await api.setAccountEnabled(a.uid, v);
-                  await Promise.all([reloadAccounts(), reloadProxy()]);
                 }}
                 onDelete={async () => {
                   await api.deleteAccount(a.uid);
@@ -371,7 +366,8 @@ export default function Accounts() {
         onCancel={() => setTagOpen(false)}
         onOk={saveTags}
       >
-        <Input
+        <WmInput
+          width="full"
           value={tagValue}
           onChange={(e) => setTagValue(e.target.value)}
           placeholder="多个标签用逗号分隔，例如：主力,测试"
@@ -395,7 +391,6 @@ function AccountCard({
   bound,
   onOpenGrowth,
   onLedger,
-  onToggle,
   onDelete,
   onTags,
 }: {
@@ -404,7 +399,6 @@ function AccountCard({
   bound: boolean;
   onOpenGrowth: () => void;
   onLedger: () => void;
-  onToggle: (v: boolean) => void;
   onDelete: () => void;
   onTags: () => void;
 }) {
@@ -434,7 +428,6 @@ function AccountCard({
           </Tag>
         </Space>
       }
-      extra={<Switch size="small" checked={a.enabled} onChange={onToggle} />}
       actions={[
         <CardAction
           key="r"
@@ -472,8 +465,10 @@ function AccountCard({
     >
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
         <Space size={4} wrap>
-          {a.today_checked_in && <Tag color="purple">今日已签</Tag>}
-          {a.streak_days > 0 && <Tag>连续 {a.streak_days} 天</Tag>}
+          {a.today_checked_in && <Tag color="purple">今日已领</Tag>}
+          {a.total_credits != null && a.total_credits > 0 && (
+            <Tag>累计领 {Math.round(a.total_credits).toLocaleString("zh-CN")}积分</Tag>
+          )}
         </Space>
 
         {a.tags.length > 0 && (

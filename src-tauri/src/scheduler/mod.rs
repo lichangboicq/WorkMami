@@ -36,6 +36,7 @@ pub struct CheckinResult {
     pub reward: f64,
     pub already: bool,
     pub streak: i64,
+    pub total_credits: f64,
     pub message: String,
 }
 
@@ -123,6 +124,7 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
                 reward: 0.0,
                 already: false,
                 streak: 0,
+                total_credits: 0.0,
                 message: "无本地凭证，需重新授权".into(),
             }
         }
@@ -140,10 +142,10 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
     };
 
     // 先查状态，避免重复
-    let (checked, streak, _) = state.api.fetch_checkin_status(&tokens).await.unwrap_or((false, 0, serde_json::Value::Null));
+    let (checked, streak, total, _) = state.api.fetch_checkin_status(&tokens).await.unwrap_or((false, 0, 0.0, serde_json::Value::Null));
     if checked {
-        let _ = state.accounts.update_checkin(uid, true, streak);
-        return CheckinResult { uid: uid.to_string(), nickname, ok: true, reward: 0.0, already: true, streak, message: "今日已签到".into() };
+        let _ = state.accounts.update_checkin(uid, true, streak, total);
+        return CheckinResult { uid: uid.to_string(), nickname, ok: true, reward: 0.0, already: true, streak, total_credits: total, message: "今日已领取".into() };
     }
 
     // 签到前余额快照：签到成功响应体未必含“到账积分”字段（WorkBuddy 不用通用键名），
@@ -156,11 +158,8 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
             let already_in_raw = raw.get("code").and_then(|c| c.as_i64()) == Some(10001)
                 || raw.get("msg").and_then(|m| m.as_str()).map(|s| s.contains("已签到")).unwrap_or(false);
             if already_in_raw {
-                let _ = state.accounts.update_checkin(uid, true, streak);
-                return CheckinResult { uid: uid.to_string(), nickname, ok: true, reward: 0.0, already: true, streak, message: "今日已签到".into() };
-            }
-            if ok {
-                let _ = state.accounts.update_checkin(uid, true, streak + 1);
+                let _ = state.accounts.update_checkin(uid, true, streak, total);
+                return CheckinResult { uid: uid.to_string(), nickname, ok: true, reward: 0.0, already: true, streak, total_credits: total, message: "今日已领取".into() };
             }
             // 反推本次到账：优先用余额差（>0.5 才认，滤掉浮点噪声），否则回落响应解析值。
             let mut gained = reward;
@@ -177,6 +176,9 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
                 }
             }
             let gained = (gained * 100.0).round() / 100.0;
+            if ok {
+                let _ = state.accounts.update_checkin(uid, true, streak + 1, total + gained);
+            }
             CheckinResult {
                 uid: uid.to_string(),
                 nickname,
@@ -184,7 +186,8 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
                 reward: gained,
                 already: false,
                 streak: streak + if ok { 1 } else { 0 },
-                message: if ok { format!("签到成功 +{gained}") } else { "签到失败".into() },
+                total_credits: total + if ok { gained } else { 0.0 },
+                message: if ok { format!("领取成功 +{gained}") } else { "领取失败".into() },
             }
         }
         Err(e) => CheckinResult {
@@ -194,6 +197,7 @@ pub async fn checkin_one(state: Arc<AppState>, uid: &str) -> CheckinResult {
             reward: 0.0,
             already: false,
             streak,
+            total_credits: total,
             message: e.to_string(),
         },
     }
@@ -358,15 +362,16 @@ async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
     let mut all_done = true;
     let mut any_queried = false;
 
-    let enabled = state.accounts.enabled_accounts();
+    // 旅行不区分账号池：全量账号参与托管（含未启用账号）。
+    let accounts = state.accounts.all();
     // 拿一个 token 获取地点配置（缓存一次即可）
-    let tokens_first = enabled.iter().find_map(|a| accounts::load_token(&a.uid));
+    let tokens_first = accounts.iter().find_map(|a| accounts::load_token(&a.uid));
     let locations = match &tokens_first {
         Some(t) => state.api.buddy_travel_config(t).await.unwrap_or_default(),
         None => return,
     };
 
-    for acc in &enabled {
+    for acc in &accounts {
         let Some(tokens) = accounts::load_token(&acc.uid) else {
             continue;
         };

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ConfigProvider, Layout, Menu, Segmented, theme as antdTheme } from "antd";
+import { ConfigProvider, Layout, Menu, Segmented, Switch, message, theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import {
@@ -11,6 +11,7 @@ import {
   TeamOutlined,
 } from "@ant-design/icons";
 import { useStore } from "./store";
+import { api, errText } from "./api";
 import logo from "./assets/logo.png";
 import wechatQr from "./assets/wechat-qr.jpg";
 import Accounts from "./pages/Accounts";
@@ -26,7 +27,7 @@ const MENU = [
   { key: "accounts", label: "账号管理", icon: <TeamOutlined /> },
   { key: "proxy", label: "自定义模型", icon: <CloudServerOutlined /> },
   { key: "data", label: "数据管理", icon: <DatabaseOutlined /> },
-  { key: "checkin", label: "签到中心", icon: <GiftOutlined /> },
+  { key: "checkin", label: "Mami加油站", icon: <GiftOutlined /> },
   { key: "travel", label: "猫猫旅行", icon: <CompassOutlined /> },
   { key: "dashboard", label: "Token 看板", icon: <DashboardOutlined /> },
 ];
@@ -106,6 +107,24 @@ export default function App() {
   }, [init]);
 
   const isDark = themePref === "dark" || (themePref === "system" && sysDark);
+
+  const [autostart, setAutostart] = useState(false);
+  const [autostartLoading, setAutostartLoading] = useState(false);
+  useEffect(() => {
+    api.autostartStatus().then(setAutostart).catch(() => {});
+  }, []);
+  const toggleAutostart = async (v: boolean) => {
+    setAutostartLoading(true);
+    try {
+      if (v) await api.autostartEnable();
+      else await api.autostartDisable();
+      setAutostart(v);
+    } catch (e) {
+      message.error(errText(e) || "设置失败");
+    } finally {
+      setAutostartLoading(false);
+    }
+  };
 
   // 同步主题到 html 根节点，让 CSS 选择器 [data-theme="dark"] 命中
   useEffect(() => {
@@ -246,15 +265,29 @@ export default function App() {
             <span style={{ fontSize: 15, fontWeight: 600, letterSpacing: 0.2 }}>
               {MENU.find((m) => m.key === active)?.label}
             </span>
-            <Segmented
-              value={themePref}
-              onChange={(v) => setThemePref(v as string)}
-              options={[
-                { label: "跟随系统", value: "system" },
-                { label: "暗色", value: "dark" },
-                { label: "亮色", value: "light" },
-              ]}
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <span
+                style={{ fontSize: 13, color: subText, display: "inline-flex", alignItems: "center", gap: 6 }}
+                title="开机后自动启动 WorkMami"
+              >
+                开机自启
+                <Switch
+                  size="small"
+                  checked={autostart}
+                  loading={autostartLoading}
+                  onChange={toggleAutostart}
+                />
+              </span>
+              <Segmented
+                value={themePref}
+                onChange={(v) => setThemePref(v as string)}
+                options={[
+                  { label: "跟随系统", value: "system" },
+                  { label: "暗色", value: "dark" },
+                  { label: "亮色", value: "light" },
+                ]}
+              />
+            </div>
           </Header>
           <Content
             style={{

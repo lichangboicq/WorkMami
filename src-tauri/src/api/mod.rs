@@ -655,14 +655,15 @@ impl ApiClient {
         self.get_json(USER_STATUS, tokens).await
     }
 
-    /// 查询签到状态：返回 (今日是否已签, 连续天数, 原始)。
-    pub async fn fetch_checkin_status(&self, tokens: &AuthTokens) -> WmResult<(bool, i64, Value)> {
+    /// 查询签到状态：返回 (今日是否已签, 连续天数, 累计领取积分, 原始)。
+    pub async fn fetch_checkin_status(&self, tokens: &AuthTokens) -> WmResult<(bool, i64, f64, Value)> {
         let v = self.post_json(CHECKIN_STATUS, tokens, &serde_json::json!({})).await?;
         let data = unwrap_data(&v);
         let checked = deep_bool(&data, &["today_checked_in", "checkedIn", "isCheckin", "checked", "signed", "hasCheckedIn", "isChecked", "todayChecked"])
             .unwrap_or(false);
         let streak = deep_i64(&data, &["streak_days", "streakDays", "streak", "continuousDays", "continueDays"]).unwrap_or(0);
-        Ok((checked, streak, v))
+        let total = deep_f64(&data, &["total_credits", "totalCredits", "total_credit", "totalCredit"]).unwrap_or(0.0);
+        Ok((checked, streak, total, v))
     }
 
     /// 执行签到。返回 (成功?, 已获得积分, 原始响应)。

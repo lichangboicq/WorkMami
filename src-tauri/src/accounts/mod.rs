@@ -72,6 +72,9 @@ pub struct Account {
     pub today_checked_in: bool,
     #[serde(default)]
     pub streak_days: i64,
+    /// 累计领取积分（来自签到活动 total_credits）。
+    #[serde(default)]
+    pub total_credits: f64,
     /// 独立浏览器 profile 目录名（browser-profiles/<name>）。
     /// 登录/首次使用时一次性分配并固定，此后不再改动。
     #[serde(default)]
@@ -179,12 +182,13 @@ impl AccountStore {
         self.persist()
     }
 
-    pub fn update_checkin(&self, uid: &str, checked: bool, streak: i64) -> WmResult<()> {
+    pub fn update_checkin(&self, uid: &str, checked: bool, streak: i64, total_credits: f64) -> WmResult<()> {
         {
             let mut guard = self.inner.write().unwrap();
             if let Some(a) = guard.iter_mut().find(|a| a.uid == uid) {
                 a.today_checked_in = checked;
                 a.streak_days = streak;
+                a.total_credits = total_credits;
             }
         }
         self.persist()
@@ -258,6 +262,7 @@ pub fn upsert_from_oauth(
         last_used_at: None,
         today_checked_in: false,
         streak_days: 0,
+        total_credits: 0.0,
         profile: None,
         has_local_token: true,
         created_at: Utc::now(),

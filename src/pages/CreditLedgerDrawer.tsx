@@ -127,7 +127,7 @@ export default function CreditLedgerDrawer({
         {/* 平台奖励积分 */}
         <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>平台奖励积分</span>
-          <Tooltip title="官方活动发放、签到、做任务、派猫猫旅行等获得的积分批次，各有独立到期时间">
+          <Tooltip title="官方活动发放、领取、做任务、派猫猫旅行等获得的积分批次，各有独立到期时间">
             <InfoIcon style={{ marginLeft: 6, opacity: 0.65 }} />
           </Tooltip>
         </div>

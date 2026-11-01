@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>WorkMami · WorkBuddy 多账号管理与本地反代工具</title>
-<meta name="description" content="WorkMami：WorkBuddy 多账号管理、本地反代、批量签到、猫猫旅行托管与 Token 看板，一站式稳稳接住你。支持 macOS（Apple 芯片 / Intel）与 Windows。" />
+<meta name="description" content="WorkMami：WorkBuddy 多账号管理、本地反代、批量领取、猫猫旅行托管与 Token 看板，一站式稳稳接住你。支持 macOS（Apple 芯片 / Intel）与 Windows。" />
 <style>
   :root{
     --bg:#0b0b0f; --bg2:#101018; --card:#15151d; --line:rgba(255,255,255,.08);
@@ -171,7 +171,7 @@
   <div style="margin-bottom:20px"><span class="badge"><span class="dot"></span> 当前版本 v0.1.0 · macOS &amp; Windows</span></div>
   <h1><span class="brand">WorkMami</span></h1>
   <div class="slogan">WorkBuddy 的妈咪，稳稳接住你 🐾</div>
-  <p class="desc">一款面向 WorkBuddy 用户的桌面效率工具：多账号统一管理、把模型本地反代给第三方客户端、批量签到、猫猫旅行自动托管，再用一块 Token 看板看清每个账号的余额与用量。全部在你自己的电脑上运行。</p>
+  <p class="desc">一款面向 WorkBuddy 用户的桌面效率工具：多账号统一管理、把模型本地反代给第三方客户端、批量领取、猫猫旅行自动托管，再用一块 Token 看板看清每个账号的余额与用量。全部在你自己的电脑上运行。</p>
   <div class="cta">
     <a class="btn btn-primary" href="#download">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
@@ -193,16 +193,16 @@
 <!-- 定位 -->
 <section id="position" class="wrap">
   <div class="sec-title">WorkMami 是什么</div>
-  <div class="sec-sub">把散落在多个 WorkBuddy 账号里的额度、任务和签到，收进一个顺手的管理台</div>
+  <div class="sec-sub">把散落在多个 WorkBuddy 账号里的额度、任务和每日领取，收进一个顺手的管理台</div>
   <div class="pos" style="margin-top:40px">
     <div>
       <p style="color:var(--sub);font-size:15.5px">
-        WorkMami 是一款<b style="color:var(--txt)">第三方独立开发</b>的本地桌面工具，专为同时使用多个 WorkBuddy 账号、又想把这些账号的能力复用到其它客户端的重度用户打造。它不改动、不侵入 WorkBuddy 官方服务，只是在你自己的电脑上帮你把账号、额度、任务和签到管得明明白白。
+        WorkMami 是一款<b style="color:var(--txt)">第三方独立开发</b>的本地桌面工具，专为同时使用多个 WorkBuddy 账号、又想把这些账号的能力复用到其它客户端的重度用户打造。它不改动、不侵入 WorkBuddy 官方服务，只是在你自己的电脑上帮你把账号、额度、任务和每日领取管得明明白白。
       </p>
       <ul>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">多账号统一掌控</b>：一个界面添加、切换、批量签到，看清每个账号的余额与积分。</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">多账号统一掌控</b>：一个界面添加、切换、批量领取，看清每个账号的余额与积分。</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">模型本地反代</b>：把 WorkBuddy 模型以 OpenAI 兼容接口暴露出来，接入任意支持自定义模型的客户端。</span></li>
-        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">日常琐事自动化</b>：签到、派猫猫旅行领奖励，后台按时巡检，还能自动降频防风控。</span></li>
+        <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">日常琐事自动化</b>：每日领取、派猫猫旅行领奖励，后台按时巡检，还能自动降频防风控。</span></li>
         <li><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><b style="color:var(--txt)">数据尽在掌握</b>：Token 看板、用量统计、会话跨账号迁移与整库备份，透明可控。</span></li>
       </ul>
     </div>
@@ -211,7 +211,7 @@
       <div class="row"><div class="k">A</div><div class="t">账号管理 · OAuth 授权添加</div><div class="v">3 个账号</div></div>
       <div class="row"><div class="k">P</div><div class="t">本地反代 · OpenAI 兼容端点</div><div class="v">127.0.0.1:1420</div></div>
       <div class="row"><div class="k">T</div><div class="t">猫猫旅行 · 自动托管</div><div class="v">今日已派 ✓</div></div>
-      <div class="row"><div class="k">G</div><div class="t">签到中心 · 一键批量</div><div class="v">全部完成 ✓</div></div>
+      <div class="row"><div class="k">G</div><div class="t">Mami加油站 · 一键批量</div><div class="v">全部完成 ✓</div></div>
       <div class="row"><div class="k">D</div><div class="t">Token 看板 · 余额折线</div><div class="v">实时刷新</div></div>
     </div>
   </div>
@@ -234,8 +234,8 @@
     </div>
     <div class="card">
       <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
-      <h3>签到中心</h3>
-      <p>一键为所有账号批量签到，自动检测当日是否已签、防止重复。可开启后台定时自动签到，日常额度领取不漏一次。</p>
+      <h3>Mami加油站</h3>
+      <p>一键为所有账号批量领取，自动检测当日是否已领、防止重复。可开启后台定时自动领取，日常额度领取不漏一次。</p>
     </div>
     <div class="card">
       <div class="ficon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z"/></svg></div>
@@ -365,7 +365,7 @@
           <img src="./logo.png" alt="WorkMami" style="width:34px;height:34px;border-radius:9px"/>
           <b class="brand" style="font-size:19px;letter-spacing:4px">WorkMami</b>
         </a>
-        <p style="color:var(--sub);font-size:13.5px;max-width:320px">WorkBuddy 的妈咪，稳稳接住你。多账号管理 · 本地反代 · 批量签到 · 猫猫旅行托管 · Token 看板。</p>
+        <p style="color:var(--sub);font-size:13.5px;max-width:320px">WorkBuddy 的妈咪，稳稳接住你。多账号管理 · 本地反代 · 批量领取 · 猫猫旅行托管 · Token 看板。</p>
       </div>
       <div>
         <h4>快速导航</h4>

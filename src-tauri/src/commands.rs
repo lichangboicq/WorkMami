@@ -234,8 +234,8 @@ pub async fn oauth_poll(state: State<'_, Arc<AppState>>, session_id: String) -> 
 pub async fn checkin_status(state: State<'_, Arc<AppState>>, uid: String) -> R<Value> {
     let tokens = accounts::load_token(&uid)
         .ok_or_else(|| WmError::Credential("无本地凭证".into()))?;
-    let (checked, streak, raw) = state.api.fetch_checkin_status(&tokens).await?;
-    Ok(serde_json::json!({ "checkedIn": checked, "streakDays": streak, "status": raw }))
+    let (checked, streak, total, raw) = state.api.fetch_checkin_status(&tokens).await?;
+    Ok(serde_json::json!({ "checkedIn": checked, "streakDays": streak, "totalCredits": total, "status": raw }))
 }
 
 #[tauri::command]
@@ -245,7 +245,7 @@ pub async fn checkin_all(app: AppHandle, state: State<'_, Arc<AppState>>) -> R<V
     let gained: Vec<_> = results.iter().filter(|r| r.ok && !r.already).collect();
     if !gained.is_empty() {
         let _ = scheduler::refresh_quota(st, None).await;
-        let _ = app.notification().builder().title("WorkMami 批量签到").body(format!("成功签到 {} 个账号", gained.len())).show();
+        let _ = app.notification().builder().title("WorkMami 批量领取").body(format!("成功领取 {} 个账号", gained.len())).show();
     }
     Ok(results)
 }
@@ -259,15 +259,15 @@ pub async fn checkin_one(app: AppHandle, state: State<'_, Arc<AppState>>, uid: S
 }
 
 // ---------- 猫猫旅行 ----------
-/// 旅行概览：返回所有启用账号的旅行状态 + 共享地点配置。
+/// 旅行概览：返回全部账号的旅行状态 + 共享地点配置（旅行与账号池无关，全量参与）。
 #[tauri::command]
 pub async fn travel_overview(state: State<'_, Arc<AppState>>) -> R<Value> {
     let st = state.inner().clone();
-    let enabled = st.accounts.enabled_accounts();
+    let accounts = st.accounts.all();
     let api = st.api.clone();
 
     // 拿一个 token 来获取共享配置（地点列表）
-    let tokens_first = enabled
+    let tokens_first = accounts
         .iter()
         .find_map(|a| accounts::load_token(&a.uid));
 
@@ -284,7 +284,7 @@ pub async fn travel_overview(state: State<'_, Arc<AppState>>) -> R<Value> {
 
     // 并发查各账号状态
     let mut handles = Vec::new();
-    for acc in &enabled {
+    for acc in &accounts {
         let Some(tokens) = accounts::load_token(&acc.uid) else {
             continue;
         };

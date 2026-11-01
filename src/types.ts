@@ -35,6 +35,7 @@ export interface Account {
   last_used_at?: string | null;
   today_checked_in: boolean;
   streak_days: number;
+  total_credits?: number;
   has_local_token: boolean;
   created_at: string;
 }
@@ -92,6 +93,7 @@ export interface CheckinResult {
   reward: number;
   already: boolean;
   streak: number;
+  totalCredits?: number;
   message: string;
 }
 
