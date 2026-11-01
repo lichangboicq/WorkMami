@@ -119,11 +119,11 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
                 <span>
                   <Text strong style={{ fontSize: 13 }}>+{r.rewardCredit} 分</Text>
                   {r.claimedAt ? (
-                    <Tag color="success" style={{ marginLeft: 6, fontSize: 12, lineHeight: "18px", padding: "0 4px" }}>
+                    <Tag color="success" style={{ marginLeft: 6 }}>
                       已到账
                     </Tag>
                   ) : (
-                    <Tag color="warning" style={{ marginLeft: 6, fontSize: 12, lineHeight: "18px", padding: "0 4px" }}>
+                    <Tag color="warning" style={{ marginLeft: 6 }}>
                       待领取
                     </Tag>
                   )}
@@ -211,7 +211,7 @@ export default function Travel() {
   }
 
   return (
-    <div style={{ padding: 24, overflow: "auto", height: "100%" }}>
+    <div className="wm-page" style={{ padding: 24, overflow: "auto", height: "100%" }}>
       {/* 顶部设置区 */}
       <Card size="small" style={{ marginBottom: 16 }}>
         <Row gutter={24} align="middle">
