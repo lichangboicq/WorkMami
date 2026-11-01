@@ -385,7 +385,7 @@ export default function Proxy() {
               {dirtyDot("port")}
             </label>
             <InputNumber
-              style={{ width: "100%" }}
+              style={{ width: 110 }}
               controls={false}
               min={1}
               max={65535}
