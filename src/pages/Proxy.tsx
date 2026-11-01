@@ -347,11 +347,10 @@ export default function Proxy() {
               className="wm-mono wm-input-fluid"
               onChange={(e) => onFieldChange("apiKey", e.target.value)}
               suffix={
-                <Space.Compact>
+                <Space size={2}>
                   <Tooltip title="复制">
                     <Button
                       size="small"
-                      type="text"
                       icon={<CopyOutlined />}
                       onClick={() => copyText(apiKey, "已复制 API Key")}
                     />
@@ -359,7 +358,6 @@ export default function Proxy() {
                   <Tooltip title="重生成新密钥">
                     <Button
                       size="small"
-                      type="text"
                       icon={<ReloadOutlined />}
                       onClick={() => {
                         const nk = genApiKey();
@@ -369,7 +367,7 @@ export default function Proxy() {
                       }}
                     />
                   </Tooltip>
-                </Space.Compact>
+                </Space>
               }
             />
           </div>

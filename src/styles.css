@@ -233,6 +233,12 @@ body {
   width: auto;
   field-sizing: content;
 }
+/* 全局 controlHeightSM=30 会超出 wrapper 内容区把输入框撑高，suffix 内按钮压回内容区高度 */
+.ant-input-affix-wrapper.wm-input-fluid .ant-input-suffix .ant-btn {
+  height: 22px;
+  min-height: 0;
+  padding: 0 5px;
+}
 .ant-input-number.wm-input-fluid {
   width: fit-content;
   max-width: 100%;
