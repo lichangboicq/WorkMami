@@ -89,7 +89,10 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
   const last = all[0]; // 服务端按 travel_date 倒序，首条即最近一次已完成旅行
   const shown = rows.length ? rows : last ? [last] : [];
   return (
-    <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed rgba(128,128,128,.3)" }}>
+    <>
+      {/* 底部锚定占位：卡片等高时把分割线压到同一水平线，minHeight 保证最紧凑时仍有间距 */}
+      <div style={{ flex: 1, minHeight: 12 }} />
+      <div style={{ paddingTop: 10, borderTop: "1px dashed rgba(128,128,128,.3)" }}>
       <Text strong style={{ fontSize: "var(--wm-text-ui-size)" }}>
         {rows.length ? (
           <>
@@ -136,7 +139,8 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
@@ -273,7 +277,7 @@ export default function Travel() {
                 <>
                   {st.state === "traveling" && (
                     <>
-                      <Title level={5} style={{ margin: "8px 0" }}>
+                      <Title level={5} style={{ margin: "2px 0" }}>
                         {st.locationName || "旅行中"}
                       </Title>
                       <Text type="secondary" style={{ display: "block" }}>
@@ -289,7 +293,7 @@ export default function Travel() {
                   )}
                   {st.state === "arrived" && (
                     <>
-                      <Title level={5} style={{ margin: "8px 0" }}>
+                      <Title level={5} style={{ margin: "2px 0" }}>
                         {st.locationName || "已到达"}
                       </Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
