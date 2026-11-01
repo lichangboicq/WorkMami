@@ -138,6 +138,7 @@ function CardAction({
 export default function Accounts() {
   const accounts = useStore((s) => s.accounts);
   const reloadAccounts = useStore((s) => s.reloadAccounts);
+  const reloadProxy = useStore((s) => s.reloadProxy);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -305,12 +306,12 @@ export default function Accounts() {
                 }}
                 onToggle={async (v) => {
                   await api.setAccountEnabled(a.uid, v);
-                  await reloadAccounts();
+                  await Promise.all([reloadAccounts(), reloadProxy()]);
                 }}
                 onDelete={async () => {
                   await api.deleteAccount(a.uid);
                   message.success("已删除");
-                  await reloadAccounts();
+                  await Promise.all([reloadAccounts(), reloadProxy()]);
                 }}
                 onTags={() => {
                   setTagUid(a.uid);
