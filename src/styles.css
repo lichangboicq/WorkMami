@@ -218,19 +218,23 @@ body {
 }
 
 /* 输入框宽度随内容自适应：field-sizing 让浏览器按实际渲染字体测量（含值/placeholder），
-   外层 fit-content 跟随内容；文本域类上限 320px 防极端长值撑爆行布局 */
+   外层 fit-content 跟随内容；文本域类上限 320px 防极端长值撑爆行布局。
+   field-sizing 会同时收缩高度，钉回 34px（border-box 总高）与 InputNumber 一致 */
 .wm-input-fluid.ant-input {
   width: fit-content;
   max-width: 320px;
+  height: 34px;
   field-sizing: content;
 }
 /* 带前后缀的包装态（如 API Key 密码框）：包装层 fit-content，内部 input 按内容测宽 */
 .ant-input-affix-wrapper.wm-input-fluid {
   width: fit-content;
   max-width: 320px;
+  height: 34px;
 }
 .ant-input-affix-wrapper.wm-input-fluid .ant-input {
   width: auto;
+  height: 100%;
   field-sizing: content;
 }
 /* 全局 controlHeightSM=30 会超出 wrapper 内容区把输入框撑高，suffix 内按钮压回内容区高度 */
