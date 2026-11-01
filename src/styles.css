@@ -320,17 +320,15 @@ body {
   .wm-field-grid__wide { grid-column: 1 / -1; }
 }
 
-/* 字段单行排布（方案 A）：API Key + 监听地址 + 端口 一行；
-   三列下限均为内容宽（配合 field-sizing 输入框自适应，长值时挤占空间而非截断）。
-   输入壳上限已放开为容器宽，最坏约 391+234+60+gap ≈ 717px，
-   视口 ≥1080 才放得下单行，否则单列堆叠，避免端口列被挤瘪。 */
+/* 字段单行排布：左对齐 flex 自动折行 —— 宽视口一行，变窄时端口、监听地址依次
+   折到第二、三行。API Key 弹性占满行内剩余空间；折行判定取内容宽（field-sizing），
+   行内不预挤压，超窄时由壳 max-width:100% 兜底截断。 */
 .wm-field-grid--row {
-  grid-template-columns: minmax(max-content, 5fr) minmax(max-content, 3fr) minmax(max-content, 2fr);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
-.wm-field-grid--row > .wm-field-grid__wide { grid-column: auto; }
-@media (max-width: 1080px) {
-  .wm-field-grid--row { grid-template-columns: 1fr; }
-}
+.wm-field-grid--row > .wm-field-grid__wide { flex: 1 1 auto; }
 
 /* 模型池工具栏：标题 + 积分调度策略（下移至模型池区域） */
 .wm-pool-toolbar {
@@ -885,11 +883,11 @@ body {
 }
 .wm-pool-card__meta .wm-thinking-select { min-width: 0; height: 26px; } /* 与忙闲选择器等高，保证 Y 对齐 */
 
-/* 标题栏内的价格/上下文 chip：与删除按钮等高（20px） */
+/* 标题栏内的价格/上下文 chip：与 API Key 输入壳等高（34px） */
 .wm-pool-card__head .wm-pool-rate,
 .wm-pool-card__head .wm-pool-ctx {
   margin-left: 2px;
-  height: 20px;
+  height: 34px;
   box-sizing: border-box;
 }
 .wm-pool-card__head .wm-pool-icon-btn { height: 20px; }
@@ -1357,7 +1355,9 @@ body {
   color: inherit;
   font-size: 12px;
   line-height: 1;
-  padding: 3px 8px;
+  height: 34px; /* 与 API Key 输入壳（.wm-input-shell）等高 */
+  box-sizing: border-box;
+  padding: 0 8px;
   cursor: pointer;
   position: relative;
   flex-shrink: 0;

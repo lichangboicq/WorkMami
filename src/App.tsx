@@ -270,7 +270,7 @@ export default function App() {
                 style={{ fontSize: 13, color: subText, display: "inline-flex", alignItems: "center", gap: 6 }}
                 title="开机后自动启动 WorkMami"
               >
-                开机自启
+                开机自启动
                 <Switch
                   size="small"
                   checked={autostart}

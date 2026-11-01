@@ -418,7 +418,7 @@ function AccountCard({
       size="small"
       className="wm-account-card"
       title={
-        <Space size={8} className="wm-account-title-row">
+        <Space size={8} wrap className="wm-account-title-row">
           <Badge status={a.enabled ? "processing" : "default"} />
           <Tooltip title={`UID: ${a.uid}`}>
             <span className="wm-account-name">{a.nickname || "未命名"}</span>
@@ -426,6 +426,7 @@ function AccountCard({
           <Tag color={a.account_type === "enterprise" ? "gold" : "blue"}>
             {a.account_type === "enterprise" ? "企业账号" : "个人账号"}
           </Tag>
+          {a.today_checked_in && <Tag color="purple">今日已领</Tag>}
         </Space>
       }
       actions={[
@@ -464,13 +465,6 @@ function AccountCard({
       ]}
     >
       <Space direction="vertical" style={{ width: "100%" }} size={8}>
-        <Space size={4} wrap>
-          {a.today_checked_in && <Tag color="purple">今日已领</Tag>}
-          {a.total_credits != null && a.total_credits > 0 && (
-            <Tag>累计领 {Math.round(a.total_credits).toLocaleString("zh-CN")}积分</Tag>
-          )}
-        </Space>
-
         {a.tags.length > 0 && (
           <Space size={4} wrap>
             {a.tags.map((t) => (
@@ -500,7 +494,7 @@ function AccountCard({
               <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                 {q.updated_at && (
                   <span className="wm-account-faint" style={{ fontSize: 12 }}>
-                    更新于{timeAgo(q.updated_at)}
+                    {timeAgo(q.updated_at)}更新
                   </span>
                 )}
                 {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
