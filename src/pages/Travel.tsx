@@ -63,6 +63,13 @@ function fmtClock(unixSec: number): string {
   });
 }
 
+// unix 秒 -> 本地"HH:mm"时刻（日期已在左栏单列一行，这里只展示时分）。
+function fmtTime(unixSec: number): string {
+  if (!unixSec) return "—";
+  const d = new Date(unixSec * 1000);
+  return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 // 与服务端 travel_date 对齐的本地日期串 YYYY-MM-DD。
 function todayStr(): string {
   const d = new Date();
@@ -104,28 +111,27 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
       ) : (
         <div style={{ marginTop: 6 }}>
           {shown.map((r) => (
-            <div key={r.recordId} style={{ padding: "2px 0" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--wm-text-ui-size)" }}>
-                <Text style={{ fontSize: "var(--wm-text-ui-size)" }}>
-                  {r.travelDate !== today ? `${r.travelDate} · ` : ""}
-                  {r.locationName}
-                </Text>
-                <span>
-                  <Text strong style={{ fontSize: "var(--wm-text-ui-size)" }}>+{r.rewardCredit} 分</Text>
-                  {r.claimedAt ? (
-                    <Tag color="success" style={{ marginLeft: 6 }}>
-                      已到账
-                    </Tag>
-                  ) : (
-                    <Tag color="warning" style={{ marginLeft: 6 }}>
-                      待领取
-                    </Tag>
-                  )}
-                </span>
-              </div>
+            <div
+              key={r.recordId}
+              style={{ padding: "2px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+            >
               <div style={{ fontSize: "var(--wm-text-num-size)", opacity: 0.85 }}>
-                派出于 {fmtClock(r.departAt)} ·{" "}
-                {r.claimedAt ? `奖励领于 ${fmtClock(r.claimedAt)}` : "奖励尚未领取"}
+                <div>{r.travelDate}</div>
+                <div>{r.locationName}</div>
+                <div>{fmtTime(r.departAt)} 已派出</div>
+                <div>{r.claimedAt ? `${fmtTime(r.claimedAt)} 已领奖` : "未领奖"}</div>
+              </div>
+              <div style={{ textAlign: "right", fontSize: "var(--wm-text-ui-size)", whiteSpace: "nowrap" }}>
+                <div>
+                  <Text strong style={{ fontSize: "var(--wm-text-ui-size)" }}>+{r.rewardCredit} 分</Text>
+                </div>
+                <div>
+                  {r.claimedAt ? (
+                    <Text type="success" style={{ fontSize: "var(--wm-text-ui-size)" }}>已到账</Text>
+                  ) : (
+                    <Text type="warning" style={{ fontSize: "var(--wm-text-ui-size)" }}>待领取</Text>
+                  )}
+                </div>
               </div>
             </div>
           ))}
