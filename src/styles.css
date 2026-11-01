@@ -8,9 +8,9 @@
   --wm-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 
   /* —— 控件文本样式（圆角矩形内部文字的单一来源，两类别）——
-     ui  控件正文：输入/下拉/按钮/分段/标签/池行名称 —— sans 13px / 500
+     ui  控件正文：输入/下拉/按钮/分段/标签/池行名称 —— sans 14px / 500
      num 等宽数值：倍率/上下文/积分等只读数字 —— mono 12px / 600 + tabular */
-  --wm-text-ui-size: 13px;
+  --wm-text-ui-size: 14px;
   --wm-text-ui-weight: 500;
   --wm-text-num-size: 12px;
   --wm-text-num-weight: 600;
@@ -1149,7 +1149,7 @@ body {
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-search {
   padding-right: 16px !important;
 }
-/* (0,4,0) 兜底：保证行内时段文字与模型名同为 ui 类别（13px/500） */
+/* (0,4,0) 兜底：保证行内时段文字与模型名同为 ui 类别（字号/字重取 --wm-text-ui-*） */
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-item {
   font-size: var(--wm-text-ui-size);
   font-weight: var(--wm-text-ui-weight);
