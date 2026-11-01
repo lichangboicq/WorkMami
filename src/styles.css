@@ -1163,7 +1163,9 @@ body {
 .wm-pool-row {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
+  height: var(--wm-control-h); /* 圆角矩形统一高度：与控件同高 32px（内部 borderless 控件居中对称溢出 1px，不可见） */
+  box-sizing: border-box;
+  padding: 0 8px;
   background: var(--pool-chip-bg);
   border-radius: 8px;
   font-size: 13px;
