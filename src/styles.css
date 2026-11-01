@@ -243,6 +243,10 @@ body {
   min-height: 0;
   padding: 0 5px;
 }
+/* 眼睛按钮与复制/刷新同排同款，间距对齐 Space 的 2px（antd 默认 margin 8px） */
+.ant-input-affix-wrapper.wm-input-fluid .ant-input-suffix > .ant-input-password-icon {
+  margin-inline-end: 2px;
+}
 .ant-input-number.wm-input-fluid {
   width: fit-content;
   max-width: 100%;

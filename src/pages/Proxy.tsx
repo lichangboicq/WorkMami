@@ -10,7 +10,13 @@ import {
   Tooltip,
   message,
 } from "antd";
-import { CopyOutlined, ReloadOutlined, RightOutlined } from "@ant-design/icons";
+import {
+  CopyOutlined,
+  EyeInvisibleOutlined,
+  EyeOutlined,
+  ReloadOutlined,
+  RightOutlined,
+} from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
 import ModelPoolBoard from "../components/ModelPoolBoard";
@@ -346,6 +352,12 @@ export default function Proxy() {
               value={apiKey}
               className="wm-mono wm-input-fluid"
               onChange={(e) => onFieldChange("apiKey", e.target.value)}
+              iconRender={(visible) => (
+                <Button
+                  size="small"
+                  icon={visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                />
+              )}
               suffix={
                 <Space size={2}>
                   <Tooltip title="复制">
