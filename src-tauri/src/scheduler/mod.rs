@@ -500,6 +500,8 @@ async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
 }
 
 /// 根据策略选择旅行地点。
+/// 官方协议下 4 个地点时长与奖励区间完全相同，longest/shortest 实际退化为全体并列，
+/// 因此在并列集合内随机选一个（当前等价于 4 选 1 随机），避免 max_by/min_by 平局固定选中首/末项。
 fn select_location(
     locations: &[crate::api::TravelLocation],
     policy: &str,
@@ -509,25 +511,40 @@ fn select_location(
     if locations.is_empty() {
         return None;
     }
+    // 并列集合内随机：取目标极值后，从等于该值的地点里随机挑一个。
+    let random_among = |target: f64| -> Option<crate::api::TravelLocation> {
+        let tied: Vec<crate::api::TravelLocation> = locations
+            .iter()
+            .filter(|l| l.duration_max_hours == target)
+            .cloned()
+            .collect();
+        let idx = rand::random::<usize>() % tied.len();
+        Some(tied[idx].clone())
+    };
     match policy {
-        "shortest" => locations.iter().min_by(|a, b| {
-            a.duration_max_hours.partial_cmp(&b.duration_max_hours).unwrap_or(std::cmp::Ordering::Equal)
-        }),
+        "shortest" => {
+            let min = locations
+                .iter()
+                .map(|l| l.duration_max_hours)
+                .fold(f64::INFINITY, f64::min);
+            random_among(min)
+        }
         "rotate" => {
             let mut rotate = state.travel_rotate.lock().unwrap();
             let idx = rotate.entry(uid.to_string()).or_insert(0);
             let loc = locations.get(*idx % locations.len());
             *idx = idx.wrapping_add(1);
-            loc
+            loc.cloned()
         }
         _ => {
             // longest (default)
-            locations.iter().max_by(|a, b| {
-                a.duration_max_hours.partial_cmp(&b.duration_max_hours).unwrap_or(std::cmp::Ordering::Equal)
-            })
+            let max = locations
+                .iter()
+                .map(|l| l.duration_max_hours)
+                .fold(f64::NEG_INFINITY, f64::max);
+            random_among(max)
         }
     }
-    .cloned()
 }
 
 /// 计算距下次刷新的秒数（前端展示用）。

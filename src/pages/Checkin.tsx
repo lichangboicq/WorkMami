@@ -111,6 +111,7 @@ export default function Checkin() {
             }
           >
             <Table
+              size="small"
               rowKey="uid"
               pagination={false}
               tableLayout="auto"
@@ -119,7 +120,7 @@ export default function Checkin() {
               columns={[
                 { title: "昵称", dataIndex: "nickname", render: (t, r) => t || r.uid },
                 {
-                  title: "累计领",
+                  title: "累计已领取",
                   render: (_, r) => {
                     const total = results[r.uid]?.totalCredits ?? r.total_credits ?? 0;
                     return <span>{Math.round(total).toLocaleString("zh-CN")}积分</span>;
@@ -133,7 +134,7 @@ export default function Checkin() {
                       return <Button size="small" loading onClick={() => runOne(r.uid)}>领取</Button>;
                     if (res) {
                       if (res.ok && !res.already) return <Tag color="green">+{res.reward}</Tag>;
-                      if (res.already) return <Tag color="purple">已领</Tag>;
+                      if (res.already) return <Tag color="purple">已经领取</Tag>;
                       return (
                         <Space size={4}>
                           <Tag
@@ -147,7 +148,7 @@ export default function Checkin() {
                         </Space>
                       );
                     }
-                    if (r.today_checked_in) return <Tag color="purple">已领</Tag>;
+                    if (r.today_checked_in) return <Tag color="purple">已经领取</Tag>;
                     return (
                       <Button
                         size="small"
@@ -180,7 +181,7 @@ export default function Checkin() {
                   checked={settings.checkin.notify}
                   onChange={toggleNotify}
                 />
-                <span>完成后系统通知</span>
+                <span>领取后系统通知</span>
               </Space>
               <Button
                 type="primary"

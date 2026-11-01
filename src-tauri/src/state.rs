@@ -112,7 +112,7 @@ impl Default for CheckinSettings {
 pub struct TravelSettings {
     /// 自动托管总开关：开着就自动派猫、到点自动领（客户端运行期间）。
     pub auto_enabled: bool,
-    /// 自动派猫时选地点策略：longest（时长最长优先）/ shortest（最短）/ rotate（轮换）。
+    /// 自动派猫时选地点策略：longest/shortest（取时长极值，并列内随机）/ rotate（轮换）。
     pub location_policy: String,
 }
 

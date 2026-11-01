@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -100,6 +100,24 @@ export default function DataPage() {
     const rest = uids.filter((u) => !known.includes(u));
     return [...known, ...rest];
   }, [accounts, uids]);
+
+  // 筛选框宽度动态化：以下拉列表最宽选项为准，选中任意选项文本都不被截断
+  const selectOptions = useMemo(
+    () => ["全部", ...orderedUids.map(uidLabel)],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [orderedUids, accounts],
+  );
+  const measureRef = useRef<HTMLSpanElement>(null);
+  const [selectWidth, setSelectWidth] = useState(72);
+  useLayoutEffect(() => {
+    const box = measureRef.current;
+    if (!box) return;
+    let max = 0;
+    for (const el of box.children) {
+      max = Math.max(max, (el as HTMLElement).offsetWidth);
+    }
+    setSelectWidth(max + 44); // 44 = 选择框左右内边距 + 箭头/清除图标区
+  }, [selectOptions]);
 
   const load = async () => {
     setLoading(true);
@@ -289,6 +307,11 @@ export default function DataPage() {
 
   return (
     <div className="wm-page">
+      <span ref={measureRef} className="wm-select-measure" aria-hidden>
+        {selectOptions.map((t) => (
+          <span key={t}>{t}</span>
+        ))}
+      </span>
       <Row gutter={16} wrap={false}>
         <Col flex="none">
           <Card title="类别" size="small">
@@ -316,7 +339,7 @@ export default function DataPage() {
               <Space>
                 <Select
                   size="small"
-                  style={{ width: 280 }}
+                  style={{ width: selectWidth }}
                   placeholder="全部"
                   allowClear
                   value={uid || undefined}
@@ -365,6 +388,7 @@ export default function DataPage() {
             }
           >
             <Table
+              size="small"
               rowKey={(r) => r.id + r.path}
               loading={loading}
               dataSource={items}

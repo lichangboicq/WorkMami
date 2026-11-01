@@ -63,12 +63,6 @@ function fmtClock(unixSec: number): string {
   });
 }
 
-const POLICY_LABEL: Record<string, string> = {
-  longest: "最长时间",
-  shortest: "最短时间",
-  rotate: "轮换",
-};
-
 // 与服务端 travel_date 对齐的本地日期串 YYYY-MM-DD。
 function todayStr(): string {
   const d = new Date();
@@ -298,7 +292,7 @@ export default function Travel() {
                         </Text>
                         {settings.travel.autoEnabled && (
                           <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-                            自动托管下将在下一次巡检（≤ 60 分钟）自动领取，也可点下方按钮立即领取。
+                            托管将在下次巡检（≤ 10 分钟）自动领取，也可点下方按钮立即领取。
                           </Text>
                         )}
                         <Button
@@ -323,7 +317,7 @@ export default function Travel() {
                           <>
                             <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                               {settings.travel.autoEnabled
-                                ? `猫猫在家。自动托管已开，最迟约 60 分钟内会按「${POLICY_LABEL[settings.travel.locationPolicy] || settings.travel.locationPolicy}」策略自动出发。`
+                                ? `猫猫在家。将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
                                 : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
                             </Text>
                             <Select

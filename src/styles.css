@@ -46,6 +46,17 @@ body {
   margin-bottom: 16px;
 }
 
+/* 隐藏测量条：渲染 Select 全部选项文本，供动态计算最宽选项宽度 */
+.wm-select-measure {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: pre;
+  font-size: 14px;
+  font-weight: 400;
+}
+.wm-select-measure > span { display: inline-block; }
+
 /* 等宽字体 */
 .wm-mono {
   font-family: var(--wm-mono);

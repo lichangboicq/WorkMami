@@ -217,6 +217,7 @@ export default function CreditLedgerDrawer({
         </div>
 
         <Table<CreditUsageRow>
+          size="small"
           rowKey={(r) => `${r.ts}-${r.requestId}`}
           columns={usageColumns}
           dataSource={usage}

@@ -448,6 +448,7 @@ export default function Dashboard() {
         }
       >
         <Table<AccountBillingItem>
+          size="small"
           rowKey="uid"
           pagination={false}
           loading={loading}
@@ -484,6 +485,7 @@ export default function Dashboard() {
         style={{ marginBottom: 16 }}
       >
         <Table<RequestRow>
+          size="small"
           rowKey={(r) => `${r.ts}-${r.uid}-${r.model}`}
           tableLayout="auto"
           loading={loading}
@@ -561,6 +563,7 @@ export default function Dashboard() {
 function TopTable({ data }: { data: TopItem[] }) {
   return (
     <Table
+      size="small"
       rowKey="key"
       pagination={false}
       dataSource={data}
