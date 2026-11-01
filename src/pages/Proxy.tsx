@@ -22,6 +22,7 @@ import { useStore } from "../store";
 import ModelPoolBoard from "../components/ModelPoolBoard";
 import TraeGuideModal from "../components/TraeGuideModal";
 import AccountPoolControl from "../components/AccountPoolControl";
+import { WmInput, WmShell } from "../components/WmInput";
 import type { ModelInfo, ModelPool, ProxySettings as PS } from "../types";
 
 /// 生成一串 SK- 开头的随机访问密钥（无需用户自设）。
@@ -348,17 +349,18 @@ export default function Proxy() {
               <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
               {dirtyDot("apiKey")}
             </label>
-            <Input.Password
-              value={apiKey}
-              className="wm-mono wm-input-fluid"
-              onChange={(e) => onFieldChange("apiKey", e.target.value)}
-              iconRender={(visible) => (
-                <Button
-                  size="small"
-                  icon={visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
-                />
-              )}
-              suffix={
+            <WmShell className="wm-mono">
+              <Input.Password
+                variant="borderless"
+                value={apiKey}
+                onChange={(e) => onFieldChange("apiKey", e.target.value)}
+                iconRender={(visible) => (
+                  <Button
+                    size="small"
+                    icon={visible ? <EyeOutlined /> : <EyeInvisibleOutlined />}
+                  />
+                )}
+                suffix={
                 <Space size={2}>
                   <Tooltip title="复制">
                     <Button
@@ -380,8 +382,9 @@ export default function Proxy() {
                     />
                   </Tooltip>
                 </Space>
-              }
-            />
+                }
+              />
+            </WmShell>
           </div>
 
           {/* 监听地址 */}
@@ -390,8 +393,7 @@ export default function Proxy() {
               <span className="wm-field-label__text">{FIELD_LABELS.host}</span>
               {dirtyDot("host")}
             </label>
-            <Input
-              className="wm-input-fluid"
+            <WmInput
               value={formValues.host}
               placeholder="默认 127.0.0.1"
               onChange={(e) => onFieldChange("host", e.target.value)}
@@ -404,15 +406,17 @@ export default function Proxy() {
               <span className="wm-field-label__text">{FIELD_LABELS.port}</span>
               {dirtyDot("port")}
             </label>
-            <InputNumber
-              className="wm-input-fluid"
-              controls={false}
-              min={1}
-              max={65535}
-              placeholder="默认 8765"
-              value={formValues.port}
-              onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
-            />
+            <WmShell>
+              <InputNumber
+                variant="borderless"
+                controls={false}
+                min={1}
+                max={65535}
+                placeholder="默认 8765"
+                value={formValues.port}
+                onChange={(v) => onFieldChange("port", (v ?? 0) as number)}
+              />
+            </WmShell>
           </div>
 
         </div>

@@ -5,7 +5,6 @@ import {
   Card,
   Col,
   Empty,
-  Input,
   List,
   message,
   Modal,
@@ -33,6 +32,7 @@ import { api, errText } from "../api";
 import { validateMigrate } from "../lib/migrateValidate";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useStore } from "../store";
+import { WmInput } from "../components/WmInput";
 import type { DataItem } from "../types";
 
 const CATS = [
@@ -409,7 +409,8 @@ export default function DataPage() {
           将{selected.length ? `选中的 ${selected.length}` : `当前类别全部 ${items.length}`}
           条条目打包为 zip（含 manifest）。
         </p>
-        <Input
+        <WmInput
+          width="full"
           addonBefore="标签"
           value={backupLabel}
           onChange={(e) => setBackupLabel(e.target.value)}
@@ -417,7 +418,9 @@ export default function DataPage() {
         <div style={{ marginTop: 12 }}>
           <span style={{ display: "block", marginBottom: 4 }}>保存位置（不选则存入 WorkMami 备份目录）：</span>
           <Space.Compact style={{ width: "100%" }}>
-            <Input
+            <WmInput
+              width="full"
+              className="wm-input-shell--join-end"
               readOnly
               placeholder="默认：WorkMami/Backups"
               value={backupDest}
