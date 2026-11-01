@@ -217,13 +217,40 @@ body {
   min-width: 0;
 }
 
+/* 输入框宽度随内容自适应：field-sizing 让浏览器按实际渲染字体测量（含值/placeholder），
+   外层 fit-content 跟随内容；文本域类上限 320px 防极端长值撑爆行布局 */
+.wm-input-fluid.ant-input {
+  width: fit-content;
+  max-width: 320px;
+  field-sizing: content;
+}
+/* 带前后缀的包装态（如 API Key 密码框）：包装层 fit-content，内部 input 按内容测宽 */
+.ant-input-affix-wrapper.wm-input-fluid {
+  width: fit-content;
+  max-width: 320px;
+}
+.ant-input-affix-wrapper.wm-input-fluid .ant-input {
+  width: auto;
+  field-sizing: content;
+}
+.ant-input-number.wm-input-fluid {
+  width: fit-content;
+  max-width: 100%;
+}
+.ant-input-number.wm-input-fluid .ant-input-number-input {
+  width: auto;
+  field-sizing: content;
+}
+
 @media (max-width: 640px) {
   .wm-field-grid__wide { grid-column: 1 / -1; }
 }
 
-/* 字段单行排布（方案 A）：API Key + 监听地址 + 端口 按 5:3:2 一行 */
+/* 字段单行排布（方案 A）：API Key + 监听地址 + 端口 一行；
+   前两列下限为内容宽（配合 field-sizing 输入框自适应，长值时挤占空间而非截断，
+   最坏 320+270+60+gap < 720px 单列断点，不会横向溢出） */
 .wm-field-grid--row {
-  grid-template-columns: minmax(0, 5fr) minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-columns: minmax(max-content, 5fr) minmax(max-content, 3fr) minmax(0, 2fr);
 }
 .wm-field-grid--row > .wm-field-grid__wide { grid-column: auto; }
 @media (max-width: 720px) {
