@@ -140,8 +140,8 @@ export default function App() {
         borderRadius: 10,
         // fontSize 回到 antd 默认 14 —— 之前 13 让全页面缩小一截
         fontSize: 14,
-        controlHeight: 36,
-        controlHeightSM: 30,
+        controlHeight: 32,
+        controlHeightSM: 32,
         controlItemBgHover: isDark ? "rgba(236,72,153,0.16)" : "rgba(236,72,153,0.08)",
         colorBgLayout: isDark ? "#0b0b0d" : "#f6f5f7",
         colorBgContainer: isDark ? "#141418" : "#ffffff",

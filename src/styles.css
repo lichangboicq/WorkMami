@@ -4,6 +4,7 @@
   --wm-brand: #ec4899;
   --wm-brand-soft: #f472b6;
   --wm-brand-rgb: 236, 72, 153;
+  --wm-control-h: 32px; /* 圆角矩形控件统一高度：标签/输入框/下拉/按钮等一律同高 */
   --wm-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
 }
 
@@ -224,7 +225,7 @@ body {
   display: inline-flex;
   align-items: stretch;
   vertical-align: top;
-  height: 34px; /* fluid 家族视觉高度（沿用历史钉死值） */
+  height: var(--wm-control-h); /* 与 Button/controlHeight 对齐（32px） */
   border: 1px solid #d9d9d9;
   border-radius: 8px;
   background: #fff;
@@ -242,10 +243,10 @@ body {
   background: #141418;
 }
 
-/* 宽度两模式：fluid 内容自适应（上限为容器宽），full 填满（36px 与 Button/controlHeight 对齐） */
+/* 宽度两模式：fluid 内容自适应（上限为容器宽），full 填满；三档高度统一 32px（--wm-control-h） */
 .wm-input-shell--fluid { width: fit-content; max-width: 100%; }
-.wm-input-shell--full { width: 100%; height: 36px; }
-.wm-input-shell--sm { height: 28px; }
+.wm-input-shell--full { width: 100%; height: var(--wm-control-h); }
+.wm-input-shell--sm { height: var(--wm-control-h); }
 
 /* Space.Compact 拼接：右端直角，与相邻按钮 -1px 咬合 */
 .wm-input-shell--join-end {
@@ -287,9 +288,9 @@ body {
 }
 .wm-input-shell--full .ant-input { flex: 1 1 auto; } /* full 模式填满壳内余量 */
 /* 文字垂直居中：行高 = 总高 - 2 边框 */
-.wm-input-shell--fluid :is(.ant-input, .ant-input-number-input) { line-height: 32px; }
-.wm-input-shell--full  :is(.ant-input, .ant-input-number-input) { line-height: 34px; }
-.wm-input-shell--sm    :is(.ant-input, .ant-input-number-input) { line-height: 26px; }
+.wm-input-shell--fluid :is(.ant-input, .ant-input-number-input) { line-height: 30px; }
+.wm-input-shell--full  :is(.ant-input, .ant-input-number-input) { line-height: 30px; }
+.wm-input-shell--sm    :is(.ant-input, .ant-input-number-input) { line-height: 30px; }
 .wm-input-shell--sm :is(.ant-input, .ant-input-number-input) { padding: 0 7px; }
 
 /* InputNumber 三层链路：wrapper → input-wrap → input 逐层撑满 */
@@ -301,7 +302,7 @@ body {
   padding: 0 11px;
 }
 
-/* Password/affix 态：包装层透明，suffix 按钮压回内容区高度。
+/* Password/affix 态：包装层透明，suffix 按钮撑满壳内容区高度。
    视觉内边距放在包装层：antd 会清掉 affix 内层 input 的横向 padding，
    而 field-sizing 的内在宽恰好 = 纯文本宽（不含 padding），两者相加正好贴合。 */
 .wm-input-shell .ant-input-affix-wrapper {
@@ -313,7 +314,7 @@ body {
   width: auto;
   min-width: 0;
 }
-.wm-input-shell .ant-input-suffix .ant-btn { height: 22px; min-height: 0; padding: 0 5px; }
+.wm-input-shell .ant-input-suffix .ant-btn { height: calc(var(--wm-control-h) - 2px); min-height: 0; padding: 0 5px; }
 .wm-input-shell .ant-input-suffix > .ant-input-password-icon { margin-inline-end: 2px; }
 
 @media (max-width: 640px) {
@@ -750,7 +751,7 @@ body {
   display: inline-flex;
   align-items: stretch;
   width: 100%;
-  height: 34px;
+  height: var(--wm-control-h);
 }
 .wm-account-card .ant-card-actions .wm-card-action.ant-btn {
   display: inline-flex;
@@ -881,16 +882,16 @@ body {
   min-width: 0;
   padding-left: 24px; /* 与池名左缘对齐（拖拽柄 20px + 间距 4px） */
 }
-.wm-pool-card__meta .wm-thinking-select { min-width: 0; height: 26px; } /* 与忙闲选择器等高，保证 Y 对齐 */
+.wm-pool-card__meta .wm-thinking-select { min-width: 0; height: var(--wm-control-h); } /* 与忙闲选择器等高，保证 Y 对齐 */
 
-/* 标题栏内的价格/上下文 chip：与 API Key 输入壳等高（34px） */
+/* 标题栏内的价格/上下文 chip：与 API Key 输入壳等高（32px） */
 .wm-pool-card__head .wm-pool-rate,
 .wm-pool-card__head .wm-pool-ctx {
   margin-left: 2px;
-  height: 34px;
+  height: var(--wm-control-h);
   box-sizing: border-box;
 }
-.wm-pool-card__head .wm-pool-icon-btn { height: 20px; }
+.wm-pool-card__head .wm-pool-icon-btn { height: var(--wm-control-h); }
 
 .wm-pool-rate {
   display: inline-flex;
@@ -952,7 +953,7 @@ body {
   transition: opacity 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
   width: 22px;
-  height: 22px;
+  height: var(--wm-control-h);
   box-sizing: border-box;
   border-radius: 4px;
 }
@@ -966,7 +967,7 @@ body {
   background: var(--pool-chip-bg) !important;
   border: 1px solid transparent !important;
   padding: 0 8px !important;
-  height: 26px !important; /* 与忙闲选择器外框等高 */
+  height: var(--wm-control-h) !important; /* 与忙闲选择器外框等高 */
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .wm-thinking-select:hover .ant-select-selector {
@@ -981,7 +982,7 @@ body {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--pool-text);
-  line-height: 24px !important;
+  line-height: 30px !important;
 }
 .wm-thinking-select .ant-select-arrow { color: var(--pool-text-secondary); }
 
@@ -995,7 +996,7 @@ body {
   align-items: center;
   gap: 7px;
   flex-shrink: 0;
-  height: 26px; /* 与思考档位 chip 外框等高 */
+  height: var(--wm-control-h); /* 与思考档位 chip 外框等高 */
   box-sizing: border-box;
   padding: 0 8px;
   background: var(--pool-chip-bg);
@@ -1315,6 +1316,13 @@ body {
 /* Select allowClear 时，X 按钮是绝对定位，需给已选中的 item 预留右侧空间，避免文字被遮住 */
 .wm-page .ant-select-selection-item { padding-right: 22px; }
 
+/* Tag 全站统一高度：与其他圆角矩形控件同高（--wm-control-h） */
+.wm-page .ant-tag {
+  display: inline-flex;
+  align-items: center;
+  height: var(--wm-control-h);
+}
+
 /* 数据管理 —— 类别列表（纵向） */
 .wm-cat-item {
   padding: 4px 12px !important;
@@ -1355,7 +1363,7 @@ body {
   color: inherit;
   font-size: 12px;
   line-height: 1;
-  height: 34px; /* 与 API Key 输入壳（.wm-input-shell）等高 */
+  height: var(--wm-control-h); /* 与 API Key 输入壳（.wm-input-shell）等高 */
   box-sizing: border-box;
   padding: 0 8px;
   cursor: pointer;
