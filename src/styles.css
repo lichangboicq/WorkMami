@@ -1023,13 +1023,21 @@ body {
 
 /* 模型行启用时段下拉（三选一）：文本样式与模型名一致，默认弱化，非全天时高亮 */
 .wm-pool-row__schedule-select {
-  min-width: 56px;
+  min-width: 46px;
   max-width: 180px;
   flex-shrink: 0;
   font-size: 13px;
 }
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selector {
   padding: 0 2px;
+}
+/* antd 默认给 selection-item/search 预留 21px/18px 箭头位，导致文本右侧大片空白；压到箭头实际宽度 */
+.wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-item,
+.wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-search {
+  padding-right: 16px !important;
+}
+.wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-arrow {
+  right: 3px;
 }
 .wm-pool-row__schedule-select.ant-select {
   color: var(--pool-text);
