@@ -26,6 +26,14 @@ function genApiKey(): string {
   return `SK-${hex}`;
 }
 
+/** 按页面实际字体测量文本宽度，用于输入框宽度随内容自适应（antd 左右 padding 11×2 + 边框 2×2） */
+function contentWidth(text: string): number {
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) return 110;
+  ctx.font = `14px ${getComputedStyle(document.body).fontFamily}`;
+  return Math.ceil(ctx.measureText(text).width) + 26;
+}
+
 const copyText = (s: string, tip: string) => {
   navigator.clipboard.writeText(s);
   message.success(tip);
@@ -249,19 +257,19 @@ export default function Proxy() {
   const poolEmpty = !storeLoading && !accounts.some((a) => a.enabled);
   const apiKey = formValues.apiKey;
 
-  // 端口输入框宽度跟随内容自适应：canvas 按页面实际字体测量当前文本（值或 placeholder）
-  // 字体异步加载完成后重测一次，避免首测用了回退字体导致偏宽
+  // 监听地址/端口输入框宽度随内容自适应：字体异步就绪后重测一次，避免首测用了回退字体偏宽
   const [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
     document.fonts?.ready.then(() => setFontsReady(true));
   }, []);
-  const portInputWidth = useMemo(() => {
-    const text = formValues.port ? String(formValues.port) : "默认 8765";
-    const ctx = document.createElement("canvas").getContext("2d");
-    if (!ctx) return 110;
-    ctx.font = `14px ${getComputedStyle(document.body).fontFamily}`;
-    return Math.ceil(ctx.measureText(text).width) + 26; // antd 左右 padding 11×2 + 边框 2×2
-  }, [formValues.port, fontsReady]);
+  const hostInputWidth = useMemo(
+    () => contentWidth(formValues.host || "默认 127.0.0.1"),
+    [formValues.host, fontsReady],
+  );
+  const portInputWidth = useMemo(
+    () => contentWidth(formValues.port ? String(formValues.port) : "默认 8765"),
+    [formValues.port, fontsReady],
+  );
 
   const running = Boolean(proxy?.running);
 
@@ -386,6 +394,7 @@ export default function Proxy() {
               {dirtyDot("host")}
             </label>
             <Input
+              style={{ width: hostInputWidth, maxWidth: "100%", transition: "width 0.15s ease" }}
               value={formValues.host}
               placeholder="默认 127.0.0.1"
               onChange={(e) => onFieldChange("host", e.target.value)}
@@ -399,7 +408,7 @@ export default function Proxy() {
               {dirtyDot("port")}
             </label>
             <InputNumber
-              style={{ width: portInputWidth, transition: "width 0.15s ease" }}
+              style={{ width: portInputWidth, maxWidth: "100%", transition: "width 0.15s ease" }}
               controls={false}
               min={1}
               max={65535}
