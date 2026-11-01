@@ -342,27 +342,36 @@ export default function Proxy() {
               <span className="wm-field-label__text">{FIELD_LABELS.apiKey}</span>
               {dirtyDot("apiKey")}
             </label>
-            <Space.Compact style={{ width: "fit-content", maxWidth: "100%" }}>
-              <Input.Password
-                value={apiKey}
-                className="wm-mono wm-input-fluid"
-                onChange={(e) => onFieldChange("apiKey", e.target.value)}
-              />
-              <Tooltip title="复制">
-                <Button icon={<CopyOutlined />} onClick={() => copyText(apiKey, "已复制 API Key")} />
-              </Tooltip>
-              <Tooltip title="重生成新密钥">
-                <Button
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    const nk = genApiKey();
-                    setFormValues((prev) => ({ ...prev, apiKey: nk }));
-                    onFieldChange("apiKey", nk);
-                    message.success("已生成新密钥，正在自动保存");
-                  }}
-                />
-              </Tooltip>
-            </Space.Compact>
+            <Input.Password
+              value={apiKey}
+              className="wm-mono wm-input-fluid"
+              onChange={(e) => onFieldChange("apiKey", e.target.value)}
+              suffix={
+                <Space.Compact>
+                  <Tooltip title="复制">
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<CopyOutlined />}
+                      onClick={() => copyText(apiKey, "已复制 API Key")}
+                    />
+                  </Tooltip>
+                  <Tooltip title="重生成新密钥">
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<ReloadOutlined />}
+                      onClick={() => {
+                        const nk = genApiKey();
+                        setFormValues((prev) => ({ ...prev, apiKey: nk }));
+                        onFieldChange("apiKey", nk);
+                        message.success("已生成新密钥，正在自动保存");
+                      }}
+                    />
+                  </Tooltip>
+                </Space.Compact>
+              }
+            />
           </div>
 
           {/* 监听地址 */}
