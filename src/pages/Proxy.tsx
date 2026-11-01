@@ -386,6 +386,7 @@ export default function Proxy() {
             </label>
             <InputNumber
               style={{ width: "100%" }}
+              controls={false}
               min={1}
               max={65535}
               placeholder="默认 8765"
