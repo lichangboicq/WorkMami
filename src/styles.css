@@ -1244,10 +1244,12 @@ body {
   padding: 3px 8px;
   cursor: pointer;
   position: relative;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .wm-pool-btn:hover {
-  border-color: #1677ff;
-  color: #1677ff;
+  border-color: var(--wm-brand);
+  color: var(--wm-brand);
 }
 .wm-pool-btn.is-empty::after {
   content: "";
@@ -1291,4 +1293,11 @@ body {
   color: #999;
   font-size: 12px;
   padding: 4px 0;
+}
+[data-theme="dark"] .wm-pool-btn {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+[data-theme="dark"] .wm-pool-pop__quota,
+[data-theme="dark"] .wm-pool-pop__empty {
+  color: #8b8594;
 }

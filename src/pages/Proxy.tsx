@@ -57,6 +57,7 @@ export default function Proxy() {
   const proxy = useStore((s) => s.proxy);
   const accounts = useStore((s) => s.accounts);
   const saveSettings = useStore((s) => s.saveSettings);
+  const storeLoading = useStore((s) => s.loading);
   const syncStatus = useStore((s) => s.syncStatus);
   const refreshSyncStatus = useStore((s) => s.refreshSyncStatus);
   const syncAllIdes = useStore((s) => s.syncAllIdes);
@@ -245,7 +246,7 @@ export default function Proxy() {
   }, []);
 
   const enabled = formValues.enabled;
-  const poolEmpty = !accounts.some((a) => a.enabled);
+  const poolEmpty = !storeLoading && !accounts.some((a) => a.enabled);
   const apiKey = formValues.apiKey;
 
   const running = Boolean(proxy?.running);
@@ -303,26 +304,17 @@ export default function Proxy() {
           <div className="wm-card-title">
             {/* Switch 开关 + 运行状态，放标题行最左侧 */}
             <div className="wm-switch-row">
-              {poolEmpty && !enabled ? (
-                <Tooltip title="账号池为空，无法开启">
-                  <span>
-                    <Switch
-                      checked={enabled}
-                      disabled
-                      checkedChildren="开"
-                      unCheckedChildren="关"
-                      onChange={onToggleEnabled}
-                    />
-                  </span>
-                </Tooltip>
-              ) : (
-                <Switch
-                  checked={enabled}
-                  checkedChildren="开"
-                  unCheckedChildren="关"
-                  onChange={onToggleEnabled}
-                />
-              )}
+              <Tooltip title={poolEmpty && !enabled ? "账号池为空，无法开启" : ""}>
+                <span>
+                  <Switch
+                    checked={enabled}
+                    disabled={poolEmpty && !enabled}
+                    checkedChildren="开"
+                    unCheckedChildren="关"
+                    onChange={onToggleEnabled}
+                  />
+                </span>
+              </Tooltip>
               {dirtyDot("enabled")}
               {running ? (
                 <span className="wm-run-state is-live">运行中</span>

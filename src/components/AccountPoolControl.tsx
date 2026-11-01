@@ -50,6 +50,7 @@ export default function AccountPoolControl() {
                 size="small"
                 checked={a.enabled}
                 loading={toggling.has(a.uid)}
+                disabled={toggling.has(a.uid)}
                 onChange={(v) => onToggle(a.uid, v)}
               />
             </div>
