@@ -359,7 +359,6 @@ body {
 }
 .wm-pool-toolbar--in-title .wm-pool-toolbar__strategy {
   margin-left: auto;
-  font-size: var(--wm-text-num-size);
 }
 .wm-pool-toolbar--in-title .wm-ide-row { gap: 6px; }
 .wm-pool-toolbar--in-title .wm-pool-toolbar__title {
@@ -1372,7 +1371,7 @@ button.ant-switch,
   border-radius: 6px;
   background: transparent;
   color: inherit;
-  font-size: var(--wm-text-num-size);
+  font-size: var(--wm-text-ui-size);
   line-height: 1;
   height: var(--wm-control-h); /* 与 API Key 输入壳（.wm-input-shell）等高 */
   box-sizing: border-box;

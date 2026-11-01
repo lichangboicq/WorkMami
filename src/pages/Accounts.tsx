@@ -545,17 +545,17 @@ function AccountCard({
                           style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            alignItems: "center",
+                            alignItems: "baseline",
                             padding: "4px 8px",
-                            fontSize: "var(--wm-text-ui-size)",
+                            fontSize: "var(--wm-text-num-size)",
                             gap: 8,
                           }}
                         >
                           <span className="wm-account-resource-name">
                             {r.name}
                           </span>
-                          <span style={{ display: "flex", gap: 10 }}>
-                            <b style={{ color }}>{fmtNum(r.remaining)}</b>
+                          <span style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                            <b style={{ color, fontSize: "var(--wm-text-ui-size)" }}>{fmtNum(r.remaining)}</b>
                             <span
                               style={{
                                 color: color ?? token.colorTextTertiary,
