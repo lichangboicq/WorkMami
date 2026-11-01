@@ -44,7 +44,7 @@ export default function AccountPoolControl() {
                 <span className="wm-pool-pop__name">{a.nickname || a.uid}</span>
               </Tooltip>
               <span className="wm-pool-pop__quota">
-                {a.quota ? `${a.quota.remaining} 积分` : "--"}
+                {a.quota ? `${Math.round(a.quota.remaining).toLocaleString()} 积分` : "--"}
               </span>
               <Switch
                 size="small"
