@@ -860,7 +860,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 6px 4px; /* 行距 6px（折行时两行控件 32px 需呼吸）、列距 4px */
   min-width: 0;
 }
 /* 池名编辑框：壳 flex:1 吃满同行余量；min-width: max-content 让地板为完整文本宽度不截断，
@@ -873,16 +873,14 @@ body {
   flex: 1 1 auto;
 }
 
-/* 头部第二行：思考档位 | 忙闲评分；宽度不够时自动换行 */
-.wm-pool-card__meta {
-  display: flex;
-  flex-wrap: wrap;
+/* 头部尾组：思考档位 | 忙闲评分；作为整体参与 head 折行（一行放不下则整组换行，保持相邻） */
+.wm-pool-card__meta-group {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-width: 0;
-  padding-left: 24px; /* 与池名左缘对齐（拖拽柄 20px + 间距 4px） */
+  flex-shrink: 0;
 }
-.wm-pool-card__meta .wm-thinking-select { min-width: 0; height: var(--wm-control-h); } /* 与忙闲选择器等高，保证 Y 对齐 */
+.wm-pool-card__meta-group .wm-thinking-select { height: var(--wm-control-h); } /* 与忙闲评分外框等高，保证 Y 对齐 */
 
 /* 标题栏内的价格/上下文 chip：与 API Key 输入壳等高（32px） */
 .wm-pool-card__head .wm-pool-rate,

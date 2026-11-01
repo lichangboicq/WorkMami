@@ -563,7 +563,7 @@ function PoolCard({
       className={`wm-pool-card${isDragging ? " is-dragging" : ""}`}
       style={{ transform: CSS.Transform.toString(transform), transition }}
     >
-      {/* 头部第一行：拖拽手柄 | 删除（永远首行，悬停显现）| 池名 | 倍率 | 上下文 */}
+      {/* 头部单行自适应：拖拽手柄 | 删除（悬停显现）| 池名 | 倍率 | 上下文 | 思考档位 | 忙闲评分；宽则一行，窄则折行 */}
       <div className="wm-pool-card__head">
         <span
           className="wm-pool-drag-handle"
@@ -598,22 +598,21 @@ function PoolCard({
         <Tooltip title={ctxTip} placement="top">
           <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
         </Tooltip>
-      </div>
-
-      {/* 头部第二行：思考档位 | 忙闲评分（价格/上下文已上移进标题栏） */}
-      <div className="wm-pool-card__meta">
-        <Tooltip title={THINKING_TIP} placement="top">
-          <Select
-            className="wm-thinking-select"
-            variant="borderless"
-            size="small"
-            value={pool.thinking}
-            options={THINKING_OPTIONS}
-            onChange={(v) => onThinking(pool.id, v)}
-            popupMatchSelectWidth={false}
-          />
-        </Tooltip>
-        <BusyRating value={pool.busyFilter ?? []} onChange={(v) => onBusy(pool.id, v)} />
+        {/* 思考档位 + 忙闲评分成组参与折行：宽则同处一行，窄则整组换行保持相邻 */}
+        <span className="wm-pool-card__meta-group">
+          <Tooltip title={THINKING_TIP} placement="top">
+            <Select
+              className="wm-thinking-select"
+              variant="borderless"
+              size="small"
+              value={pool.thinking}
+              options={THINKING_OPTIONS}
+              onChange={(v) => onThinking(pool.id, v)}
+              popupMatchSelectWidth={false}
+            />
+          </Tooltip>
+          <BusyRating value={pool.busyFilter ?? []} onChange={(v) => onBusy(pool.id, v)} />
+        </span>
       </div>
 
       {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
