@@ -101,7 +101,7 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
             )}
           </>
         ) : (
-          <>上次旅行</>
+          <>上次旅行{last ? ` : ${last.travelDate}` : ""}</>
         )}
       </Text>
       {shown.length === 0 ? (
@@ -116,7 +116,6 @@ function TodayLedger({ records }: { records?: TravelRecord[] }) {
               style={{ padding: "2px 0", display: "flex", justifyContent: "space-between", alignItems: "center" }}
             >
               <div style={{ fontSize: "var(--wm-text-num-size)", opacity: 0.85 }}>
-                <div>{r.travelDate}</div>
                 <div>{r.locationName}</div>
                 <div>{fmtTime(r.departAt)} 已派出</div>
                 <div>{r.claimedAt ? `${fmtTime(r.claimedAt)} 已领奖` : "未领奖"}</div>
@@ -323,7 +322,7 @@ export default function Travel() {
                           <>
                             <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                               {settings.travel.autoEnabled
-                                ? `猫猫在家。将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
+                                ? `将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
                                 : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
                             </Text>
                             <Select
