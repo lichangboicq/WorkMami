@@ -1326,13 +1326,29 @@ body {
   font-weight: var(--wm-text-ui-weight);
 }
 
-/* Tag 全站统一高度与文字：与其他圆角矩形控件同高同字（ui 类别） */
-.wm-page .ant-tag {
+/* Tag 全站统一高度与文字：与其他圆角矩形控件同高同字（ui 类别）；
+   Drawer/Modal 内的 Tag 渲染在 portal（.wm-page 之外），需同规则覆盖 */
+.wm-page .ant-tag,
+.ant-modal .ant-tag,
+.ant-drawer .ant-tag {
   display: inline-flex;
   align-items: center;
   height: var(--wm-control-h);
   font-size: var(--wm-text-ui-size);
   font-weight: var(--wm-text-ui-weight);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* 圆角矩形家族统一 hover 粉色 border：Tag 正常态自带彩色描边但此前
+   无任何 hover 反馈；小尺寸元素用与 busy-rating 同档的不透明度 */
+.wm-page .ant-tag:hover,
+.ant-modal .ant-tag:hover,
+.ant-drawer .ant-tag:hover {
+  border-color: rgba(var(--wm-brand-rgb), 0.4);
+}
+[data-theme="dark"] .wm-page .ant-tag:hover,
+[data-theme="dark"] .ant-modal .ant-tag:hover,
+[data-theme="dark"] .ant-drawer .ant-tag:hover {
+  border-color: rgba(var(--wm-brand-rgb), 0.6);
 }
 
 /* 控件文本 ui 类别铺到 .wm-page 之外的表面：Header 分段控件、弹窗/抽屉/气泡内的按钮、
