@@ -352,15 +352,6 @@ export default function Dashboard() {
         </Col>
         <Col span={4}>
           <Card size="small">
-            <Statistic
-              title="估算积分"
-              value={fmtCredits(cur?.credits ?? 0)}
-              suffix="分"
-            />
-          </Card>
-        </Col>
-        <Col span={4}>
-          <Card size="small">
             <Statistic title="请求次数" value={fmtMetric(cur?.requests ?? 0)} />
           </Card>
         </Col>
