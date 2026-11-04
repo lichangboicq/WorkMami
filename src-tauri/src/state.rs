@@ -112,13 +112,13 @@ impl Default for CheckinSettings {
 pub struct TravelSettings {
     /// 自动托管总开关：开着就自动派猫、到点自动领（客户端运行期间）。
     pub auto_enabled: bool,
-    /// 自动派猫时选地点策略：longest/shortest（取时长极值，并列内随机）/ rotate（轮换）。
+    /// 自动派猫时选地点策略：random（并列集合内随机，旧值 longest/shortest 同样按随机处理）/ rotate（轮换）。
     pub location_policy: String,
 }
 
 impl Default for TravelSettings {
     fn default() -> Self {
-        TravelSettings { auto_enabled: true, location_policy: "longest".into() }
+        TravelSettings { auto_enabled: true, location_policy: "random".into() }
     }
 }
 

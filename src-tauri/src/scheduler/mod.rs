@@ -500,7 +500,7 @@ async fn travel_tick(app: AppHandle, state: Arc<AppState>) {
 }
 
 /// 根据策略选择旅行地点。
-/// 官方协议下 4 个地点时长与奖励区间完全相同，longest/shortest 实际退化为全体并列，
+/// 官方协议下 4 个地点时长与奖励区间完全相同，random（及旧值 longest/shortest）实际退化为全体并列，
 /// 因此在并列集合内随机选一个（当前等价于 4 选 1 随机），避免 max_by/min_by 平局固定选中首/末项。
 fn select_location(
     locations: &[crate::api::TravelLocation],
@@ -537,7 +537,7 @@ fn select_location(
             loc.cloned()
         }
         _ => {
-            // longest (default)
+            // random（默认；旧值 longest/shortest 走这里，行为等价）
             let max = locations
                 .iter()
                 .map(|l| l.duration_max_hours)

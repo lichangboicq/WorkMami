@@ -20,7 +20,7 @@ export const defaultSettings: AppSettings = {
     pools: [],
   },
   checkin: { autoEnabled: false, notify: true },
-  travel: { autoEnabled: true, locationPolicy: "longest" },
+  travel: { autoEnabled: true, locationPolicy: "random" },
   theme: "light",
   autostart: false,
 };

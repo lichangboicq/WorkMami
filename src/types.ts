@@ -136,7 +136,7 @@ export interface CheckinSettings {
 
 export interface TravelSettings {
   autoEnabled: boolean;
-  locationPolicy: string; // "longest" | "shortest" | "rotate"
+  locationPolicy: string; // "random" | "rotate"（旧值 longest/shortest 兼容为 random）
 }
 
 export interface AppSettings {

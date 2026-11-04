@@ -205,6 +205,9 @@ export default function Travel() {
     await saveSettings(s);
   };
 
+  // 兼容旧值：官方协议下 4 个地点时长与奖励相同，longest/shortest 与随机等价，统一按 random 展示与保存
+  const policy = settings.travel.locationPolicy === "rotate" ? "rotate" : "random";
+
   if (!data) {
     return (
       <div style={{ padding: 24 }}>
@@ -233,12 +236,11 @@ export default function Travel() {
             <Space>
               <Text strong>地点策略</Text>
               <Select
-                value={settings.travel.locationPolicy}
+                value={policy}
                 onChange={changePolicy}
                 style={{ width: 120 }}
                 options={[
-                  { label: "最长时间", value: "longest" },
-                  { label: "最短时间", value: "shortest" },
+                  { label: "随机", value: "random" },
                   { label: "轮换", value: "rotate" },
                 ]}
               />
@@ -326,7 +328,7 @@ export default function Travel() {
                         <>
                           <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                             {settings.travel.autoEnabled
-                              ? `将在今日 01:00–06:00 的随机时刻自动出发${settings.travel.locationPolicy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
+                              ? `将在今日 01:00–06:00 的随机时刻自动出发${policy === "rotate" ? "，按轮换顺序选目的地" : "，目的地随机"}。`
                               : "猫猫在家休息，可手动选目的地出发，或开启自动托管。"}
                           </Text>
                           <Select
