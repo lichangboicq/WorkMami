@@ -676,15 +676,11 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
       >
         <HolderOutlined />
       </span>
-      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <span className="wm-pool-row__name" title={name}>
         {name}
       </span>
-      <span className="wm-pool-row__gap" aria-hidden="true" />
       {credits && <span className="wm-pool-row__credits">{credits}</span>}
-      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <ScheduleSelect schedule={member.schedule ?? ""} modelName={name} onChange={onSchedule} />
-      <span className="wm-pool-row__gap wm-pool-row__gap--fixed" aria-hidden="true" />
       <Tooltip title="移除">
         <span
           className="wm-pool-icon-btn"

@@ -921,7 +921,7 @@ body {
 .wm-pool-icon-btn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start; /* 图标左对齐：框仍贴右缘提供点击热区，字形贴框左 */
   align-self: center;
   font-size: 13px;
   color: var(--pool-text-secondary);
@@ -1101,18 +1101,18 @@ body {
 
 /* 模型行启用时段下拉（三选一）：文本样式与模型名一致，默认弱化，非全天时高亮 */
 .wm-pool-row__schedule-select {
-  min-width: 46px;
   max-width: 180px;
   flex-shrink: 0;
   font-size: var(--wm-text-ui-size);
 }
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selector {
-  padding: 0 2px;
+  /* selector 与内置 span 间距归零：行内只保留行级 gap:1px 的外距 */
+  padding: 0;
 }
 /* antd 默认给 selection-item/search 预留 21px/18px 箭头位，导致文本右侧大片空白；压到箭头实际宽度 */
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-item,
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-search {
-  padding-right: 16px !important;
+  padding-right: 12px !important;
 }
 /* (0,4,0) 兜底：保证行内时段文字与模型名同为 ui 类别（字号/字重取 --wm-text-ui-*） */
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-selection-item {
@@ -1120,7 +1120,7 @@ body {
   font-weight: var(--wm-text-ui-weight);
 }
 .wm-pool-row .wm-pool-row__schedule-select.ant-select .ant-select-arrow {
-  right: 3px;
+  right: 1px;
 }
 .wm-pool-row__schedule-select.ant-select {
   color: var(--pool-text);
@@ -1144,7 +1144,10 @@ body {
   align-items: center;
   height: var(--wm-control-h); /* 圆角矩形统一高度：与控件同高 32px（内部 borderless 控件居中对称溢出 1px，不可见） */
   box-sizing: border-box;
-  padding: 0 8px;
+  /* 右侧不留白：行尾操作图标框（.wm-pool-icon-btn）贴右缘，字形留框内居中空隙（与输入壳 affix 同规则） */
+  padding: 0 0 0 8px;
+  /* 间距契约：子元素间恒定 1px；弹性空间全部归属模型标题（__name） */
+  gap: 1px;
   background: var(--wm-chip-bg);
   border-radius: var(--wm-ctl-radius);
   font-size: var(--wm-text-ui-size);
@@ -1153,20 +1156,12 @@ body {
   border: 1px solid transparent;
   transition: border-color 0.15s ease;
 }
-/* 弹性间隔：basis 6px 保底，宽行摊大、窄行压到 0，替代静态 gap */
-.wm-pool-row__gap {
-  flex: 1 1 6px;
-  min-width: 0;
-}
-/* 固定间隔：不参与放大（名称贴左、价格/时段/删除聚右），窄行仍可压缩 */
-.wm-pool-row__gap--fixed {
-  flex-grow: 0;
-}
 .wm-pool-row:hover {
   border-color: var(--wm-ctl-hover-border);
 }
+/* 模型标题：弹性空间唯一归属（可延展成留白），宽度不足时压缩截断；其余子元素 flex-shrink:0 聚右 */
 .wm-pool-row__name {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
