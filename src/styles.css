@@ -14,6 +14,22 @@
   --wm-text-ui-weight: 500;
   --wm-text-num-size: 12px;
   --wm-text-num-weight: 600;
+
+  /* —— 圆角矩形控件家族（输入壳/chip/池行/标签）形状与配色单一来源 ——
+     主题层只允许换这里的变量值，hover/focus 只改属性，组件只写自身差异。
+     禁止主题层直接声明 border-color/background（同特异性下会压死交互态） */
+  --wm-ctl-radius: 8px;      /* 控件层级统一圆角（卡片 16px 为另一层级） */
+  --wm-ctl-border: #d9d9d9;  /* 实体边框控件（输入壳）常态边框 */
+  --wm-ctl-bg: #fff;         /* 输入面底色 */
+  --wm-chip-bg: #f5f5f5;     /* chip/行面底色 */
+  --wm-chip-border: rgba(0, 0, 0, 0.1);                  /* chip/虚线框常态边框 */
+  --wm-ctl-hover-border: rgba(var(--wm-brand-rgb), 0.5); /* 家族统一 hover 边框 */
+}
+[data-theme="dark"] {
+  --wm-ctl-border: #424242;
+  --wm-ctl-bg: #141418;
+  --wm-chip-bg: #2a2a2a;
+  --wm-chip-border: rgba(255, 255, 255, 0.18);
 }
 
 html, body, #root { height: 100%; margin: 0; padding: 0; }
@@ -218,15 +234,16 @@ body {
 
 /* ===== WmInput 三层壳 =====
    结构：<span.wm-input-shell>（边框/hover/focus/高度/背景）→ [__addon 前缀格] → antd borderless 输入。
-   内部输入无边框透明，宽度 field-sizing: content 跟随内容；文字垂直居中用 line-height 钉内容区高。 */
+   内部输入无边框透明，宽度 field-sizing: content 跟随内容；文字垂直居中用 line-height 钉内容区高。
+   配色/圆角走 :root 家族令牌（--wm-ctl-*），hover/focus 只改属性，主题切换不参与本节层叠。 */
 .wm-input-shell {
   display: inline-flex;
   align-items: stretch;
   vertical-align: top;
   height: var(--wm-control-h); /* 与 Button/controlHeight 对齐（32px） */
-  border: 1px solid #d9d9d9;
-  border-radius: 8px;
-  background: #fff;
+  border: 1px solid var(--wm-ctl-border);
+  border-radius: var(--wm-ctl-radius);
+  background: var(--wm-ctl-bg);
   overflow: hidden; /* addon/full 模式裁切内部直角；focus 光环是自身 shadow 不受影响 */
   box-sizing: border-box;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
@@ -235,10 +252,6 @@ body {
 .wm-input-shell:focus-within {
   border-color: var(--wm-brand);
   box-shadow: 0 0 0 3px rgba(var(--wm-brand-rgb), 0.18);
-}
-[data-theme="dark"] .wm-input-shell {
-  border-color: #424242;
-  background: #141418;
 }
 
 /* 宽度两模式：fluid 内容自适应（上限为容器宽），full 填满；三档高度统一 32px（--wm-control-h） */
@@ -303,12 +316,13 @@ body {
 
 /* Password/affix 态：包装层透明，suffix 按钮撑满壳内容区高度。
    视觉内边距放在包装层：antd 会清掉 affix 内层 input 的横向 padding，
-   而 field-sizing 的内在宽恰好 = 纯文本宽（不含 padding），两者相加正好贴合。 */
+   而 field-sizing 的内在宽恰好 = 纯文本宽（不含 padding），两者相加正好贴合。
+   规则：壳内 affix 包装层右侧一律不留白，内置按钮（眼睛/复制/刷新等）直接贴合壳右缘。 */
 .wm-input-shell .ant-input-affix-wrapper {
   border: none;
   box-shadow: none;
   background: transparent;
-  padding: 0 11px;
+  padding: 0 0 0 11px;
   height: 100%;
   width: auto;
   min-width: 0;
@@ -774,9 +788,8 @@ body {
 }
 .wm-pool-refresh:hover { color: var(--wm-brand); }
 
-/* 亮色 token：chip 更浅、边框沿用全局卡片 */
+/* 亮色 token：文字中灰（chip 底色已并入全局 --wm-chip-bg，卡片边框保留局部） */
 .wm-pool-board {
-  --pool-chip-bg: #f5f5f5;
   --pool-border: rgba(0, 0, 0, 0.06);
   --pool-text: #26212e;
   --pool-text-secondary: #6b6472; /* 倍率/图标统一中灰（亮） */
@@ -787,7 +800,6 @@ body {
 }
 /* 暗色 token */
 [data-theme="dark"] .wm-pool-board {
-  --pool-chip-bg: #2a2a2a;
   --pool-border: rgba(255, 255, 255, 0.18);
   --pool-text: #f2eef5;
   --pool-text-secondary: #8b8594; /* 倍率/图标统一中灰（暗） */
@@ -879,52 +891,29 @@ body {
 }
 .wm-pool-card__head .wm-pool-icon-btn { height: var(--wm-control-h); }
 
-.wm-pool-rate {
-  display: inline-flex;
-  align-items: center;
-  font-family: var(--wm-mono);
-  font-size: var(--wm-text-num-size);
-  font-weight: var(--wm-text-num-weight);
-  font-variant-numeric: tabular-nums;
-  color: var(--pool-text-secondary);
-  background: var(--pool-chip-bg);
-  border-radius: 8px;
-  padding: 0 6px;
-  line-height: 1;
-  white-space: nowrap;
-  flex-shrink: 0;
-  cursor: help;
-  transition: border-color 0.2s ease;
-  border: 1px solid transparent;
-}
-.wm-pool-rate:hover {
-  border-color: var(--wm-brand);
-}
-
-/* 池上下文窗口标签（只读，孰低原则）：与倍率同款 chip，弱化显示 */
+/* 倍率/上下文窗口 chip（同款；ctx 弱化显示并带图标间距） */
+.wm-pool-rate,
 .wm-pool-ctx {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
   font-family: var(--wm-mono);
   font-size: var(--wm-text-num-size);
   font-weight: var(--wm-text-num-weight);
   font-variant-numeric: tabular-nums;
   color: var(--pool-text-secondary);
-  background: var(--pool-chip-bg);
-  border-radius: 8px;
+  background: var(--wm-chip-bg);
+  border: 1px solid transparent;
+  border-radius: var(--wm-ctl-radius);
   padding: 0 6px;
   line-height: 1;
   white-space: nowrap;
   flex-shrink: 0;
   cursor: help;
-  opacity: 0.9;
   transition: border-color 0.2s ease;
-  border: 1px solid transparent;
 }
-.wm-pool-ctx:hover {
-  border-color: var(--wm-brand);
-}
+.wm-pool-ctx { gap: 3px; opacity: 0.9; }
+.wm-pool-rate:hover,
+.wm-pool-ctx:hover { border-color: var(--wm-ctl-hover-border); }
 
 /* 动态组合倍率 Tooltip 辅助样式（已内联，以下留作占位以便后续扩展） */
 
@@ -952,14 +941,14 @@ body {
 /* 思考档位 chip 式下拉：只显示当前词 + ▾，无文字标签 */
 .wm-thinking-select { min-width: 64px; flex-shrink: 0; }
 .wm-thinking-select .ant-select-selector {
-  background: var(--pool-chip-bg) !important;
+  background: var(--wm-chip-bg) !important;
   border: 1px solid transparent !important;
   padding: 0 8px !important;
   height: var(--wm-control-h) !important; /* 与忙闲选择器外框等高 */
   transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .wm-thinking-select:hover .ant-select-selector {
-  border-color: var(--wm-brand) !important;
+  border-color: var(--wm-ctl-hover-border) !important;
 }
 .wm-thinking-select.ant-select-focused .ant-select-selector {
   border-color: var(--wm-brand) !important;
@@ -987,13 +976,13 @@ body {
   height: var(--wm-control-h); /* 与思考档位 chip 外框等高 */
   box-sizing: border-box;
   padding: 0 8px;
-  background: var(--pool-chip-bg);
+  background: var(--wm-chip-bg);
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--wm-ctl-radius);
   cursor: pointer; /* 外框可整体点按（悬停点亮），与内部档位一致 */
   transition: border-color 0.2s ease;
 }
-.wm-busy-rating:hover { border-color: rgba(var(--wm-brand-rgb), 0.4); }
+.wm-busy-rating:hover { border-color: var(--wm-ctl-hover-border); }
 .wm-busy-rating__seg {
   display: inline-flex;
   align-items: center;
@@ -1046,23 +1035,20 @@ body {
   align-items: center;
   gap: 6px;
   text-align: left;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+  border: 1px solid var(--wm-chip-border);
+  border-radius: var(--wm-ctl-radius);
   padding: 7px 10px;
   background: transparent;
   cursor: pointer;
   transition: transform 0.12s ease, border-color 0.15s ease, background-color 0.15s ease,
     box-shadow 0.15s ease;
 }
-[data-theme="dark"] .wm-add-chip {
-  border-color: rgba(255, 255, 255, 0.18);
-}
 [data-theme="dark"] .wm-add-chip__name {
   color: rgba(255, 255, 255, 0.88);
 }
 .wm-add-chip:hover {
   transform: translateY(-1px);
-  border-color: rgba(var(--wm-brand-rgb), 0.5);
+  border-color: var(--wm-ctl-hover-border);
   background: rgba(var(--wm-brand-rgb), 0.06);
   box-shadow: 0 4px 12px rgba(var(--wm-brand-rgb), 0.14);
 }
@@ -1159,8 +1145,8 @@ body {
   height: var(--wm-control-h); /* 圆角矩形统一高度：与控件同高 32px（内部 borderless 控件居中对称溢出 1px，不可见） */
   box-sizing: border-box;
   padding: 0 8px;
-  background: var(--pool-chip-bg);
-  border-radius: 8px;
+  background: var(--wm-chip-bg);
+  border-radius: var(--wm-ctl-radius);
   font-size: var(--wm-text-ui-size);
   font-weight: var(--wm-text-ui-weight);
   color: var(--pool-text);
@@ -1177,7 +1163,7 @@ body {
   flex-grow: 0;
 }
 .wm-pool-row:hover {
-  border-color: rgba(var(--wm-brand-rgb), 0.55);
+  border-color: var(--wm-ctl-hover-border);
 }
 .wm-pool-row__name {
   flex: 0 1 auto;
@@ -1209,14 +1195,14 @@ body {
   font-weight: var(--wm-text-ui-weight);
   color: var(--pool-text-secondary);
   background: transparent;
-  border: 1px dashed var(--pool-border);
-  border-radius: 8px;
+  border: 1px dashed var(--wm-chip-border);
+  border-radius: var(--wm-ctl-radius);
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease;
 }
 .wm-pool-add-row:hover {
   color: var(--wm-brand);
-  border-color: rgba(var(--wm-brand-rgb), 0.45);
+  border-color: var(--wm-ctl-hover-border);
 }
 
 /* 最右竖列「+ 新建模型池」：可被压缩，把空间优先让给池卡 */
@@ -1226,8 +1212,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--pool-border);
-  border-radius: 12px;
+  border: 1px dashed var(--wm-chip-border);
+  border-radius: var(--wm-ctl-radius);
   transition: border-color 0.15s ease;
 }
 .wm-pool-new-btn {
@@ -1254,7 +1240,7 @@ body {
   color: var(--wm-brand) !important;
   background: transparent !important;
 }
-.wm-pool-new-col:hover { border-color: rgba(var(--wm-brand-rgb), 0.45); }
+.wm-pool-new-col:hover { border-color: var(--wm-ctl-hover-border); }
 
 .wm-model-gallery-loading {
   font-size: var(--wm-text-ui-size);
@@ -1343,12 +1329,7 @@ body {
 .wm-page .ant-tag:hover,
 .ant-modal .ant-tag:hover,
 .ant-drawer .ant-tag:hover {
-  border-color: rgba(var(--wm-brand-rgb), 0.4);
-}
-[data-theme="dark"] .wm-page .ant-tag:hover,
-[data-theme="dark"] .ant-modal .ant-tag:hover,
-[data-theme="dark"] .ant-drawer .ant-tag:hover {
-  border-color: rgba(var(--wm-brand-rgb), 0.6);
+  border-color: var(--wm-ctl-hover-border);
 }
 
 /* 控件文本 ui 类别铺到 .wm-page 之外的表面：Header 分段控件、弹窗/抽屉/气泡内的按钮、
@@ -1388,14 +1369,16 @@ button.ant-switch,
 .wm-page .ant-empty .ant-empty-image {
   height: 96px;
 }
+/* 数据管理表格：压缩列间距减少留白 */
+.wm-compact-table .ant-table-cell { padding-inline: 1px; }
 
 /* ===== 账号池入口（Proxy 标题行） ===== */
 .wm-pool-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
+  border: 1px solid var(--wm-ctl-border);
+  border-radius: var(--wm-ctl-radius);
   background: transparent;
   color: inherit;
   font-size: var(--wm-text-ui-size);
@@ -1409,7 +1392,7 @@ button.ant-switch,
   white-space: nowrap;
 }
 .wm-pool-btn:hover {
-  border-color: var(--wm-brand);
+  border-color: var(--wm-ctl-hover-border);
   color: var(--wm-brand);
 }
 .wm-pool-btn.is-empty::after {
@@ -1449,9 +1432,6 @@ button.ant-switch,
   color: #999;
   font-size: var(--wm-text-num-size);
   padding: 4px 0;
-}
-[data-theme="dark"] .wm-pool-btn {
-  border-color: rgba(255, 255, 255, 0.18);
 }
 [data-theme="dark"] .wm-pool-pop__quota,
 [data-theme="dark"] .wm-pool-pop__empty {

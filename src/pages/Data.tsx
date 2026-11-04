@@ -238,12 +238,10 @@ export default function DataPage() {
       {
         title: "名称",
         dataIndex: "name",
-        onCell: () => ({ style: { width: "100%" } }),
-        onHeaderCell: () => ({ style: { width: "100%" } }),
         render: (t: string, r: DataItem) => {
           const hasModel = r.meta && "model" in (r.meta as object);
           return (
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <a
                 onClick={() => view(r)}
                 style={{
@@ -256,7 +254,14 @@ export default function DataPage() {
                 {t}
               </a>
               {hasModel && (
-                <Tag style={{ flexShrink: 0 }}>
+                <Tag
+                  style={{
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {String((r.meta as Record<string, unknown>).model)}
                 </Tag>
               )}
@@ -267,6 +272,7 @@ export default function DataPage() {
       {
         title: "大小",
         dataIndex: "size",
+        width: 80,
         onCell: () => ({ style: { whiteSpace: "nowrap" } }),
         onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: (n: number) => (n ? fmtSize(n) : "—"),
@@ -274,12 +280,14 @@ export default function DataPage() {
       {
         title: "修改时间",
         dataIndex: "modified",
+        width: 144,
         onCell: () => ({ style: { whiteSpace: "nowrap" } }),
         onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: fmtDate,
       },
       {
         title: "操作",
+        width: 96,
         onCell: () => ({ style: { whiteSpace: "nowrap" } }),
         onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: (_: unknown, r: DataItem) => (
@@ -388,12 +396,13 @@ export default function DataPage() {
             }
           >
             <Table
+              className="wm-compact-table"
               size="small"
               rowKey={(r) => r.id + r.path}
               loading={loading}
               dataSource={items}
               columns={columns}
-              tableLayout="auto"
+              tableLayout="fixed"
               rowSelection={{
                 selectedRowKeys: selected.map((s) => s.id + s.path),
                 onChange: (_, rows) => setSelected(rows),
