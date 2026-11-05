@@ -1,7 +1,7 @@
 // 模型池看板：池卡片横向排序（dnd-kit）+ 池内模型行纵向排序（自上而下 = 调度优先级）。
 // 池名铅笔行内更名；悬停垃圾桶删除（Modal 二次确认 + 可撤销）；池级思考档位三选一（fast/medium/deep）。
 // 所有变更通过 onChange(next) 上抛，由 Proxy.tsx 落盘（既有 save_settings 自动持久化 + 重启代理 + 同步）。
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -694,11 +694,11 @@ function ModelRow({ poolId, member, name, credits, onSchedule, onDelete }: Model
 }
 
 // —— 成员级启用时段（三选一，一次点击）——
-// 下拉显示短名，解释语放各选项 tooltip；value 沿用旧值，兼容既有数据
+// 下拉显示短名，解释语放各选项原生 title（antd 会把它渲染到选项节点上）；value 沿用旧值，兼容既有数据
 const SCHEDULE_OPTIONS = [
-  { value: "全天", label: "全天", tip: "任何时间都启用" },
-  { value: "夜间", label: "夜间", tip: "仅 23:00–08:00 启用" },
-  { value: "避开高峰", label: "闲时", tip: "避开高峰：周一至五 9–12、14–18 属高峰" },
+  { value: "全天", label: "全天", title: "任何时间都启用" },
+  { value: "夜间", label: "夜间", title: "仅 23:00–08:00 启用" },
+  { value: "避开高峰", label: "闲时", title: "避开高峰：周一至五 9–12、14–18 属高峰" },
 ];
 
 // 旧版 "HH:mm-HH:mm" 自定义窗口仍兼容评估，下拉里原样显示；选任意预设即覆盖
@@ -718,14 +718,6 @@ function ScheduleSelect({
   onChange: (schedule: string) => void;
 }) {
   const value = scheduleLabel(schedule);
-  // 选项 tooltip 受控实现：悬停选项 400ms 后打开锚在该选项上的 Tooltip，离开/关下拉即关闭
-  const [tipLabel, setTipLabel] = useState<string | null>(null);
-  const tipTimer = useRef<number | undefined>(undefined);
-  useEffect(() => () => window.clearTimeout(tipTimer.current), []);
-  const clearTipTimer = () => {
-    window.clearTimeout(tipTimer.current);
-    tipTimer.current = undefined;
-  };
   return (
     <Tooltip title={`选择${modelName}的生效时间`}>
       <Select
@@ -733,32 +725,6 @@ function ScheduleSelect({
         variant="borderless"
         value={value}
         options={SCHEDULE_OPTIONS}
-        onDropdownVisibleChange={(open) => {
-          if (!open) {
-            clearTipTimer();
-            setTipLabel(null);
-          }
-        }}
-        optionRender={(o) => {
-          const tip = (o as unknown as { tip?: string }).tip;
-          return (
-            <Tooltip title={tip} open={tipLabel === o.label} placement="right">
-              <span
-                style={{ display: "block" }}
-                onMouseEnter={() => {
-                  clearTipTimer();
-                  tipTimer.current = window.setTimeout(() => setTipLabel(String(o.label)), 400);
-                }}
-                onMouseLeave={() => {
-                  clearTipTimer();
-                  setTipLabel(null);
-                }}
-              >
-                {o.label}
-              </span>
-            </Tooltip>
-          );
-        }}
         onChange={(v) => onChange(v === "全天" ? "" : v)}
         popupMatchSelectWidth={false}
         className={`wm-pool-row__schedule-select${value === "全天" ? "" : " is-active"}`}
