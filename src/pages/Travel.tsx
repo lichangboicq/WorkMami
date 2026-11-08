@@ -23,17 +23,10 @@ import type { TravelOverview, TravelStatus, TravelLocation, TravelRecord } from 
 
 const { Text, Title } = Typography;
 
-function formatCountdown(arriveAt: number, serverNow: number): string {
-  // 用本地时间近似（serverNow 仅用于校准偏移）
+function remainMinutes(arriveAt: number, serverNow: number): number {
   const offsetSec = Math.floor(Date.now() / 1000) - serverNow;
   const remainSec = arriveAt - (Math.floor(Date.now() / 1000) - offsetSec);
-  if (remainSec <= 0) return "已到站";
-  const h = Math.floor(remainSec / 3600);
-  const m = Math.floor((remainSec % 3600) / 60);
-  const s = remainSec % 60;
-  if (h > 0) return `${h}时${m}分${s}秒`;
-  if (m > 0) return `${m}分${s}秒`;
-  return `${s}秒`;
+  return Math.max(0, Math.round(remainSec / 60));
 }
 
 // 卡片右上角状态标签：idle 且服务端判定今日次数用完时，如实显示「明天再来」，而非「待出行」。
@@ -48,19 +41,6 @@ function statusTag(state: string, dailyLimitReached = false) {
     default:
       return <Tag>待出行</Tag>;
   }
-}
-
-// unix 秒 -> 本地“月-日 时:分”绝对时刻，让用户知道具体几点出发/到站。
-function fmtClock(unixSec: number): string {
-  if (!unixSec) return "—";
-  const d = new Date(unixSec * 1000);
-  return d.toLocaleString("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 }
 
 // unix 秒 -> 本地"HH:mm"时刻（日期已在左栏单列一行，这里只展示时分）。
@@ -283,13 +263,10 @@ export default function Travel() {
                         {st.locationName || "旅行中"}
                       </Title>
                       <Text type="secondary" style={{ display: "block" }}>
-                        出发时刻：{fmtClock(st.departAt)}
+                        出发：{fmtTime(st.departAt)}
                       </Text>
                       <Text type="secondary" style={{ display: "block" }}>
-                        预计到达：{fmtClock(st.arriveAt)}
-                      </Text>
-                      <Text strong style={{ display: "block", marginTop: 4 }}>
-                        还有 {formatCountdown(st.arriveAt, st.serverNow)} 到站
+                        到达：{fmtTime(st.arriveAt)}（还有{remainMinutes(st.arriveAt, st.serverNow)}分钟）
                       </Text>
                     </>
                   )}
@@ -299,13 +276,8 @@ export default function Travel() {
                         {st.locationName || "已到达"}
                       </Title>
                       <Text type="secondary" style={{ display: "block", marginBottom: 4 }}>
-                        到站时刻：{fmtClock(st.arriveAt)}
+                        到达：{fmtTime(st.arriveAt)}
                       </Text>
-                      {settings.travel.autoEnabled && (
-                        <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
-                          托管将在下次巡检（≤ 10 分钟）自动领取，也可点下方按钮立即领取。
-                        </Text>
-                      )}
                       <Button
                         type="primary"
                         icon={<GiftOutlined />}
