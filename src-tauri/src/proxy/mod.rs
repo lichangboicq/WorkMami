@@ -216,9 +216,10 @@ async fn list_models(State(state): State<Arc<AppState>>) -> Json<Value> {
     // 同步策略（已拍板）：只暴露模型池，不把真实模型列表原样返回给客户端。
     let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
     let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
-    // 池条目 supportsImages 按成员真实能力动态计算（models_cache 快照）
+    // 池条目 supportsImages / credits 按成员真实能力与动态组合倍率计算（models_cache 快照）
     let cache_snapshot: Vec<Value> = state.models_cache.lock().unwrap().clone();
-    let pool_models = pools::pool_entries(&ps, &url, &ps.api_key, &cache_snapshot);
+    let account_count = state.accounts.all().len();
+    let pool_models = pools::pool_entries(&ps, &url, &ps.api_key, &cache_snapshot, account_count, &[]);
     if !pool_models.is_empty() {
         return Json(json!({"object": "list", "data": pool_models}));
     }

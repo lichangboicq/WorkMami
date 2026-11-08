@@ -531,8 +531,9 @@ pub fn pool_context_window(cache: &[Value], pool: &ModelPool) -> Option<u64> {
 }
 
 /// 单个池的 models.json / /v1/models 虚拟条目。
-/// 字段严格按白名单：id/name/credits/url/apiKey/maxInputTokens/maxOutputTokens/
+/// 字段严格按白名单：id/name/credits/url/apiKey/maxInputTokens/
 /// supportsToolCall/supportsImages/supportsReasoning/managedBy，无 description 等赌注字段。
+/// maxOutputTokens 不写：WorkBuddy 留空时跟随上游默认值，避免硬编码与真实成员能力脱节。
 /// 思考档位策略：池条目不声明推理能力（supportsReasoning:false 且无 reasoning 块），
 /// WorkBuddy 据此不渲染用户级「思考强度」下拉——思考档位只能由 WorkMami 池设置控制，
 /// 出站时由 apply_pool_reasoning 按池档位 + 真实模型原生规范注入。
@@ -555,16 +556,78 @@ pub fn pool_supports_images(cache: &[Value], pool: &ModelPool) -> bool {
     })
 }
 
-pub fn pool_whitelist_entry(pool: &ModelPool, url: &str, api_key: &str, supports_images: bool, max_input_tokens: u64) -> Value {
+/// 单账号单次请求对某模型触发 429 的概率基线（与前端 ModelPoolBoard 的 P_SIGMA 保持一致）。
+const P_SIGMA: f64 = 0.25;
+
+/// 解析模型 credits 字符串为数值倍率（"x0.69 credits" / "x0.00"），语义对齐前端 parseCredits。
+fn parse_model_credits(info: &Value) -> Option<f64> {
+    let s = info.get("credits")?.as_str()?.to_ascii_lowercase();
+    let pos = s.find('x')?;
+    let num: String = s[pos + 1..]
+        .chars()
+        .take_while(|c| c.is_ascii_digit() || *c == '.')
+        .collect();
+    if num.is_empty() || num == "." {
+        return None;
+    }
+    num.parse::<f64>().ok()
+}
+
+/// 降级链选中概率（与前端 selectionProbs 一致）：
+/// 位置 i 的模型仅当前面 i 个模型在 K 个账号上全部 429 时才会被用到；
+/// 最后一个模型兜底 q^(N-1)，全链概率和为 1。
+fn selection_probs(n: usize, account_count: usize) -> Vec<f64> {
+    if n == 0 {
+        return Vec::new();
+    }
+    let q = P_SIGMA.powf(account_count.max(1) as f64);
+    let mut out = vec![0.0; n];
+    for (i, p) in out.iter_mut().enumerate().take(n - 1) {
+        *p = q.powi(i as i32) * (1.0 - q);
+    }
+    out[n - 1] = q.powi(n as i32 - 1);
+    out
+}
+
+/// 池条目 credits（动态组合倍率，与界面价格标签同源同公式）：
+/// 成员倍率解析自 models 缓存，credits 缺失的成员跳过（概率在剩余成员上归一），
+/// 组合值 = Σ 选中概率 × 成员倍率。所有成员倍率均不可知（缓存未加载的瞬时态）时
+/// 返回 None，由调用方决定继承旧值或兜底——避免把「x0.00 免费」写进客户端持久展示。
+pub fn pool_composite_rate(cache: &[Value], pool: &ModelPool, account_count: usize) -> Option<f64> {
+    let by_id: HashMap<&str, &Value> = cache
+        .iter()
+        .filter_map(|m| m.get("id").and_then(|v| v.as_str()).map(|s| (s, m)))
+        .collect();
+    let rates: Vec<f64> = pool
+        .models
+        .iter()
+        .map(|m| m.id.trim())
+        .filter(|s| !s.is_empty())
+        .filter_map(|id| by_id.get(id).and_then(|info| parse_model_credits(info)))
+        .collect();
+    if rates.is_empty() {
+        return None;
+    }
+    let probs = selection_probs(rates.len(), account_count);
+    Some(rates.iter().zip(probs).map(|(r, p)| r * p).sum())
+}
+
+pub fn pool_whitelist_entry(
+    pool: &ModelPool,
+    url: &str,
+    api_key: &str,
+    supports_images: bool,
+    max_input_tokens: u64,
+    credits: f64,
+) -> Value {
     let name = if pool.name.trim().is_empty() { pool.id.clone() } else { pool.name.clone() };
     json!({
         "id": pool.id,
         "name": name,
-        "credits": format!("x{:.2}", pool.rate),
+        "credits": format!("x{:.2}", credits),
         "url": url,
         "apiKey": api_key,
         "maxInputTokens": max_input_tokens,
-        "maxOutputTokens": 8192,
         "supportsToolCall": true,
         "supportsImages": supports_images,
         "supportsReasoning": false,
@@ -573,16 +636,35 @@ pub fn pool_whitelist_entry(pool: &ModelPool, url: &str, api_key: &str, supports
 }
 
 /// 全部池的白名单虚拟条目（跳过 id 为空的非法池）。
-/// cache 为 models_cache 快照，用于动态计算 supportsImages 与上下文窗口（取交集上边界）。
+/// cache 为 models_cache 快照，用于动态计算 supportsImages、上下文窗口（取交集上边界）
+/// 与 credits（动态组合倍率，account_count 为账号总数，决定降级链概率 q(K)）。
+/// previous 为磁盘上同标记的旧托管条目：启动初期同步常跑在模型拉取之前（cache 为空），
+/// 此时动态字段继承旧条目上一次的计算结果，而非落瞬时兜底值，保证 JSON 不随重启回退；
+/// previous 也没有（首次同步）才落到最后兜底（131072 / pool.rate / false）。
 /// 调用方已有快照可直接传入。
-pub fn pool_entries(ps: &ProxySettings, url: &str, api_key: &str, cache: &[Value]) -> Vec<Value> {
+pub fn pool_entries(ps: &ProxySettings, url: &str, api_key: &str, cache: &[Value], account_count: usize, previous: &[Value]) -> Vec<Value> {
+    let prev_by_id: HashMap<&str, &Value> = previous
+        .iter()
+        .filter_map(|e| e.get("id").and_then(|v| v.as_str()).map(|s| (s, e)))
+        .collect();
     ps.pools
         .iter()
         .filter(|p| !p.id.trim().is_empty())
         .map(|p| {
-            let supports_images = pool_supports_images(cache, p);
-            let max_input_tokens = pool_context_window(cache, p).unwrap_or(131072);
-            pool_whitelist_entry(p, url, api_key, supports_images, max_input_tokens)
+            let prev = prev_by_id.get(p.id.as_str()).copied();
+            let supports_images = if cache.is_empty() {
+                prev.and_then(|e| e.get("supportsImages")).and_then(|v| v.as_bool())
+                    .unwrap_or_else(|| pool_supports_images(cache, p))
+            } else {
+                pool_supports_images(cache, p)
+            };
+            let max_input_tokens = pool_context_window(cache, p)
+                .or_else(|| prev.and_then(|e| e.get("maxInputTokens")).and_then(|v| v.as_u64()))
+                .unwrap_or(131072);
+            let credits = pool_composite_rate(cache, p, account_count)
+                .or_else(|| prev.and_then(parse_model_credits))
+                .unwrap_or(p.rate);
+            pool_whitelist_entry(p, url, api_key, supports_images, max_input_tokens, credits)
         })
         .collect()
 }
@@ -867,7 +949,7 @@ mod tests {
     #[test]
     fn pool_entry_has_exactly_whitelist_fields() {
         let ps = settings_with_pools(vec![sample_pool()]);
-        let entries = pool_entries(&ps, "http://127.0.0.1:8765/v1/chat/completions", "sk-test", &[]);
+        let entries = pool_entries(&ps, "http://127.0.0.1:8765/v1/chat/completions", "sk-test", &[], 3, &[]);
         assert_eq!(entries.len(), 1);
         let e = &entries[0];
         let mut keys: Vec<&str> = e.as_object().unwrap().keys().map(|s| s.as_str()).collect();
@@ -875,12 +957,13 @@ mod tests {
         assert_eq!(
             keys,
             vec![
-                "apiKey", "credits", "id", "managedBy", "maxInputTokens", "maxOutputTokens",
+                "apiKey", "credits", "id", "managedBy", "maxInputTokens",
                 "name", "supportsImages", "supportsReasoning", "supportsToolCall", "url"
             ]
         );
         assert_eq!(e["id"], "wm-pool-test");
         assert_eq!(e["name"], "测试池");
+        // cache 与 previous 均为空（首次同步）→ 组合倍率不可知，落 pool.rate 兜底
         assert_eq!(e["credits"], "x0.05");
         assert_eq!(e["managedBy"], "WorkMami");
         // 思考档位只能由 WorkMami 控制：池条目不声明推理能力，
@@ -888,17 +971,55 @@ mod tests {
         assert_eq!(e["supportsReasoning"], false);
         assert!(e.get("reasoning").is_none());
         assert!(e.get("description").is_none());
+        // maxOutputTokens 不再写入：留空跟随上游默认值
+        assert!(e.get("maxOutputTokens").is_none());
+    }
+
+    #[test]
+    fn pool_entries_inherit_dynamic_fields_from_previous_when_cache_empty() {
+        // 重启后启动同步跑在模型拉取之前（cache 空）：动态字段继承旧托管条目，不回退兜底值
+        let ps = settings_with_pools(vec![sample_pool()]);
+        let prev = vec![json!({
+            "id": "wm-pool-test",
+            "credits": "x0.97",
+            "maxInputTokens": 1000000u64,
+            "supportsImages": true,
+            "managedBy": "WorkMami",
+        })];
+        let entries = pool_entries(&ps, "u", "k", &[], 3, &prev);
+        let e = &entries[0];
+        assert_eq!(e["credits"], "x0.97");
+        assert_eq!(e["maxInputTokens"], 1000000);
+        assert_eq!(e["supportsImages"], true);
     }
 
     #[test]
     fn pool_entry_credits_format() {
-        let mut pool = sample_pool();
-        pool.rate = 0.0;
-        let e = pool_whitelist_entry(&pool, "u", "k", false, 131072);
+        let pool = sample_pool();
+        let e = pool_whitelist_entry(&pool, "u", "k", false, 131072, 0.0);
         assert_eq!(e["credits"], "x0.00");
-        pool.rate = 0.85;
-        let e = pool_whitelist_entry(&pool, "u", "k", false, 131072);
+        let e = pool_whitelist_entry(&pool, "u", "k", false, 131072, 0.85);
         assert_eq!(e["credits"], "x0.85");
+    }
+
+    #[test]
+    fn pool_entry_credits_is_dynamic_composite() {
+        // 两成员 x1.00 / x2.00，K=1 → q=0.25，概率 [0.75, 0.25] → 组合 1.25（与前端公式一致）
+        let pool = sample_pool();
+        let cache = vec![
+            json!({"id": "hy3", "credits": "x1.00 credits"}),
+            json!({"id": "glm-5.3", "credits": "x2.00"}),
+        ];
+        let rate = pool_composite_rate(&cache, &pool, 1).unwrap();
+        assert!((rate - 1.25).abs() < 1e-9);
+
+        // credits 缺失的成员跳过：只剩 glm-5.3 → 概率 1 → 组合 2.00
+        let cache2 = vec![json!({"id": "glm-5.3", "credits": "x2.00"})];
+        let rate2 = pool_composite_rate(&cache2, &pool, 1).unwrap();
+        assert!((rate2 - 2.0).abs() < 1e-9);
+
+        // 全部成员倍率不可知 → None（由调用方继承旧值或兜底）
+        assert_eq!(pool_composite_rate(&[], &pool, 1), None);
     }
 
     // ---------- 成员级启用时段（三选一预设 + 旧版窗口兼容） ----------
@@ -1055,9 +1176,9 @@ mod tests {
     fn pool_entry_images_reflect_cache() {
         let pool = sample_pool();
         let cache = vec![json!({"id": "glm-5.3", "supportsImages": true})];
-        let e = pool_whitelist_entry(&pool, "u", "k", pool_supports_images(&cache, &pool), 131072);
+        let e = pool_whitelist_entry(&pool, "u", "k", pool_supports_images(&cache, &pool), 131072, 0.0);
         assert_eq!(e["supportsImages"], true);
-        let e2 = pool_whitelist_entry(&pool, "u", "k", pool_supports_images(&[], &pool), 131072);
+        let e2 = pool_whitelist_entry(&pool, "u", "k", pool_supports_images(&[], &pool), 131072, 0.0);
         assert_eq!(e2["supportsImages"], false);
     }
 

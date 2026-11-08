@@ -50,7 +50,7 @@ pub trait IdeSyncTarget: Send + Sync {
     fn id(&self) -> &'static str;
     fn label(&self) -> &'static str;
     fn detect(&self) -> Option<PathBuf>;
-    fn sync(&self, settings: &ProxySettings, models: &[Value]) -> R<usize>;
+    fn sync(&self, settings: &ProxySettings, models: &[Value], account_count: usize) -> R<usize>;
     /// 磁盘上是否已存在与当前代理配置一致的托管条目（状态查询用，不写盘）
     fn is_synced(&self, _settings: &ProxySettings) -> bool { false }
     fn manual_guide(&self) -> Option<ManualGuideJson> { None }
@@ -64,6 +64,8 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
     let targets = all_targets();
     let models = state.models_cache.lock().unwrap().clone();
     let proxy_settings = state.settings.read().unwrap().clone().proxy;
+    // 账号总数决定池条目 credits 的降级链概率 q(K)，与界面 accountCount 同口径（含未启用）
+    let account_count = state.accounts.all().len();
 
     // 同步策略（已拍板）：导出内容只有模型池条目，不依赖 models_cache，
     // 因此 models_cache 为空时也照常执行（真实模型不再导出给客户端）。
@@ -79,7 +81,7 @@ pub fn sync_all(state: &Arc<AppState>) -> Vec<SyncResult> {
                 error: None,
             };
         }
-        match t.sync(&proxy_settings, &models) {
+        match t.sync(&proxy_settings, &models, account_count) {
             Ok(n) => SyncResult {
                 id: t.id().into(),
                 label: t.label().into(),

@@ -26,15 +26,10 @@ impl IdeSyncTarget for WorkBuddyTarget {
         }
     }
 
-    fn sync(&self, ps: &ProxySettings, _models: &[Value]) -> R<usize> {
+    fn sync(&self, ps: &ProxySettings, _models: &[Value], account_count: usize) -> R<usize> {
         tracing::info!("WorkBuddy sync: detected={}", self.detect().is_some());
         let display_host = if ps.host == "0.0.0.0" { "127.0.0.1" } else { ps.host.as_str() };
         let url = format!("http://{display_host}:{}/v1/chat/completions", ps.port);
-
-        // 同步策略（已拍板）：只把模型池虚拟条目导入 WorkBuddy，
-        // 真实模型不再原样写入 models.json，客户端只见池名、不见真实模型名。
-        // _models 为 models_cache 快照，用于动态计算池条目 supportsImages。
-        let ours: Vec<Value> = crate::proxy::pools::pool_entries(ps, &url, &ps.api_key, _models);
 
         let path = crate::platform::workbuddy_paths().home.join("models.json");
         let existing: Vec<Value> = std::fs::read(&path)
@@ -51,6 +46,20 @@ impl IdeSyncTarget for WorkBuddyTarget {
             .cloned()
             .collect();
         let removed = existing.len() - kept.len();
+        // 旧托管条目作为动态字段的继承来源：启动同步早于模型拉取（cache 空）时，
+        // credits/maxInputTokens/supportsImages 沿用上一次写盘的计算值，不随重启回退
+        let previous: Vec<Value> = existing
+            .iter()
+            .filter(|e| e.get("managedBy").and_then(|v| v.as_str()) == Some("WorkMami"))
+            .cloned()
+            .collect();
+
+        // 同步策略（已拍板）：只把模型池虚拟条目导入 WorkBuddy，
+        // 真实模型不再原样写入 models.json，客户端只见池名、不见真实模型名。
+        // _models 为 models_cache 快照，用于动态计算池条目 supportsImages 与 credits。
+        let ours: Vec<Value> = crate::proxy::pools::pool_entries(
+            ps, &url, &ps.api_key, _models, account_count, &previous,
+        );
 
         // 无池可写且无遗留可清理 → 无需写盘
         if ours.is_empty() && removed == 0 {
