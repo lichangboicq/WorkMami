@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ConfigProvider, Layout, Menu, Segmented, Switch, message, theme as antdTheme } from "antd";
+import { App as AntdApp, ConfigProvider, Layout, Menu, Segmented, Switch, theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@ant-design/icons";
 import { useStore } from "./store";
 import { api, errText } from "./api";
+import { bindAntdStatic, staticMessage } from "./antdStatic";
 import logo from "./assets/logo.png";
 import wechatQr from "./assets/wechat-qr.jpg";
 import Accounts from "./pages/Accounts";
@@ -95,7 +96,16 @@ function SiderFooter({ isDark }: { isDark: boolean }) {
   );
 }
 
-export default function App() {
+// 渲染在 AntdApp 内，把上下文感知实例桥接到静态持有者
+function StaticBridge() {
+  const { message, notification } = AntdApp.useApp();
+  useEffect(() => {
+    bindAntdStatic(message, notification);
+  }, [message, notification]);
+  return null;
+}
+
+function Shell() {
   const [active, setActive] = useState("accounts");
   const init = useStore((s) => s.init);
   const themePref = useStore((s) => s.settings.theme);
@@ -120,7 +130,7 @@ export default function App() {
       else await api.autostartDisable();
       setAutostart(v);
     } catch (e) {
-      message.error(errText(e) || "设置失败");
+      staticMessage.error(errText(e) || "设置失败");
     } finally {
       setAutostartLoading(false);
     }
@@ -176,7 +186,9 @@ export default function App() {
 
   return (
     <ConfigProvider locale={zhCN} theme={theme}>
-      <Layout style={{ height: "100vh" }}>
+      <AntdApp style={{ height: "100%" }}>
+        <StaticBridge />
+        <Layout style={{ height: "100vh" }}>
         <Sider width={240} theme={isDark ? "dark" : "light"} style={{ height: "100vh" }}>
           <div
             style={{
@@ -307,7 +319,12 @@ export default function App() {
             {active === "dashboard" && <Dashboard />}
           </Content>
         </Layout>
-      </Layout>
+        </Layout>
+      </AntdApp>
     </ConfigProvider>
   );
+}
+
+export default function App() {
+  return <Shell />;
 }

@@ -6,7 +6,6 @@ import {
   Card,
   Col,
   Empty,
-  message,
   Modal,
   Progress,
   Row,
@@ -22,6 +21,7 @@ import {
   UserAddOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { useStore } from "../store";
 import type { Account } from "../types";
 import { BillIcon } from "../components/WBIcon";

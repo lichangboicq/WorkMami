@@ -19,10 +19,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Button, Modal, Select, Tooltip, notification } from "antd";
+import { Button, Modal, Select, Tooltip } from "antd";
 import { DeleteOutlined, HolderOutlined, PlusOutlined } from "@ant-design/icons";
 import { WmInput } from "./WmInput";
 import type { ModelInfo, ModelPool, PoolMember } from "../types";
+import { staticNotification as notification } from "../antdStatic";
 
 // —— 思考档位（三选一，value 直接与后端默认池契约一致）——
 const THINKING_OPTIONS = [

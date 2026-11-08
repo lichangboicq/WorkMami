@@ -10,7 +10,6 @@ import {
   Switch,
   Tag,
   Typography,
-  message,
 } from "antd";
 import {
   CompassOutlined,
@@ -18,6 +17,7 @@ import {
   ReloadOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { useStore } from "../store";
 import type { TravelOverview, TravelStatus, TravelLocation, TravelRecord } from "../types";
 

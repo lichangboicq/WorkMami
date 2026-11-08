@@ -8,7 +8,6 @@ import {
   Space,
   Switch,
   Tooltip,
-  message,
 } from "antd";
 import {
   CopyOutlined,
@@ -18,6 +17,7 @@ import {
   RightOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { useStore } from "../store";
 import ModelPoolBoard from "../components/ModelPoolBoard";
 import TraeGuideModal from "../components/TraeGuideModal";

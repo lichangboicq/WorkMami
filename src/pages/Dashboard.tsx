@@ -13,12 +13,12 @@ import {
   Table,
   Tabs,
   Tag,
-  message,
 } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import ReactECharts from "echarts-for-react";
 import { ImportOutlined, ReloadOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { useStore } from "../store";
 import type {
   AccountBilling,

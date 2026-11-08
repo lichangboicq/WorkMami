@@ -1,10 +1,11 @@
 // 账号池入口：Proxy 标题行「账号池 N/M」按钮 + Popover 逐账号开关。
 // 开关复用 Account.enabled（在池 = 参与积分支出），成功后刷新 accounts 与 proxy 状态。
 import { useState } from "react";
-import { Popover, Switch, Tooltip, message } from "antd";
+import { Popover, Switch, Tooltip } from "antd";
 import { TeamOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
 import { useStore } from "../store";
+import { staticMessage as message } from "../antdStatic";
 
 export default function AccountPoolControl() {
   const accounts = useStore((s) => s.accounts);

@@ -9,10 +9,10 @@ import {
   Switch,
   Table,
   Tag,
-  message,
 } from "antd";
 import { GiftOutlined } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { useStore } from "../store";
 import type { CheckinResult } from "../types";
 

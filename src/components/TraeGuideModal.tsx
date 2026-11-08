@@ -4,7 +4,7 @@
 // 用户点击输入框即可复制，再去真实的 TRAE 里粘贴完成配置。
 // 注意：复刻面板固定使用 TRAE 的浅色视觉（对截图还原），不随应用主题切换。
 import { useState } from "react";
-import { Modal, Select, Tooltip, message } from "antd";
+import { Modal, Select, Tooltip } from "antd";
 import {
   AppstoreOutlined,
   ApiOutlined,
@@ -26,6 +26,7 @@ import {
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import type { ModelPool } from "../types";
+import { staticMessage as message } from "../antdStatic";
 
 interface TraeGuideModalProps {
   open: boolean;
@@ -198,7 +199,7 @@ export default function TraeGuideModal({
                       copyText(String(v), `已复制模型 ID「${v}」，去 TRAE 粘贴`);
                     }}
                     popupMatchSelectWidth={false}
-                    popupClassName="wm-trae-guide__pool-dropdown"
+                    classNames={{ popup: { root: "wm-trae-guide__pool-dropdown" } }}
                   />
                 </div>
               </Tooltip>

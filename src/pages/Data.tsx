@@ -6,7 +6,6 @@ import {
   Col,
   Empty,
   List,
-  message,
   Modal,
   Popconfirm,
   Row,
@@ -29,6 +28,7 @@ import {
   FolderOutlined,
 } from "@ant-design/icons";
 import { api, errText } from "../api";
+import { staticMessage as message } from "../antdStatic";
 import { validateMigrate } from "../lib/migrateValidate";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useStore } from "../store";
