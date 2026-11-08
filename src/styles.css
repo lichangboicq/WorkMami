@@ -473,13 +473,6 @@ body {
 .wm-ide-chip.is-error   .wm-ide-chip__dot { background: #ff4d4f; box-shadow: 0 0 0 2px rgba(255,77,79,0.2); }
 .wm-ide-chip.is-error                      { color: #ff4d4f; opacity: 1; }
 
-/* IDE GIF tooltip */
-.wm-ide-gif-tooltip { max-width: none; padding: 4px; }
-.wm-ide-demo-gif {
-  display: block;
-  max-width: min(480px, 60vw);
-  max-height: 320px;
-}
 
 /* TRAE 手动配置入口：可点击标签 */
 .wm-ide-chip.is-manual {
@@ -860,32 +853,17 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 4px; /* 行距 6px（折行时两行控件 32px 需呼吸）、列距 4px */
+  gap: 4px;
   min-width: 0;
 }
-/* 池名编辑框：壳 flex:1 吃满同行余量；min-width: max-content 让地板为完整文本宽度不截断，
-   内部 borderless input 同样 flex:1 填满壳 */
-.wm-pool-name-input {
-  flex: 1;
-  min-width: max-content;
-}
-.wm-pool-name-input .ant-input {
-  flex: 1 1 auto;
-}
-
-/* 头部尾组：思考档位 | 忙闲评分；作为整体参与 head 折行（一行放不下则整组换行，保持相邻） */
-.wm-pool-card__meta-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-.wm-pool-card__meta-group .wm-thinking-select { height: var(--wm-control-h); } /* 与忙闲评分外框等高，保证 Y 对齐 */
+/* 池名框是唯一允许收缩的子项：先让它缩、再折行 */
+.wm-pool-name-input { flex: 1 1 48px; min-width: 0; }
+.wm-pool-name-input .ant-input { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wm-pool-card__head > *:not(.wm-pool-name-input) { flex: 0 0 auto; }
 
 /* 标题栏内的价格/上下文 chip：与 API Key 输入壳等高（32px） */
 .wm-pool-card__head .wm-pool-rate,
 .wm-pool-card__head .wm-pool-ctx {
-  margin-left: 2px;
   height: var(--wm-control-h);
   box-sizing: border-box;
 }
@@ -915,8 +893,6 @@ body {
 .wm-pool-rate:hover,
 .wm-pool-ctx:hover { border-color: var(--wm-ctl-hover-border); }
 
-/* 动态组合倍率 Tooltip 辅助样式（已内联，以下留作占位以便后续扩展） */
-
 /* 悬停显现的操作图标（铅笔/垃圾桶） */
 .wm-pool-icon-btn {
   display: inline-flex;
@@ -938,8 +914,8 @@ body {
 .wm-pool-row:hover .wm-pool-icon-btn { opacity: 1; }
 .wm-pool-icon-btn:hover { color: #ff4d4f; }
 
-/* 思考档位 chip 式下拉：只显示当前词 + ▾，无文字标签 */
-.wm-thinking-select { min-width: 64px; flex-shrink: 0; }
+/* 思考档位 chip 式下拉：只显示当前词 + ▾，无文字标签；与忙闲评分外框等高 */
+.wm-thinking-select { min-width: 64px; flex-shrink: 0; height: var(--wm-control-h); }
 .wm-thinking-select .ant-select-selector {
   background: var(--wm-chip-bg) !important;
   border: 1px solid transparent !important;
@@ -963,9 +939,23 @@ body {
 }
 .wm-thinking-select .ant-select-arrow { color: var(--pool-text-secondary); }
 
-/* 思考档位 tooltip（深色浮层内容） */
-.wm-thinking-tip { font-size: var(--wm-text-num-size); line-height: 1.7; letter-spacing: 0.2px; }
-.wm-thinking-tip__title { font-weight: 600; margin-bottom: 2px; }
+/* Tooltip 外壳解除 antd 默认 250px 宽度限制（用于内嵌 table 的 tooltip） */
+.wm-tip-unconstrained.ant-tooltip { max-width: none; }
+
+/* Tooltip 内嵌 table：清浏览器默认 border，按列类型自动对齐，整行不换行 */
+.wm-tip-table {
+  border-collapse: separate;
+  border-spacing: 4px 0;              /* 列间距 4px，行间距维持默认 */
+  white-space: nowrap;
+}
+.wm-tip-table th:first-child,
+.wm-tip-table td:first-child { text-align: left; }
+.wm-tip-table th:not(:first-child),
+.wm-tip-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 
 /* 池级忙闲筛选：五星评分式交互（点第 N 档左侧全亮，灭档 = 超出容忍） */
 .wm-busy-rating {

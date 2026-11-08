@@ -238,6 +238,7 @@ export default function DataPage() {
       {
         title: "名称",
         dataIndex: "name",
+        width: "100%",
         render: (t: string, r: DataItem) => {
           const hasModel = r.meta && "model" in (r.meta as object);
           return (
@@ -256,6 +257,7 @@ export default function DataPage() {
               {hasModel && (
                 <Tag
                   style={{
+                    flexShrink: 0,
                     minWidth: 0,
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -287,7 +289,6 @@ export default function DataPage() {
       },
       {
         title: "操作",
-        width: 96,
         onCell: () => ({ style: { whiteSpace: "nowrap" } }),
         onHeaderCell: () => ({ style: { whiteSpace: "nowrap" } }),
         render: (_: unknown, r: DataItem) => (

@@ -450,18 +450,7 @@ export default function Proxy() {
               return (
                 <Tooltip
                   key={ide.id}
-                  title={
-                    demoGif ? (
-                      <img
-                        className="wm-ide-demo-gif"
-                        src={demoGif}
-                        alt={`${ide.label} 自动配置演示`}
-                      />
-                    ) : (
-                      statusText
-                    )
-                  }
-                  classNames={demoGif ? { root: "wm-ide-gif-tooltip" } : undefined}
+                  title={demoGif ? <img src={demoGif} alt={`${ide.label} 自动配置演示`} /> : statusText}
                 >
                   <span className={`wm-ide-chip ${cls}`}>
                     <span className="wm-ide-chip__dot" />

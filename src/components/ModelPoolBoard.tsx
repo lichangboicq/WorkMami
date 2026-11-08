@@ -93,11 +93,11 @@ function fmtCtxK(tokens: number): string {
 
 // 计划 §6.1 固定 tooltip 文案（深色浮层）
 const THINKING_TIP = (
-  <div className="wm-thinking-tip">
+  <>
     <div>快闪：少想，快点干</div>
     <div>斟酌：要想，但别浪费积分</div>
     <div>精算：多想，慢工出细活</div>
-  </div>
+  </>
 );
 
 // 同一真实模型可进多个池，行 id 需带池前缀保证全局唯一
@@ -495,65 +495,67 @@ function PoolCard({
   const ctx = useMemo(() => poolContextTokens(pool, models), [pool, models]);
   const ctxTip = useMemo(() => {
     const winById = new Map(models.map((m) => [m.id, m.contextWindow]));
+    const outById = new Map(models.map((m) => [m.id, m.maxOutputTokens]));
     const members = pool.models
       .filter((m) => m.id.trim())
       .map((m) => {
         const w = winById.get(m.id);
-        return [memberName(m), w && w > 0 ? fmtCtxK(w) : "未知"] as const;
+        const o = outById.get(m.id);
+        return [
+          memberName(m),
+          o && o > 0 ? fmtCtxK(o) : "—",
+          w && w > 0 ? fmtCtxK(w) : "未知",
+        ] as const;
       });
     return (
-      <div className="wm-thinking-tip">
-        <div>上下文窗口（孰低原则）</div>
+      <>
         {members.length > 0 ? (
-          members.map(([name, w]) => (
-            <div key={name} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
-              <span>· {name}</span>
-              <span style={{ fontVariantNumeric: "tabular-nums", opacity: 0.75 }}>{w}</span>
-            </div>
-          ))
+          <table className="wm-tip-table">
+            <thead>
+              <tr>
+                <th>模型</th>
+                <th>输出</th>
+                <th>输入</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map(([name, out, inp]) => (
+                <tr key={name}>
+                  <td>{name}</td>
+                  <td>{out}</td>
+                  <td>{inp}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           <div>· 池内暂无成员</div>
         )}
         {ctx.fallback && <div>有成员窗口未知 → 回落 {fmtCtxK(CTX_FALLBACK_TOKENS)}</div>}
-      </div>
+      </>
     );
   }, [pool, models, ctx, memberName]);
 
-  // 动态组合倍率 Tooltip：模型名（左） · 倍率（紧跟模型名后） — 概率（右）
+  // 动态组合倍率 Tooltip
   const rateTip = (
-    <>
-      <div style={{ fontWeight: 600, marginBottom: 2 }}>
-        首选模型若被限流，启用备选的概率
-      </div>
-      <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 1 }}>
-        {composite.details.map((d, i) => (
-          <div
-            key={d.id}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "baseline",
-              fontSize: "var(--wm-text-ui-size)",
-            }}
-          >
-            <span style={{ whiteSpace: "nowrap" }}>
-              <b style={{ opacity: 0.7 }}>{i + 1}.</b> {d.name}{" "}
-              <span style={{ fontSize: "var(--wm-text-num-size)", opacity: 0.65 }}>· {formatRate(d.rate)}</span>
-            </span>
-            <span
-              style={{
-                fontVariantNumeric: "tabular-nums",
-                fontWeight: 600,
-                marginLeft: 16,
-                opacity: d.p < 0.01 ? 0.55 : 1,
-              }}
-            >
-              {fmtPct(d.p)}
-            </span>
-          </div>
+    <table className="wm-tip-table">
+      <thead>
+        <tr>
+          <th>模型</th>
+          <th>价格</th>
+          <th>启用概率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {composite.details.map((d) => (
+          <tr key={d.id}>
+            <td>{d.name}</td>
+            <td>{formatRate(d.rate)}</td>
+            <td>{fmtPct(d.p)}</td>
+          </tr>
         ))}
-      </div>
-    </>
+      </tbody>
+    </table>
   );
 
   return (
@@ -592,27 +594,24 @@ function PoolCard({
             if (e.key === "Escape") e.currentTarget.blur();
           }}
         />
-        <Tooltip title={rateTip} placement="top">
+        <Tooltip title={rateTip} placement="top" classNames={{ root: "wm-tip-unconstrained" }}>
           <span className="wm-pool-rate">{formatRate(composite.rate)}</span>
         </Tooltip>
-        <Tooltip title={ctxTip} placement="top">
+        <Tooltip title={ctxTip} placement="top" classNames={{ root: "wm-tip-unconstrained" }}>
           <span className="wm-pool-ctx">{fmtCtxK(ctx.tokens)}</span>
         </Tooltip>
-        {/* 思考档位 + 忙闲评分成组参与折行：宽则同处一行，窄则整组换行保持相邻 */}
-        <span className="wm-pool-card__meta-group">
-          <Tooltip title={THINKING_TIP} placement="top">
-            <Select
-              className="wm-thinking-select"
-              variant="borderless"
-              size="small"
-              value={pool.thinking}
-              options={THINKING_OPTIONS}
-              onChange={(v) => onThinking(pool.id, v)}
-              popupMatchSelectWidth={false}
-            />
-          </Tooltip>
-          <BusyRating value={pool.busyFilter ?? []} onChange={(v) => onBusy(pool.id, v)} />
-        </span>
+        <Tooltip title={THINKING_TIP} placement="top">
+          <Select
+            className="wm-thinking-select"
+            variant="borderless"
+            size="small"
+            value={pool.thinking}
+            options={THINKING_OPTIONS}
+            onChange={(v) => onThinking(pool.id, v)}
+            popupMatchSelectWidth={false}
+          />
+        </Tooltip>
+        <BusyRating value={pool.busyFilter ?? []} onChange={(v) => onBusy(pool.id, v)} />
       </div>
 
       {/* 主体：模型纵向全宽行，自上而下 = 调度优先级（ModelRow 各自 sortable） */}
