@@ -171,6 +171,9 @@ function Shell() {
               colorTextDisabled: "rgba(22,16,28,0.42)",
             }),
       },
+      components: {
+        Table: { cellPaddingBlockSM: 6 },
+      },
       algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     }),
     [isDark],

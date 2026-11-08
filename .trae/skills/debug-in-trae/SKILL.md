@@ -19,7 +19,7 @@ Stop-Process -Name workmami -Force -ErrorAction SilentlyContinue; & "C:\Program 
 - timeout: `600000`
 - **拿到 command_id，立刻进 Step 2，不等任何输出**
 
-## Step 2 — 立刻开 SOLO 预览面板
+## Step 2 — 立刻打开预览面板（内置浏览器）
 
 ```
 OpenPreview(preview_url="http://localhost:1420/", command_id=<Step1拿到的command_id>)
