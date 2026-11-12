@@ -34,6 +34,9 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
+      # skip=1 表示当天 main 分支自上次发布以来没有新的代码提交，
+      # nightly build 直接跳过，避免虚增版本号但产物与上次完全一致
+      skip: ${{ steps.guard.outputs.skip }}
       version: ${{ steps.ver.outputs.version }}
       tag_name: ${{ steps.ver.outputs.tag_name }}
       channel: ${{ steps.ver.outputs.channel }}
@@ -53,7 +56,35 @@ jobs:
         with:
           node-version: lts/*
 
+      # 跳过守卫：仅定时 nightly 需要比对；手动 beta/stable 一律放行
+      - name: Skip nightly if no new commit since last release tag
+        id: guard
+        run: |
+          INPUT="${{ github.event.inputs.channel || '' }}"
+          if [[ -n "$INPUT" ]]; then
+            # 手动触发 beta / stable：从不跳过
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # 定时 nightly：取 main 分支上最近的 v* tag，比对其 commit 与当前 HEAD
+          LAST_TAG=$(git describe --tags --abbrev=0 --match "v*" main 2>/dev/null || true)
+          if [[ -z "$LAST_TAG" ]]; then
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+            echo "no previous release tag found, continue"
+            exit 0
+          fi
+          HEAD_SHA=$(git rev-parse HEAD)
+          TAG_SHA=$(git rev-list -n 1 "$LAST_TAG")
+          echo "HEAD=$HEAD_SHA  last release($LAST_TAG)=$TAG_SHA"
+          if [[ "$HEAD_SHA" == "$TAG_SHA" ]]; then
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+            echo "::notice::main 分支自上次发布 $LAST_TAG 以来无新提交，跳过本次 nightly build"
+          else
+            echo "skip=0" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine next version (auto nightly / manual beta+stable)
+        if: steps.guard.outputs.skip != '1'
         id: ver
         run: |
           INPUT="${{ github.event.inputs.channel || '' }}"
@@ -84,6 +115,7 @@ jobs:
           echo "Channel: ${CHANNEL}, Next version: ${VERSION}, Prerelease: ${PRERELEASE}"
 
       - name: Bump version in package.json / tauri.conf.json / Cargo.toml
+        if: steps.guard.outputs.skip != '1'
         run: |
           npm version "$VERSION" --no-git-tag-version
           node scripts/sync-version.mjs
@@ -91,6 +123,7 @@ jobs:
           VERSION: ${{ steps.ver.outputs.version }}
 
       - name: Commit & push version bump to main
+        if: steps.guard.outputs.skip != '1'
         id: commit
         run: |
           git config user.name "github-actions[bot]"
@@ -115,6 +148,7 @@ jobs:
   # 多平台打包，依赖 prepare 算出的版本号
   build:
     needs: prepare
+    if: needs.prepare.outputs.skip != '1'
     strategy:
       fail-fast: false
       matrix:
@@ -169,6 +203,7 @@ jobs:
   #   GITEE_TOKEN     -> Gitee 私人令牌（需 projects 权限）
   mirror:
     needs: [prepare, build]
+    if: needs.prepare.outputs.skip != '1'
     runs-on: ubuntu-latest
     steps:
       - name: Suppress git defaultBranch hint
