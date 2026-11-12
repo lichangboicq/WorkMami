@@ -497,7 +497,7 @@ function AccountCard({
                     {timeAgo(q.updated_at)}更新
                   </span>
                 )}
-                {q.expiring_soon && <Tag color="orange">有积分即将到期</Tag>}
+
               </span>
             </div>
             <Progress
