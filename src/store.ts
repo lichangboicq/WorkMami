@@ -50,24 +50,37 @@ export const useStore = create<Store>((set, get) => ({
 
   init: async () => {
     set({ loading: true });
-    try {
-      const [info, settings, accounts, proxy] = await Promise.all([
-        api.appInfo(),
-        api.getSettings(),
-        api.listAccounts(),
-        api.proxyStatus(),
-      ]);
-      set({ info, settings, accounts, proxy });
+    // 启动竞态兜底：dev 模式下 dev-bridge 可能比 Vite HMR 晚几百毫秒，
+    // 首次 Promise.all 失败（Failed to fetch）时最多重试 5 次、每次等 400ms，
+    // 保持 loading=true 直到真正拿到后端数据或最终放弃，避免用 defaultSettings 空数据直接上屏。
+    const MAX_RETRIES = 5;
+    const RETRY_MS = 400;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        set({ syncStatus: await api.ideSyncStatus() });
-      } catch {
-        /* IDE 自动配置状态拉取失败忽略 */
+        const [info, settings, accounts, proxy] = await Promise.all([
+          api.appInfo(),
+          api.getSettings(),
+          api.listAccounts(),
+          api.proxyStatus(),
+        ]);
+        set({ info, settings, accounts, proxy });
+        try {
+          set({ syncStatus: await api.ideSyncStatus() });
+        } catch {
+          /* IDE 自动配置状态拉取失败忽略 */
+        }
+        set({ loading: false });
+        return;
+      } catch (e) {
+        lastErr = e;
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, RETRY_MS));
+        }
       }
-    } catch (e) {
-      console.error("初始化失败:", errText(e));
-    } finally {
-      set({ loading: false });
     }
+    console.error("初始化失败（已重试" + MAX_RETRIES + "次）:", errText(lastErr));
+    set({ loading: false });
   },
 
   reloadAccounts: async () => {

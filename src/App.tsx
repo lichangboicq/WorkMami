@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, ConfigProvider, Layout, Menu, Segmented, Switch, theme as antdTheme } from "antd";
+import { App as AntdApp, ConfigProvider, Layout, Menu, Segmented, Spin, Switch, theme as antdTheme } from "antd";
 import type { ThemeConfig } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import {
@@ -108,6 +108,7 @@ function StaticBridge() {
 function Shell() {
   const [active, setActive] = useState("accounts");
   const init = useStore((s) => s.init);
+  const initLoading = useStore((s) => s.loading);
   const themePref = useStore((s) => s.settings.theme);
   const setThemePref = useStore((s) => s.setThemePref);
   const sysDark = useSystemDark();
@@ -191,6 +192,7 @@ function Shell() {
     <ConfigProvider locale={zhCN} theme={theme}>
       <AntdApp style={{ height: "100%" }}>
         <StaticBridge />
+        <Spin spinning={initLoading} tip="正在加载..." style={{ height: "100%" }}>
         <Layout style={{ height: "100vh" }}>
         <Sider width={240} theme={isDark ? "dark" : "light"} style={{ height: "100vh" }}>
           <div
@@ -323,6 +325,7 @@ function Shell() {
           </Content>
         </Layout>
         </Layout>
+        </Spin>
       </AntdApp>
     </ConfigProvider>
   );
